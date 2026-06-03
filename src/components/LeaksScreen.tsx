@@ -37,7 +37,7 @@ function ModeSection({
 }) {
   if (stats.total === 0) return null
   return (
-    <section className="rounded-2xl bg-slate-800/50 border border-slate-700/60 p-4">
+    <section className="panel p-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base font-semibold flex items-center gap-2">
           {icon}
@@ -85,7 +85,7 @@ export default function LeaksScreen({ version }: Props) {
     <div className="px-4 pb-28 pt-6 max-w-xl mx-auto flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-3xl font-bold text-amber-400">{Math.round(sum.accuracy * 100)}%</div>
+          <div className="text-4xl font-extrabold gold-text">{Math.round(sum.accuracy * 100)}%</div>
           <div className="text-slate-400 text-sm">
             {sum.total} hands · {sum.correct} correct
           </div>

@@ -10,11 +10,15 @@ body,
 
 body {
   margin: 0;
-  background: #0f172a;
-  color: #e2e8f0;
+  color: #e6eaf2;
+  background-color: #090d18;
+  background-image:
+    radial-gradient(120% 90% at 50% -10%, rgba(56, 70, 110, 0.45) 0%, rgba(9, 13, 24, 0) 55%),
+    radial-gradient(80% 60% at 50% 110%, rgba(180, 138, 60, 0.1) 0%, rgba(9, 13, 24, 0) 60%);
+  background-attachment: fixed;
   font-family: 'Inter Variable', system-ui, -apple-system, sans-serif;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'ss01';
-  letter-spacing: -0.01em;
+  letter-spacing: -0.011em;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -22,7 +26,14 @@ body {
   overscroll-behavior-y: none;
 }
 
-/* respect the iOS home-indicator / notch */
+/* hide scrollbars but keep scrolling */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -30,10 +41,78 @@ body {
   padding-top: env(safe-area-inset-top);
 }
 
+@layer components {
+  /* frosted glass surface */
+  .panel {
+    @apply rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md;
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.06) inset,
+      0 12px 30px -12px rgba(0, 0, 0, 0.6);
+  }
+
+  /* gold gradient text (wordmark, accents) */
+  .gold-text {
+    background: linear-gradient(180deg, #ffe7a3 0%, #f5c451 45%, #d99a2b 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* premium card face */
+  .card-face {
+    background: linear-gradient(155deg, #ffffff 0%, #f4f3ee 100%);
+    box-shadow:
+      0 1px 1px rgba(255, 255, 255, 0.9) inset,
+      0 0 0 1px rgba(15, 23, 42, 0.06) inset,
+      0 6px 14px -4px rgba(0, 0, 0, 0.55),
+      0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* ---- gradient buttons -------------------------------------------------- */
+.btn {
+  position: relative;
+  border-radius: 0.9rem;
+  font-weight: 700;
+  transition:
+    transform 0.08s ease,
+    filter 0.15s ease,
+    box-shadow 0.15s ease;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 10px 20px -10px rgba(0, 0, 0, 0.7);
+}
+.btn:active {
+  transform: scale(0.975);
+}
+.btn-gold {
+  background: linear-gradient(180deg, #ffd968 0%, #f1b431 55%, #dc9a1f 100%);
+  color: #2a1d05;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.45) inset,
+    0 8px 22px -8px rgba(224, 168, 58, 0.65);
+}
+.btn-gold:hover {
+  filter: brightness(1.05);
+}
+.btn-emerald {
+  background: linear-gradient(180deg, #34d399 0%, #10b981 55%, #059669 100%);
+  color: #042f1f;
+}
+.btn-sky {
+  background: linear-gradient(180deg, #56b8f5 0%, #2f93e0 55%, #1f74c4 100%);
+  color: #042036;
+}
+.btn-slate {
+  background: linear-gradient(180deg, #3a455c 0%, #2b3447 55%, #232b3b 100%);
+  color: #e6eaf2;
+}
+
+/* ---- animations -------------------------------------------------------- */
 @keyframes pop-in {
   0% {
     opacity: 0;
-    transform: translateY(6px) scale(0.98);
+    transform: translateY(8px) scale(0.985);
   }
   100% {
     opacity: 1;
@@ -41,5 +120,32 @@ body {
   }
 }
 .animate-pop {
-  animation: pop-in 0.18s ease-out;
+  animation: pop-in 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes deal-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) rotate(-4deg) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(0) scale(1);
+  }
+}
+.animate-deal {
+  animation: deal-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 196, 81, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(245, 196, 81, 0);
+  }
+}
+.animate-glow {
+  animation: glow-pulse 1.6s ease-out infinite;
 }

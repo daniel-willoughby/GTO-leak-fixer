@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import RangeGrid from './RangeGrid'
 import { isRfiHand, POSITION_LABEL, RFI_POSITIONS, RFI_RANGES, type RfiPosition } from '../data/ranges'
 
@@ -27,22 +28,27 @@ export default function LearnScreen() {
     <div className="px-4 pb-28 pt-6 max-w-xl mx-auto flex flex-col gap-6">
       <section className="flex flex-col gap-3">
         {LESSONS.map((l) => (
-          <details key={l.title} className="rounded-xl bg-slate-800 border border-slate-700 p-4">
-            <summary className="font-semibold cursor-pointer">{l.title}</summary>
+          <details key={l.title} className="panel p-4 group">
+            <summary className="font-semibold cursor-pointer list-none flex items-center justify-between">
+              {l.title}
+              <ChevronDown size={16} className="text-slate-400 transition group-open:rotate-180" />
+            </summary>
             <p className="text-sm text-slate-300 mt-2 leading-relaxed">{l.body}</p>
           </details>
         ))}
       </section>
 
-      <section>
-        <h2 className="text-lg font-bold mb-3">Explore opening ranges</h2>
+      <section className="panel p-4">
+        <h2 className="text-base font-semibold mb-3">Explore opening ranges</h2>
         <div className="flex flex-wrap gap-2 mb-3">
           {RFI_POSITIONS.map((p) => (
             <button
               key={p}
               onClick={() => setPos(p)}
               className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition ${
-                pos === p ? 'bg-emerald-600' : 'bg-slate-700 hover:bg-slate-600'
+                pos === p
+                  ? 'bg-gradient-to-b from-emerald-500 to-emerald-600 text-white shadow-[0_4px_12px_-3px_rgba(16,185,129,0.5)]'
+                  : 'bg-white/5 text-slate-300 hover:bg-white/10'
               }`}
             >
               {p}
@@ -50,7 +56,8 @@ export default function LearnScreen() {
           ))}
         </div>
         <p className="text-sm text-slate-400 mb-3 text-center">
-          {POSITION_LABEL[pos]} — opens ~{RFI_RANGES[pos].pct}% of hands
+          {POSITION_LABEL[pos]} — opens ~<span className="text-amber-300 font-semibold">{RFI_RANGES[pos].pct}%</span> of
+          hands
         </p>
         <RangeGrid cell={(label) => (isRfiHand(pos, label) ? 'raise' : 'fold')} />
       </section>

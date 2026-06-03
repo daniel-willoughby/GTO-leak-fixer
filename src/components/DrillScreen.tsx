@@ -22,12 +22,12 @@ interface Props {
 }
 
 const ACTION_STYLE: Record<Action, string> = {
-  fold: 'bg-slate-700 hover:bg-slate-600 active:bg-slate-600',
-  call: 'bg-sky-600 hover:bg-sky-500 active:bg-sky-700',
-  raise: 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700',
-  '3bet': 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700',
-  check: 'bg-slate-700 hover:bg-slate-600 active:bg-slate-600',
-  bet: 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700',
+  fold: 'btn btn-slate',
+  call: 'btn btn-sky',
+  raise: 'btn btn-emerald',
+  '3bet': 'btn btn-emerald',
+  check: 'btn btn-slate',
+  bet: 'btn btn-emerald',
 }
 
 const KEY_HINT: Record<Action, string> = { fold: 'F', call: 'C', raise: 'R', '3bet': 'T', check: 'K', bet: 'B' }
@@ -133,13 +133,15 @@ export default function DrillScreen({ onProgress }: Props) {
   return (
     <div className="flex flex-col items-center gap-4 px-4 pb-28 pt-4 max-w-xl mx-auto">
       {/* mode toggle */}
-      <div className="flex gap-1 p-1 rounded-xl bg-slate-800 text-sm w-full max-w-sm">
+      <div className="flex gap-1 p-1 rounded-2xl bg-slate-800/60 border border-white/10 backdrop-blur-sm text-sm w-full max-w-sm">
         {MODES.map((m) => (
           <button
             key={m.id}
             onClick={() => switchMode(m.id)}
-            className={`flex-1 px-2 py-2 rounded-lg font-semibold transition ${
-              mode === m.id ? 'bg-amber-500 text-slate-900' : 'text-slate-300 hover:text-white'
+            className={`flex-1 px-2 py-2 rounded-xl font-semibold transition ${
+              mode === m.id
+                ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-slate-900 shadow-[0_4px_14px_-3px_rgba(245,196,81,0.55)]'
+                : 'text-slate-300 hover:text-white'
             }`}
           >
             {m.label}
@@ -151,9 +153,15 @@ export default function DrillScreen({ onProgress }: Props) {
         <span className="text-slate-400">
           {spot.mode === 'postflop' ? 'BTN vs BB · single-raised pot' : '100bb · 6-max cash'}
         </span>
-        <span className="flex items-center gap-1.5 text-slate-400">
-          <Flame size={16} className={streak >= 3 ? 'text-amber-400' : 'text-slate-500'} />
-          <span className={`font-bold tabular-nums ${streak >= 3 ? 'text-amber-400' : 'text-slate-300'}`}>{streak}</span>
+        <span
+          className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 border transition ${
+            streak >= 3
+              ? 'border-amber-400/40 bg-amber-400/10 text-amber-300'
+              : 'border-white/10 bg-white/[0.03] text-slate-400'
+          }`}
+        >
+          <Flame size={15} className={streak >= 3 ? 'text-amber-400' : 'text-slate-500'} />
+          <span className="font-bold tabular-nums">{streak}</span>
         </span>
       </div>
 
@@ -165,16 +173,12 @@ export default function DrillScreen({ onProgress }: Props) {
         villain={spot.mode === 'postflop' ? { pos: 'BB', note: 'checks' } : undefined}
       />
 
-      <p className="text-slate-200 text-sm text-center font-medium">{prompt}</p>
+      <p className="text-slate-100 text-[15px] text-center font-medium">{prompt}</p>
 
       {!result ? (
         <div className={`grid gap-3 w-full max-w-sm ${spot.actions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
           {spot.actions.map((a) => (
-            <button
-              key={a}
-              onClick={() => answer(a)}
-              className={`py-4 rounded-xl font-bold text-lg transition active:scale-[0.97] ${ACTION_STYLE[a]}`}
-            >
+            <button key={a} onClick={() => answer(a)} className={`py-4 text-lg ${ACTION_STYLE[a]}`}>
               {ACTION_LABEL[a]} <span className="text-xs opacity-70">({KEY_HINT[a]})</span>
             </button>
           ))}
@@ -183,10 +187,10 @@ export default function DrillScreen({ onProgress }: Props) {
         /* Extra bottom padding so the range grid clears the sticky Next button */
         <div className="w-full flex flex-col items-center gap-4 animate-pop pb-24">
           <div
-            className={`w-full rounded-xl p-4 text-sm leading-relaxed flex gap-3 ${
+            className={`w-full rounded-2xl p-4 text-sm leading-relaxed flex gap-3 backdrop-blur-md border ${
               result.isCorrect
-                ? 'bg-emerald-900/40 border border-emerald-600/50'
-                : 'bg-red-900/40 border border-red-600/50'
+                ? 'bg-emerald-500/10 border-emerald-500/40 shadow-[0_0_30px_-12px_rgba(16,185,129,0.5)]'
+                : 'bg-red-500/10 border-red-500/40 shadow-[0_0_30px_-12px_rgba(239,68,68,0.5)]'
             }`}
           >
             {result.isCorrect ? (
@@ -214,10 +218,10 @@ export default function DrillScreen({ onProgress }: Props) {
 
       {/* Next hand — always visible, pinned above the nav bar */}
       {result && (
-        <div className="fixed bottom-0 inset-x-0 z-20 flex justify-center px-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
+        <div className="fixed bottom-0 inset-x-0 z-20 flex justify-center px-4 pb-[calc(4.25rem+env(safe-area-inset-bottom))] pt-10 bg-gradient-to-t from-[#090d18] via-[#090d18]/90 to-transparent pointer-events-none">
           <button
             onClick={() => next()}
-            className="w-full max-w-sm py-4 rounded-2xl bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-slate-900 font-bold text-lg shadow-lg transition flex items-center justify-center gap-2"
+            className="btn btn-gold pointer-events-auto w-full max-w-sm py-4 text-lg flex items-center justify-center gap-2"
           >
             Next hand <ArrowRight size={18} />
           </button>

@@ -10,6 +10,9 @@ export default defineConfig(({ command }) => {
   const base = command === 'build' ? BASE : '/'
   return {
     base,
+    // bind all interfaces (IPv4 + IPv6) so localhost works everywhere and you
+    // can open the dev server from a phone on the same network
+    server: { host: true },
     plugins: [
       react(),
       VitePWA({
