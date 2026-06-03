@@ -21,12 +21,12 @@ interface Props {
 // trace CLOCKWISE to match POSITION_ORDER, so the player to hero's left (next
 // clockwise position) sits on the left — e.g. the blinds sit left of the button.
 const SEATS = [
-  { left: 50, top: 88 }, // hero (bottom)
-  { left: 6,  top: 68 }, // lower-left
-  { left: 6,  top: 28 }, // upper-left
+  { left: 50, top: 89 }, // hero (bottom)
+  { left: 10, top: 68 }, // lower-left
+  { left: 9,  top: 28 }, // upper-left
   { left: 50, top: 7  }, // top
-  { left: 94, top: 28 }, // upper-right
-  { left: 94, top: 68 }, // lower-right
+  { left: 91, top: 28 }, // upper-right
+  { left: 90, top: 68 }, // lower-right
 ]
 
 type Status = 'hero' | 'raiser' | 'active' | 'folded' | 'waiting'
@@ -34,19 +34,18 @@ type Status = 'hero' | 'raiser' | 'active' | 'folded' | 'waiting'
 function CardBack({ delay = 0 }: { delay?: number }) {
   return (
     <div
-      className="w-9 h-[3.25rem] rounded-md flex items-center justify-center"
+      className="w-6 h-[2.1rem] rounded-[5px] flex items-center justify-center"
       style={{
         background: 'linear-gradient(155deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%)',
-        boxShadow: '0 2px 6px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.1) inset',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.12) inset',
         animationDelay: `${delay}ms`,
       }}
     >
-      {/* card-back diamond pattern */}
-      <svg width="20" height="26" viewBox="0 0 20 26" className="opacity-30">
+      <svg width="14" height="20" viewBox="0 0 14 20" className="opacity-30">
         <pattern id="cb" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
           <rect x="1" y="1" width="2" height="2" fill="white" transform="rotate(45 2 2)" />
         </pattern>
-        <rect width="20" height="26" fill="url(#cb)" />
+        <rect width="14" height="20" fill="url(#cb)" />
       </svg>
     </div>
   )

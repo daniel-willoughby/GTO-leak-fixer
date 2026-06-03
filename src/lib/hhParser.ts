@@ -188,7 +188,7 @@ export function parseHandHistory(text: string): ImportReport {
 
   const correct = decisions.filter((d) => d.isCorrect).length
   const byCategory = aggregate(decisions, (d) => d.category)
-  const weakCategories = byCategory.filter((b) => b.attempts >= 2 && b.errorRate > 0).map((b) => b.key as HandCategory)
+  const weakCategories = byCategory.filter((b) => b.errors > 0).map((b) => b.key as HandCategory)
 
   return {
     handsFound: hands.length,
