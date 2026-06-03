@@ -11,12 +11,15 @@ placeholder data, and documents the pipeline to fill it with real solves.
 | File | Purpose |
 |------|---------|
 | `schema.ts` | The `FlopNode` data contract between solver and app. The moat-defining interface — keep it stable. |
-| `sample-flop.json` | One fully-shaped node: BTN-vs-BB single-raised pot, flop `Qs7h2c`, BTN c-bet decision. Hand-tuned placeholder freqs. |
+| `sample-flop.json` | **Real TexasSolver output**: BTN-vs-BB single-raised pot, flop `Qs7h2c`, BTN c-bet-facing-check node. 92 hands, ~4% pot exploitability. |
+| `build-ranges.mjs` | Expands our app preflop ranges into TexasSolver range strings (IP = BTN open, OOP = BB flat-call). |
+| `transform.mjs` | Parses a TexasSolver dump, extracts the BTN c-bet node, aggregates per-combo strategy to 169-hand labels, writes `sample-flop.json`. |
 | `query.mjs` | Demonstrates the app consuming a node: per-hand strategy + range-wide aggregate. |
 
 ```bash
-node solver-spike/query.mjs AQs   # top pair → bets ~92%
-node solver-spike/query.mjs 65s   # air → mostly checks
+node solver-spike/query.mjs AKs   # nut overcards/backdoors → bets 100%
+node solver-spike/query.mjs A9o   # thin showdown value → checks 66%
+node solver-spike/query.mjs 22    # bottom set → bets 98%
 ```
 
 ## Scope decision (deliberately narrow)
@@ -33,35 +36,56 @@ The MVP corpus targets **one preflop context at a time**, not "every spot":
 This keeps the first solve batch in **hours, not weeks**, and keeps the shipped
 dataset small enough to precache in the PWA.
 
-## Real pipeline (to replace the placeholder)
+## Reproduce (this is how `sample-flop.json` was generated)
 
-1. **Solve** with [TexasSolver](https://github.com/bupticybee/TexasSolver) (free,
-   open-source, CLI-scriptable) or PioSolver if licensed.
-   - Input ranges: reuse our preflop ranges (`src/data/`) for BTN-open and
-     BB-call to seed the flop node.
-   - Target exploitability ≤ 0.3% pot, single 33% size, rake-free.
-2. **Export** each solve's flop strategy (TexasSolver dumps JSON/CSV per node).
-3. **Transform** into `FlopNode` shape (`scripts/transform.ts`, TODO) — key by
-   exact combo for blocker accuracy, attach `meta`.
-4. **Validate**: spot-check 10–15 hands per board against GTO Wizard's free
-   tier; flag any node whose primary action disagrees. Gate the dataset on this.
-5. **Ship**: bundle as static JSON/SQLite, served via the existing service-worker
-   precache. App queries with `query.mjs`'s logic.
+Solver: [TexasSolver](https://github.com/bupticybee/TexasSolver) console build,
+free + open source. macOS arm64 build notes (the bundled deps are old):
 
-## Cost / risk estimate
+```bash
+brew install cmake llvm libomp
+git clone --depth 1 -b console https://github.com/bupticybee/TexasSolver
+# CMakeLists.txt tweaks needed for a modern toolchain:
+#   - set(CMAKE_CXX_STANDARD 20)            # fmt 6.x needs real char8_t
+#   - comment out the ext/pybind11 add_subdirectory (unused, breaks on py3.12+)
+cd TexasSolver && mkdir build && cd build
+CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ \
+  cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$(brew --prefix llvm) \
+           -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+make console_solver -j8
+# assemble a run dir (skip `make install` — it also builds the broken test target)
+cd .. && mkdir -p install && cp build/console_solver install/ && cp -R resources install/
+```
 
-- **Compute:** a 33%-only SRP flop solves in ~seconds–low minutes on a modern
-  multi-core CPU. ~40 boards × one context ≈ a single overnight batch on a
-  desktop, or a few dollars of spot cloud CPU. **Tractable.**
-- **Storage:** one node ≈ a few KB; ~40 boards ≈ well under 1 MB precached.
-- **Main risk:** *correctness/validation*, not compute. The work is building the
-  transform + validation harness and trusting the output — not raw solving.
-- **Turn / river** multiply the tree hard; defer until the flop loop proves out.
+Then, from the app repo:
+
+```bash
+node solver-spike/build-ranges.mjs          # → IP/OOP range strings
+#   build an input file (see git history for the exact one): pot 5.5, eff 97.5,
+#   board Qs,7h,2c, single 33% bet size, allin threshold 0.67
+cd ../TexasSolver/install && ./console_solver -i btn_vs_bb_Qs7h2c.txt   # ~9 min
+node solver-spike/transform.mjs <result.json>   # → solver-spike/sample-flop.json
+```
+
+The 74 MB raw dump stays out of the repo; `transform.mjs` extracts just the
+BTN c-bet node (root = OOP check/bet → `CHECK` child = IP facing a check).
+
+## Cost / risk estimate (confirmed by this run)
+
+- **Compute:** this single SRP flop (97.5bb deep, full turn/river, one bet size +
+  one raise + all-in) reached ~4% pot exploitability in ~9 min on 8 threads.
+  Narrowing the tree further (cap the raise/all-in lines) would cut that hard.
+  ~40 boards × one context ≈ a single overnight desktop batch. **Tractable.**
+- **Storage:** this node is ~12 KB of JSON; ~40 boards ≈ well under 1 MB precached.
+- **Main risk:** *validation*, not compute — next is spot-checking primaries
+  against GTO Wizard's free tier and gating the dataset on agreement.
+- **Turn / river decisions** multiply the tree; defer until the flop loop proves out.
 
 ## Status
 
-🟡 **Spike scaffolded.** Contract + query path proven with placeholder data.
-Not yet wired into the app and **not real solver output**. Next concrete step:
-install TexasSolver, script one `BTN_vs_BB_SRP` flop solve, and replace
-`sample-flop.json` with transformed real output to validate the format against
-genuine solver data.
+🟢 **Spike proven with real solver data.** Toolchain builds, one
+`BTN_vs_BB_SRP` flop is solved, and the output flows through `transform.mjs` →
+`FlopNode` → `query.mjs`. The strategies are sound (sets / top pair c-bet ~99%,
+thin showdown hands like A9o check ~66%). Not yet wired into the drill UI.
+
+Next: (1) validate primaries vs GTO Wizard, (2) batch ~40 representative boards,
+(3) add a `Postflop` drill mode that loads these nodes.
