@@ -112,19 +112,19 @@ function explainPostflop(spot: Spot, chosen: Action): string {
   const mixed = checkPct > 15 && checkPct < 85
 
   const verdict = right
-    ? `Correct — GTO ${spot.correct === 'bet' ? 'bets' : 'checks'} ${spot.label} most often here.`
-    : `Not the top play — the solver ${spot.correct === 'bet' ? 'bets' : 'checks back'} ${spot.label} more often.`
+    ? `Correct: GTO ${spot.correct === 'bet' ? 'bets' : 'checks'} ${spot.label} most often here.`
+    : `Not the top play: the solver ${spot.correct === 'bet' ? 'bets' : 'checks back'} ${spot.label} more often.`
 
   const reason: Record<typeof desc.tier, string> = {
-    monster: `You have ${desc.text} — a near-lock. Bet to build the pot while villain can still pay you off.`,
-    strong: `You have ${desc.text} — bet for value and to charge worse hands and draws.`,
-    top: `You have ${desc.text} — usually a bet for value and protection on this board.`,
-    draw: `You have ${desc.text} — betting as a semi-bluff adds fold equity on top of your outs.`,
-    weak: `You have ${desc.text} — often a check to realise equity cheaply and keep villain's bluffs in.`,
-    air: `You have ${desc.text} — check back the worst hands, or bet some as bluffs to balance.`,
+    monster: `You have ${desc.text}, a near-lock. Bet to build the pot while villain can still pay you off.`,
+    strong: `You have ${desc.text}. Bet for value and to charge worse hands and draws.`,
+    top: `You have ${desc.text}. Usually a bet for value and protection on this board.`,
+    draw: `You have ${desc.text}. Betting as a semi-bluff adds fold equity on top of your outs.`,
+    weak: `You have ${desc.text}. Often a check to realise equity cheaply and keep villain's bluffs in.`,
+    air: `You have ${desc.text}. Check back the worst hands, or bet some as bluffs to balance.`,
   }
 
-  const freq = `Solver mix: bet ${betPct}% / check ${checkPct}%.${mixed ? ' This is a genuinely mixed spot — both are fine, lean to the majority.' : ''}`
+  const freq = `Solver mix: bet ${betPct}% / check ${checkPct}%.${mixed ? ' Genuinely mixed: both are fine, lean to the majority.' : ''}`
 
   return `${verdict} ${reason[desc.tier]} ${freq}`
 }
@@ -142,8 +142,8 @@ function explainRfi(spot: Spot, chosen: Action): string {
     : `${spot.label} is outside the ${posName} opening range (~${range.pct}% of hands). From ${pos} the GTO play is to fold and wait for a better spot.`
 
   const verdict = right
-    ? `Correct — GTO ${verb} this hand here.`
-    : `Not GTO — the solver ${verb} ${spot.label} from ${pos}.`
+    ? `Correct: GTO ${verb} this hand here.`
+    : `Not GTO: the solver ${verb} ${spot.label} from ${pos}.`
 
   return `${verdict} ${base} ${positionWhy(pos, inRange)}`
 }
@@ -156,13 +156,13 @@ function explainVsRfi(spot: Spot, chosen: Action): string {
 
   const reason: Partial<Record<Action, string>> = {
     '3bet': `${spot.label} is strong enough (or a good bluff candidate) to 3-bet for value/pressure against a ${raiser} open.`,
-    call: `${spot.label} plays well as a flat call here — enough equity and playability to continue, but not strong enough to 3-bet.`,
+    call: `${spot.label} plays well as a flat call here. Enough equity and playability to continue, but not strong enough to 3-bet.`,
     fold: `${spot.label} is too weak to continue profitably against a ${raiser} open from the ${heroName}; fold and wait.`,
   }
 
   const verdict = right
-    ? `Correct — GTO ${correctLabel}s here.`
-    : `Not GTO — facing a ${raiser} open, the solver ${correctLabel}s ${spot.label} from the ${heroName}.`
+    ? `Correct: GTO ${correctLabel}s here.`
+    : `Not GTO: facing a ${raiser} open, the solver ${correctLabel}s ${spot.label} from the ${heroName}.`
 
   const closing =
     spot.heroPos === 'BB'
@@ -178,7 +178,7 @@ function positionWhy(pos: RfiPosition, inRange: boolean): string {
   if (pos === 'UTG' || pos === 'HJ') {
     return inRange
       ? 'Early position needs strong hands because up to four players can wake up with a better hand behind you.'
-      : 'With many players left to act, marginal hands lose too often out of position — discipline early pays off.'
+      : 'With many players left to act, marginal hands lose too often out of position. Discipline early pays off.'
   }
   if (pos === 'CO') {
     return inRange
@@ -188,7 +188,7 @@ function positionWhy(pos: RfiPosition, inRange: boolean): string {
   if (pos === 'BTN') {
     return inRange
       ? 'On the button you act last on every street, so you can profitably open almost half your hands.'
-      : 'This is near the very bottom of hands — even the button folds the weakest holdings.'
+      : 'This is near the very bottom of hands: even the button folds the weakest holdings.'
   }
   return inRange
     ? 'From the small blind you only have the big blind to get through, so you raise a wide, aggressive range.'

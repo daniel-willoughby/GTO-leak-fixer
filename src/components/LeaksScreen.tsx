@@ -76,7 +76,7 @@ export default function LeaksScreen({ version }: Props) {
     return (
       <div className="p-8 text-center text-slate-400 max-w-md mx-auto pt-16">
         <p className="text-lg mb-2 text-slate-200">No hands yet.</p>
-        <p>Play some drills and your top leaks will show up here — the spots you misplay most.</p>
+        <p>Play some drills and your top leaks will show up here: the spots you misplay most.</p>
       </div>
     )
   }
@@ -107,7 +107,7 @@ export default function LeaksScreen({ version }: Props) {
         </h2>
         {sum.topLeaks.length === 0 ? (
           <p className="text-slate-400 text-sm">
-            No clear leaks yet — keep playing (need 4+ hands per group to flag one). Nice and tight!
+            No clear leaks yet. Keep playing (need 4+ hands per group to flag one). Nice and tight!
           </p>
         ) : (
           <div className="flex flex-col gap-3">

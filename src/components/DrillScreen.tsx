@@ -202,9 +202,9 @@ export default function DrillScreen({ onProgress }: Props) {
           </div>
           <div className="w-full">
             <p className="text-xs text-slate-400 mb-2 text-center">
-              {spot.mode === 'rfi' && `${spot.heroPos} opening range — `}
-              {spot.mode === 'vsRfi' && `${spot.heroPos} vs ${spot.raiserPos} — `}
-              {spot.mode === 'postflop' && `${spot.node?.board} c-bet (majority action) — `}
+              {spot.mode === 'rfi' && `${spot.heroPos} opening range: `}
+              {spot.mode === 'vsRfi' && `${spot.heroPos} vs ${spot.raiserPos}: `}
+              {spot.mode === 'postflop' && `${spot.node?.board} c-bet (majority action): `}
               <span className="text-emerald-400">
                 green = {spot.mode === 'rfi' ? 'raise' : spot.mode === 'vsRfi' ? '3bet' : 'bet'}
               </span>

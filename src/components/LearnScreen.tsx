@@ -6,11 +6,11 @@ import { isRfiHand, POSITION_LABEL, RFI_POSITIONS, RFI_RANGES, type RfiPosition 
 const LESSONS: { title: string; body: string }[] = [
   {
     title: 'What is "RFI"?',
-    body: 'RFI = Raise First In. Everyone before you folded, so you are first to enter the pot. Your only good options are to raise or fold — limping (just calling the big blind) is a leak. This trainer drills the single most important preflop decision in poker.',
+    body: 'RFI = Raise First In. Everyone before you folded, so you are first to enter the pot. Your only good options are to raise or fold. Limping (just calling the big blind) is a leak. This trainer drills the single most important preflop decision in poker.',
   },
   {
     title: 'Why position changes everything',
-    body: 'The later you act, the more information you have and the more often you play the pot in position. So you can open many more hands on the Button than Under the Gun. Same cards, different correct answer — that is the whole game.',
+    body: 'The later you act, the more information you have and the more often you play the pot in position. So you can open many more hands on the Button than Under the Gun. Same cards, different correct answer. That is the whole game.',
   },
   {
     title: 'Tight early, loose late',
@@ -56,7 +56,7 @@ export default function LearnScreen() {
           ))}
         </div>
         <p className="text-sm text-slate-400 mb-3 text-center">
-          {POSITION_LABEL[pos]} — opens ~<span className="text-amber-300 font-semibold">{RFI_RANGES[pos].pct}%</span> of
+          {POSITION_LABEL[pos]}, opens ~<span className="text-amber-300 font-semibold">{RFI_RANGES[pos].pct}%</span> of
           hands
         </p>
         <RangeGrid cell={(label) => (isRfiHand(pos, label) ? 'raise' : 'fold')} />
