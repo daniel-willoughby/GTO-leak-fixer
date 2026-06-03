@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { Action, DrillMode, HandCategory } from './spot'
+import type { Action, DrillMode, HandCategory, SpotSeed } from './spot'
 import type { Position } from '../data/ranges'
 
 // One row per decision the player makes. Offline-first; all local.
@@ -17,8 +17,17 @@ export interface DecisionRecord {
   isCorrect: boolean
 }
 
+/** A spot the player misplayed, queued for spaced review. */
+export interface MistakeRecord {
+  key: string // seedKey, unique per spot identity
+  seed: SpotSeed
+  ts: number
+  misses: number
+}
+
 class LeakDB extends Dexie {
   decisions!: Table<DecisionRecord, number>
+  mistakes!: Table<MistakeRecord, string>
 
   constructor() {
     super('leak-tutor')
@@ -38,6 +47,8 @@ class LeakDB extends Dexie {
             d.context ??= d.position
           })
       })
+    // v3: review queue of misplayed spots.
+    this.version(3).stores({ mistakes: 'key, ts, misses' })
   }
 }
 
@@ -45,6 +56,30 @@ export const db = new LeakDB()
 
 export async function logDecision(rec: Omit<DecisionRecord, 'id'>): Promise<void> {
   await db.decisions.add(rec)
+}
+
+// ---- review queue (spaced repetition) --------------------------------------
+
+export async function enqueueMistake(key: string, seed: SpotSeed): Promise<void> {
+  const existing = await db.mistakes.get(key)
+  await db.mistakes.put({ key, seed, ts: Date.now(), misses: (existing?.misses ?? 0) + 1 })
+}
+
+export async function retireMistake(key: string): Promise<void> {
+  await db.mistakes.delete(key)
+}
+
+export async function touchMistake(key: string): Promise<void> {
+  const existing = await db.mistakes.get(key)
+  if (existing) await db.mistakes.put({ ...existing, ts: Date.now() })
+}
+
+export async function dueMistakes(limit = 50): Promise<MistakeRecord[]> {
+  return db.mistakes.orderBy('ts').limit(limit).toArray()
+}
+
+export async function mistakeCount(): Promise<number> {
+  return db.mistakes.count()
 }
 
 export interface LeakStat {
@@ -130,4 +165,11 @@ export async function getLeakSummary(): Promise<LeakSummary> {
 
 export async function resetProgress(): Promise<void> {
   await db.decisions.clear()
+}
+
+/** Hand categories the player misplays most (for adaptive 'focus' drilling). */
+export async function weakCategories(): Promise<HandCategory[]> {
+  const all = await db.decisions.toArray()
+  const cats = aggregateBy(all, (d) => d.category)
+  return cats.filter((c) => c.attempts >= 3 && c.errorRate > 0).map((c) => c.key as HandCategory)
 }

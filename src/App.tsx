@@ -1,15 +1,18 @@
 import { useState } from 'react'
-import { Spade, Target, GraduationCap, Volume2, VolumeX, type LucideIcon } from 'lucide-react'
+import { Spade, Target, GraduationCap, FileText, Volume2, VolumeX, type LucideIcon } from 'lucide-react'
 import DrillScreen from './components/DrillScreen'
 import LeaksScreen from './components/LeaksScreen'
 import LearnScreen from './components/LearnScreen'
+import ImportScreen from './components/ImportScreen'
 import { isMuted, setMuted } from './lib/sound'
+import type { HandCategory } from './lib/spot'
 
-type Tab = 'drill' | 'leaks' | 'learn'
+type Tab = 'drill' | 'leaks' | 'import' | 'learn'
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'drill', label: 'Drill', icon: Spade },
   { id: 'leaks', label: 'Leaks', icon: Target },
+  { id: 'import', label: 'Import', icon: FileText },
   { id: 'learn', label: 'Learn', icon: GraduationCap },
 ]
 
@@ -17,11 +20,17 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('drill')
   const [progress, setProgress] = useState(0)
   const [muted, setMutedState] = useState(isMuted())
+  const [focusRequest, setFocusRequest] = useState<HandCategory[] | null>(null)
 
   function toggleMute() {
     const v = !muted
     setMuted(v)
     setMutedState(v)
+  }
+
+  function drillLeaks(cats: HandCategory[]) {
+    setFocusRequest(cats)
+    setTab('drill')
   }
 
   return (
@@ -43,8 +52,15 @@ export default function App() {
       </header>
 
       <main className="flex-1 overflow-y-auto">
-        {tab === 'drill' && <DrillScreen onProgress={() => setProgress((p) => p + 1)} />}
+        {tab === 'drill' && (
+          <DrillScreen
+            onProgress={() => setProgress((p) => p + 1)}
+            requestFocus={focusRequest}
+            onFocusConsumed={() => setFocusRequest(null)}
+          />
+        )}
         {tab === 'leaks' && <LeaksScreen version={progress} />}
+        {tab === 'import' && <ImportScreen onDrillLeaks={drillLeaks} />}
         {tab === 'learn' && <LearnScreen />}
       </main>
 

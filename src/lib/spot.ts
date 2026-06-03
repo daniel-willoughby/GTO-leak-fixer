@@ -9,7 +9,7 @@ import {
 } from '../data/ranges'
 import { MATCHUPS, respond, type Matchup } from '../data/vsRfi'
 import { MULTIWAY_MATCHUPS, respondMultiway } from '../data/multiway'
-import { FLOP_NODES, nodeLabels, strategyFor, turnNodesForFlop, type StreetNode } from '../data/postflop'
+import { ALL_NODES as ALL_STREET_NODES, FLOP_NODES, nodeLabels, strategyFor, turnNodesForFlop, type StreetNode } from '../data/postflop'
 import { describeHand } from './flopEval'
 
 export type Action = 'fold' | 'raise' | 'call' | '3bet' | 'check' | 'bet' | 'squeeze' | 'cold-4bet'
@@ -60,13 +60,29 @@ export interface HandState {
 const ALL_LABELS: string[] = Array.from(new Set(gridLabels().flat()))
 const randOf = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)]
 
+export interface GenOptions {
+  /** Continue an in-progress postflop hand instead of dealing fresh. */
+  state?: HandState
+  /** Bias the dealt spot toward these hand categories (adaptive drilling). */
+  focus?: Set<HandCategory>
+}
+
 // ---------- generators -------------------------------------------------------
 
-export function generateSpot(mode: DrillMode, existingState?: HandState): Spot {
-  if (mode === 'postflop') {
-    if (existingState) return continueHand(existingState)
-    return generatePostflopSpot()
+export function generateSpot(mode: DrillMode, opts: GenOptions = {}): Spot {
+  if (mode === 'postflop' && opts.state) return continueHand(opts.state)
+  // Adaptive focus: reject-sample for a spot in a weak category.
+  if (opts.focus && opts.focus.size) {
+    for (let i = 0; i < 18; i++) {
+      const s = generateOne(mode)
+      if (opts.focus.has(s.category)) return s
+    }
   }
+  return generateOne(mode)
+}
+
+function generateOne(mode: DrillMode): Spot {
+  if (mode === 'postflop') return generatePostflopSpot()
   if (mode === 'multiway') return generateMultiwaySpot()
   const label = randOf(ALL_LABELS)
   const cards = dealHandForLabel(label)
@@ -87,6 +103,93 @@ export function generateSpot(mode: DrillMode, existingState?: HandState): Spot {
     correct,
     actions: ['fold', 'call', '3bet'],
     category: classifyHand(label),
+  }
+}
+
+// ---------- spot seeds (for the review queue) -------------------------------
+
+export interface SpotSeed {
+  mode: DrillMode
+  heroPos: Position
+  raiserPos?: RfiPosition
+  label: string
+  /** board string for postflop, e.g. "Qs7h2c" */
+  board?: string
+}
+
+export function seedOf(spot: Spot): SpotSeed {
+  return {
+    mode: spot.mode,
+    heroPos: spot.heroPos,
+    raiserPos: spot.raiserPos,
+    label: spot.label,
+    board: spot.node?.board,
+  }
+}
+
+export const seedKey = (s: SpotSeed): string =>
+  `${s.mode}|${s.heroPos}|${s.raiserPos ?? ''}|${s.label}|${s.board ?? ''}`
+
+/** Recreate a concrete spot from a seed (e.g. when reviewing a past mistake). */
+export function spotFromSeed(seed: SpotSeed): Spot | null {
+  const { mode, label } = seed
+  if (mode === 'rfi') {
+    const heroPos = seed.heroPos as RfiPosition
+    const cards = dealHandForLabel(label)
+    return {
+      mode,
+      heroPos,
+      cards,
+      label,
+      correct: isRfiHand(heroPos, label) ? 'raise' : 'fold',
+      actions: ['fold', 'raise'],
+      category: classifyHand(label),
+    }
+  }
+  if (mode === 'vsRfi') {
+    const m = MATCHUPS.find((x) => x.raiser === seed.raiserPos && x.hero === seed.heroPos)
+    if (!m) return null
+    return {
+      mode,
+      heroPos: m.hero,
+      raiserPos: m.raiser,
+      cards: dealHandForLabel(label),
+      label,
+      correct: respond(m, label) as Action,
+      actions: ['fold', 'call', '3bet'],
+      category: classifyHand(label),
+    }
+  }
+  if (mode === 'multiway') {
+    const m = MULTIWAY_MATCHUPS.find((x) => x.hero === seed.heroPos)
+    if (!m) return null
+    return {
+      mode,
+      heroPos: m.hero,
+      cards: dealHandForLabel(label),
+      label,
+      correct: respondMultiway(m, label) as Action,
+      actions: m.actions as Action[],
+      category: classifyHand(label),
+    }
+  }
+  // postflop
+  const node = ALL_STREET_NODES.find((n) => n.board === seed.board)
+  if (!node) return null
+  const board = boardCards(node)
+  const strat = strategyFor(node, label)
+  if (!strat) return null
+  return {
+    mode: 'postflop',
+    heroPos: node.hero,
+    cards: dealHandForLabel(label, board),
+    label,
+    correct: strat.primary.startsWith('bet') ? 'bet' : 'check',
+    actions: ['check', 'bet'],
+    category: classifyHand(label),
+    board,
+    node,
+    freqs: strat.freqs,
   }
 }
 
@@ -211,16 +314,38 @@ const boardCards = (node: StreetNode): Card[] => {
 
 // ---------- judgement --------------------------------------------------------
 
+export type Quality = 'correct' | 'acceptable' | 'wrong'
+
 export interface Judgement {
+  /** correct OR acceptable both count as "right" for streaks and leak stats. */
   isCorrect: boolean
+  quality: Quality
   chosen: Action
   correct: Action
   explanation: string
 }
 
+/** Threshold: a mixed action played at >= this frequency is not a mistake. */
+const ACCEPTABLE_FREQ = 0.3
+
 export function judge(spot: Spot, chosen: Action): Judgement {
-  const isCorrect = chosen === spot.correct
-  return { isCorrect, chosen, correct: spot.correct, explanation: explain(spot, chosen) }
+  let quality: Quality
+  if (chosen === spot.correct) {
+    quality = 'correct'
+  } else if (spot.mode === 'postflop' && spot.freqs) {
+    // postflop is a 2-action node: check=freqs[0], bet=freqs[1]
+    const chosenFreq = chosen === 'check' ? spot.freqs[0] : spot.freqs[1]
+    quality = chosenFreq >= ACCEPTABLE_FREQ ? 'acceptable' : 'wrong'
+  } else {
+    quality = 'wrong'
+  }
+  return {
+    isCorrect: quality !== 'wrong',
+    quality,
+    chosen,
+    correct: spot.correct,
+    explanation: explain(spot, chosen),
+  }
 }
 
 function explain(spot: Spot, chosen: Action): string {
@@ -231,16 +356,19 @@ function explain(spot: Spot, chosen: Action): string {
 }
 
 function explainPostflop(spot: Spot, chosen: Action): string {
-  const right = chosen === spot.correct
   const checkPct = Math.round((spot.freqs?.[0] ?? 0) * 100)
   const betPct = 100 - checkPct
   const board = spot.board!
   const street = spot.node?.street ?? 'flop'
   const desc = describeHand(spot.cards, board)
   const mixed = checkPct > 15 && checkPct < 85
-  const verdict = right
-    ? `Correct: GTO ${spot.correct === 'bet' ? 'bets' : 'checks'} ${spot.label} most often here.`
-    : `Not the top play: the solver ${spot.correct === 'bet' ? 'bets' : 'checks back'} ${spot.label} more often.`
+  const chosenFreq = chosen === 'check' ? checkPct : betPct
+  const verdict =
+    chosen === spot.correct
+      ? `Correct: GTO ${spot.correct === 'bet' ? 'bets' : 'checks'} ${spot.label} most often here.`
+      : chosenFreq >= ACCEPTABLE_FREQ * 100
+        ? `Fine: ${chosen === 'bet' ? 'betting' : 'checking'} is played ${chosenFreq}% here, so it's a defensible mixed choice.`
+        : `Not the top play: the solver ${spot.correct === 'bet' ? 'bets' : 'checks back'} ${spot.label} more often.`
   const streetNote = street === 'turn' ? ' on the turn' : ' on this flop'
   const reason: Record<typeof desc.tier, string> = {
     monster: `You have ${desc.text}${streetNote}, a near-lock. Bet to build the pot.`,
