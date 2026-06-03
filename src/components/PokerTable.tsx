@@ -1,6 +1,10 @@
 import { actionIndex, POSITION_ORDER, type Position, type RfiPosition } from '../data/ranges'
 import type { Card } from '../lib/cards'
 import PlayingCard from './PlayingCard'
+import ChipStack, { type ChipTone } from './ChipStack'
+
+const OPEN_SIZE = 2.5 // a standard 2.5bb open, shown as the raiser's bet
+const SRP_POT = 5.5 // BTN open + BB call + dead SB
 
 interface Props {
   heroPos: Position
@@ -60,6 +64,28 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, board, villa
           left: btn.coord.left + dx * 0.24 + (-dy / len) * 11,
           top: btn.coord.top + dy * 0.24 + (dx / len) * 11,
         }
+
+  // Chips on the felt: posted blinds + the raiser's bet preflop; a central pot
+  // postflop (blinds + preflop action are already in the middle).
+  const bets: { pos: Position; amount: number; tone: ChipTone }[] = []
+  if (!postflop) {
+    const amounts: Partial<Record<Position, { amount: number; tone: ChipTone }>> = {
+      SB: { amount: 0.5, tone: 'blind' },
+      BB: { amount: 1, tone: 'blind' },
+    }
+    if (raiserPos) amounts[raiserPos] = { amount: OPEN_SIZE, tone: 'bet' }
+    for (const s of seats) {
+      const a = amounts[s.pos]
+      if (a) {
+        // sit the chip ~40% of the way from the seat toward the centre
+        bets.push({ pos: s.pos, amount: a.amount, tone: a.tone })
+      }
+    }
+  }
+  const chipPos = (coord: { left: number; top: number }) => ({
+    left: coord.left + (50 - coord.left) * 0.4,
+    top: coord.top + (50 - coord.top) * 0.4,
+  })
 
   return (
     <div className="relative w-full max-w-sm mx-auto aspect-[4/3]">
@@ -124,6 +150,30 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, board, villa
           )}
         </div>
       ))}
+
+      {/* chips: posted blinds + the raiser's bet, in front of each player */}
+      {bets.map((b) => {
+        const seat = seats.find((s) => s.pos === b.pos)!
+        // the hero (bottom) shows big cards — park their own chip beside them
+        const p = b.pos === heroPos ? { left: 29, top: 72 } : chipPos(seat.coord)
+        return (
+          <div
+            key={`chip-${b.pos}`}
+            className="absolute -translate-x-1/2 -translate-y-1/2 z-[6]"
+            style={{ left: `${p.left}%`, top: `${p.top}%` }}
+          >
+            <ChipStack amount={b.amount} tone={b.tone} />
+          </div>
+        )
+      })}
+
+      {/* central pot (postflop) */}
+      {postflop && (
+        <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-[6] flex items-center gap-1.5" style={{ top: '28%' }}>
+          <ChipStack amount={SRP_POT} tone="pot" />
+          <span className="text-[9px] font-semibold tracking-widest text-emerald-200/50">POT</span>
+        </div>
+      )}
 
       {/* dealer button puck on the felt */}
       <div
