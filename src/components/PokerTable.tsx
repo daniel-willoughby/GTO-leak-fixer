@@ -38,16 +38,20 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, board, villa
     return { pos, coord, status }
   })
 
-  // Dealer button puck: sit it on the felt next to the BTN seat — pulled in
-  // toward the centre, plus a tangential nudge so it never covers the cards.
+  // Dealer button puck on the felt next to the BTN seat. When the hero is on
+  // the button, the bottom seat shows large hole cards, so park the puck to
+  // their lower-right instead of the generic offset (which would cover them).
   const btn = seats.find((s) => s.pos === 'BTN')!
   const dx = 50 - btn.coord.left
   const dy = 50 - btn.coord.top
   const len = Math.hypot(dx, dy) || 1
-  const dealer = {
-    left: btn.coord.left + dx * 0.24 + (-dy / len) * 11,
-    top: btn.coord.top + dy * 0.24 + (dx / len) * 11,
-  }
+  const dealer =
+    heroPos === 'BTN'
+      ? { left: 71, top: 78 }
+      : {
+          left: btn.coord.left + dx * 0.24 + (-dy / len) * 11,
+          top: btn.coord.top + dy * 0.24 + (dx / len) * 11,
+        }
 
   return (
     <div className="relative w-full max-w-sm mx-auto aspect-[4/3]">

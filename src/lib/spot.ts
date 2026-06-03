@@ -112,8 +112,8 @@ function explainPostflop(spot: Spot, chosen: Action): string {
   const mixed = checkPct > 15 && checkPct < 85
 
   const verdict = right
-    ? `✅ Correct — GTO ${spot.correct === 'bet' ? 'bets' : 'checks'} ${spot.label} most often here.`
-    : `❌ Not the top play — the solver ${spot.correct === 'bet' ? 'bets' : 'checks back'} ${spot.label} more often.`
+    ? `Correct — GTO ${spot.correct === 'bet' ? 'bets' : 'checks'} ${spot.label} most often here.`
+    : `Not the top play — the solver ${spot.correct === 'bet' ? 'bets' : 'checks back'} ${spot.label} more often.`
 
   const reason: Record<typeof desc.tier, string> = {
     monster: `You have ${desc.text} — a near-lock. Bet to build the pot while villain can still pay you off.`,
@@ -142,8 +142,8 @@ function explainRfi(spot: Spot, chosen: Action): string {
     : `${spot.label} is outside the ${posName} opening range (~${range.pct}% of hands). From ${pos} the GTO play is to fold and wait for a better spot.`
 
   const verdict = right
-    ? `✅ Correct — GTO ${verb} this hand here.`
-    : `❌ Not GTO — the solver ${verb} ${spot.label} from ${pos}.`
+    ? `Correct — GTO ${verb} this hand here.`
+    : `Not GTO — the solver ${verb} ${spot.label} from ${pos}.`
 
   return `${verdict} ${base} ${positionWhy(pos, inRange)}`
 }
@@ -161,8 +161,8 @@ function explainVsRfi(spot: Spot, chosen: Action): string {
   }
 
   const verdict = right
-    ? `✅ Correct — GTO ${correctLabel}s here.`
-    : `❌ Not GTO — facing a ${raiser} open, the solver ${correctLabel}s ${spot.label} from the ${heroName}.`
+    ? `Correct — GTO ${correctLabel}s here.`
+    : `Not GTO — facing a ${raiser} open, the solver ${correctLabel}s ${spot.label} from the ${heroName}.`
 
   const closing =
     spot.heroPos === 'BB'

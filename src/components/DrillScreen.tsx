@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CheckCircle2, XCircle, Flame, ArrowRight } from 'lucide-react'
 import {
   ACTION_LABEL,
   generateSpot,
@@ -12,6 +13,7 @@ import { isRfiHand, type RfiPosition } from '../data/ranges'
 import { MATCHUPS, respond } from '../data/vsRfi'
 import { strategyFor } from '../data/postflop'
 import { logDecision } from '../lib/db'
+import { playCorrect, playWrong, playDeal, playStreak } from '../lib/sound'
 import PokerTable from './PokerTable'
 import RangeGrid, { type CellKind } from './RangeGrid'
 
@@ -20,12 +22,12 @@ interface Props {
 }
 
 const ACTION_STYLE: Record<Action, string> = {
-  fold: 'bg-slate-700 hover:bg-slate-600',
-  call: 'bg-sky-600 hover:bg-sky-500',
-  raise: 'bg-emerald-600 hover:bg-emerald-500',
-  '3bet': 'bg-emerald-600 hover:bg-emerald-500',
-  check: 'bg-slate-700 hover:bg-slate-600',
-  bet: 'bg-emerald-600 hover:bg-emerald-500',
+  fold: 'bg-slate-700 hover:bg-slate-600 active:bg-slate-600',
+  call: 'bg-sky-600 hover:bg-sky-500 active:bg-sky-700',
+  raise: 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700',
+  '3bet': 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700',
+  check: 'bg-slate-700 hover:bg-slate-600 active:bg-slate-600',
+  bet: 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700',
 }
 
 const KEY_HINT: Record<Action, string> = { fold: 'F', call: 'C', raise: 'R', '3bet': 'T', check: 'K', bet: 'B' }
@@ -64,6 +66,7 @@ export default function DrillScreen({ onProgress }: Props) {
   function next(m: DrillMode = mode) {
     setSpot(generateSpot(m))
     setResult(null)
+    playDeal()
   }
 
   function switchMode(m: DrillMode) {
@@ -77,9 +80,21 @@ export default function DrillScreen({ onProgress }: Props) {
     if (result || !spot.actions.includes(action)) return
     const j = judge(spot, action)
     setResult(j)
-    setStreak((s) => (j.isCorrect ? s + 1 : 0))
+    if (j.isCorrect) {
+      setStreak((s) => {
+        const ns = s + 1
+        if (ns > 0 && ns % 5 === 0) playStreak()
+        else playCorrect()
+        return ns
+      })
+    } else {
+      setStreak(0)
+      playWrong()
+    }
     await logDecision({
       ts: Date.now(),
+      mode: spot.mode,
+      context: spot.mode === 'postflop' ? spot.node!.board : spot.heroPos,
       position: spot.heroPos,
       label: spot.label,
       category: spot.category,
@@ -118,12 +133,12 @@ export default function DrillScreen({ onProgress }: Props) {
   return (
     <div className="flex flex-col items-center gap-4 px-4 pb-28 pt-4 max-w-xl mx-auto">
       {/* mode toggle */}
-      <div className="flex gap-1 p-1 rounded-xl bg-slate-800 text-sm">
+      <div className="flex gap-1 p-1 rounded-xl bg-slate-800 text-sm w-full max-w-sm">
         {MODES.map((m) => (
           <button
             key={m.id}
             onClick={() => switchMode(m.id)}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition ${
+            className={`flex-1 px-2 py-2 rounded-lg font-semibold transition ${
               mode === m.id ? 'bg-amber-500 text-slate-900' : 'text-slate-300 hover:text-white'
             }`}
           >
@@ -136,8 +151,9 @@ export default function DrillScreen({ onProgress }: Props) {
         <span className="text-slate-400">
           {spot.mode === 'postflop' ? 'BTN vs BB · single-raised pot' : '100bb · 6-max cash'}
         </span>
-        <span className="text-slate-400">
-          Streak <span className="text-amber-400 font-bold">{streak}</span>
+        <span className="flex items-center gap-1.5 text-slate-400">
+          <Flame size={16} className={streak >= 3 ? 'text-amber-400' : 'text-slate-500'} />
+          <span className={`font-bold tabular-nums ${streak >= 3 ? 'text-amber-400' : 'text-slate-300'}`}>{streak}</span>
         </span>
       </div>
 
@@ -157,22 +173,27 @@ export default function DrillScreen({ onProgress }: Props) {
             <button
               key={a}
               onClick={() => answer(a)}
-              className={`py-4 rounded-xl font-bold text-lg transition ${ACTION_STYLE[a]}`}
+              className={`py-4 rounded-xl font-bold text-lg transition active:scale-[0.97] ${ACTION_STYLE[a]}`}
             >
               {ACTION_LABEL[a]} <span className="text-xs opacity-70">({KEY_HINT[a]})</span>
             </button>
           ))}
         </div>
       ) : (
-        <div className="w-full flex flex-col items-center gap-4">
+        <div className="w-full flex flex-col items-center gap-4 animate-pop">
           <div
-            className={`w-full rounded-xl p-4 text-sm leading-relaxed ${
+            className={`w-full rounded-xl p-4 text-sm leading-relaxed flex gap-3 ${
               result.isCorrect
                 ? 'bg-emerald-900/40 border border-emerald-600/50'
                 : 'bg-red-900/40 border border-red-600/50'
             }`}
           >
-            {result.explanation}
+            {result.isCorrect ? (
+              <CheckCircle2 size={22} className="text-emerald-400 shrink-0 mt-0.5" />
+            ) : (
+              <XCircle size={22} className="text-red-400 shrink-0 mt-0.5" />
+            )}
+            <span>{result.explanation}</span>
           </div>
           <div className="w-full">
             <p className="text-xs text-slate-400 mb-2 text-center">
@@ -189,9 +210,9 @@ export default function DrillScreen({ onProgress }: Props) {
           </div>
           <button
             onClick={() => next()}
-            className="w-full max-w-sm py-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold text-lg transition"
+            className="w-full max-w-sm py-4 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-slate-900 font-bold text-lg transition flex items-center justify-center gap-2"
           >
-            Next hand <span className="text-amber-800 text-xs">(space)</span>
+            Next hand <ArrowRight size={18} />
           </button>
         </div>
       )}
