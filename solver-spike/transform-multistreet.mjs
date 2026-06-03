@@ -90,22 +90,23 @@ function buildNodes(board, tree) {
     meta: { solver: 'TexasSolver', generatedAt: new Date().toISOString().slice(0, 10), approximate: false },
   })
 
+  const betKey = (node) => Object.keys(node?.childrens ?? {}).find((k) => k.startsWith('BET'))
+
   // --- TURN (bet line): BTN bet flop, BB called, now BTN faces BB check on turn ---
   const flopBetNode = flopIpNode.childrens?.['BET 2.000000']
   const flopCallNode = flopBetNode?.childrens?.['CALL']
   if (flopCallNode?.dealcards) {
     const boardToks = boardTokens(board)
-    // Pick up to 6 representative turn cards
     const turnCards = Object.keys(flopCallNode.dealcards).slice(0, 8)
-    for (const rawCard of turnCards) {
+    turnCards.forEach((rawCard, ti) => {
       const tc = normaliseCard(rawCard)
       const turnNode = flopCallNode.dealcards[rawCard]
       const turnIpNode = turnNode?.childrens?.CHECK
-      if (!turnIpNode?.strategy) continue
-      const fullBoard = board + tc
+      if (!turnIpNode?.strategy) return
+      const turnBoard = board + tc
       nodes.push({
         spot: 'BTN_vs_BB_SRP',
-        board: fullBoard,
+        board: turnBoard,
         street: 'turn',
         heroAction: 'none',
         history: [`BTN opens 2.5bb`, `BB calls`, `Flop: ${boardToks.join(' ')}`, `BB checks`, `BTN bets 1.8bb`, `BB calls`],
@@ -118,7 +119,33 @@ function buildNodes(board, tree) {
         strategy: aggregateStrategy(turnIpNode),
         meta: { solver: 'TexasSolver', generatedAt: new Date().toISOString().slice(0, 10), approximate: false },
       })
-    }
+
+      // --- RIVER (bounded: first 3 turns × first 3 rivers) ---
+      if (ti >= 3) return
+      const turnBetK = betKey(turnIpNode)
+      const turnCallNode = turnBetK && turnIpNode.childrens[turnBetK]?.childrens?.['CALL']
+      if (!turnCallNode?.dealcards) return
+      Object.keys(turnCallNode.dealcards).slice(0, 3).forEach((rawRiver) => {
+        const rc = normaliseCard(rawRiver)
+        const riverIpNode = turnCallNode.dealcards[rawRiver]?.childrens?.CHECK
+        if (!riverIpNode?.strategy) return
+        nodes.push({
+          spot: 'BTN_vs_BB_SRP',
+          board: turnBoard + rc,
+          street: 'river',
+          heroAction: 'none',
+          history: [`BTN opens 2.5bb`, `BB calls`, `Flop: ${boardToks.join(' ')}`, `BB checks`, `BTN bets 1.8bb`, `BB calls`, `Turn: ${tc}`, `BB checks`, `BTN bets`, `BB calls`, `River: ${rc}`],
+          potType: 'srp',
+          hero: 'BTN',
+          villain: 'BB',
+          facing: 'check',
+          betSizes: [0.33],
+          actions: ['check', 'bet33'],
+          strategy: aggregateStrategy(riverIpNode),
+          meta: { solver: 'TexasSolver', generatedAt: new Date().toISOString().slice(0, 10), approximate: false },
+        })
+      })
+    })
   }
 
   // --- TURN (check-check line): both checked flop, BTN faces check on turn ---

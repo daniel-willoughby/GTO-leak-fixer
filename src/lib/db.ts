@@ -173,3 +173,32 @@ export async function weakCategories(): Promise<HandCategory[]> {
   const cats = aggregateBy(all, (d) => d.category)
   return cats.filter((c) => c.attempts >= 3 && c.errorRate > 0).map((c) => c.key as HandCategory)
 }
+
+export interface ProgressBucket {
+  accuracy: number
+  count: number
+}
+export interface ProgressTrend {
+  buckets: ProgressBucket[]
+  /** accuracy of the most recent third minus the earliest third (signed) */
+  delta: number
+  recentAccuracy: number
+}
+
+/** Accuracy over time, in up to `n` chronological buckets (for a sparkline). */
+export async function progressTrend(n = 12): Promise<ProgressTrend | null> {
+  const all = (await db.decisions.toArray()).sort((a, b) => a.ts - b.ts)
+  if (all.length < 10) return null
+  const size = Math.ceil(all.length / n)
+  const buckets: ProgressBucket[] = []
+  for (let i = 0; i < all.length; i += size) {
+    const slice = all.slice(i, i + size)
+    const correct = slice.filter((d) => d.isCorrect).length
+    buckets.push({ accuracy: correct / slice.length, count: slice.length })
+  }
+  const third = Math.max(1, Math.floor(buckets.length / 3))
+  const avg = (b: ProgressBucket[]) => (b.length ? b.reduce((s, x) => s + x.accuracy, 0) / b.length : 0)
+  const early = avg(buckets.slice(0, third))
+  const late = avg(buckets.slice(-third))
+  return { buckets, delta: late - early, recentAccuracy: buckets[buckets.length - 1].accuracy }
+}

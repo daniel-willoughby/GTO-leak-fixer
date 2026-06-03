@@ -9,6 +9,7 @@ import {
   seedOf,
   spotFromSeed,
   type Action,
+  type Difficulty,
   type DrillMode,
   type HandCategory,
   type Judgement,
@@ -38,6 +39,7 @@ interface Props {
   /** Categories to focus drilling on (from a hand-history import) */
   requestFocus?: HandCategory[] | null
   onFocusConsumed?: () => void
+  difficulty?: Difficulty
 }
 
 const ACTION_STYLE: Record<Action, string> = {
@@ -87,7 +89,7 @@ function cellFor(spot: Spot): (label: string) => CellKind {
   }
 }
 
-export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed }: Props) {
+export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed, difficulty = 'all' }: Props) {
   const [mode, setMode] = useState<DrillMode>('rfi')
   const [spot, setSpot] = useState<Spot>(() => generateSpot('rfi'))
   const [result, setResult] = useState<Judgement | null>(null)
@@ -107,6 +109,12 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed 
     mistakeCount().then(setMistakeBadge)
   }, [])
 
+  // re-deal when difficulty changes (unless mid-feedback or reviewing)
+  useEffect(() => {
+    if (!reviewMode && !result) setSpot(generateSpot(mode, { focus: focusOn ? focusCats : undefined, difficulty }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [difficulty])
+
   // focus request from import
   useEffect(() => {
     if (requestFocus && requestFocus.length) {
@@ -121,7 +129,7 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed 
   }, [requestFocus])
 
   function dealNormal(m: DrillMode = mode) {
-    setSpot(generateSpot(m, focusOn ? { focus: focusCats } : {}))
+    setSpot(generateSpot(m, { focus: focusOn ? focusCats : undefined, difficulty }))
     setResult(null)
     setCanContinue(false)
     playDeal()

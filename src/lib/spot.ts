@@ -60,22 +60,51 @@ export interface HandState {
 const ALL_LABELS: string[] = Array.from(new Set(gridLabels().flat()))
 const randOf = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)]
 
+export type Difficulty = 'easy' | 'all' | 'hard'
+
 export interface GenOptions {
   /** Continue an in-progress postflop hand instead of dealing fresh. */
   state?: HandState
   /** Bias the dealt spot toward these hand categories (adaptive drilling). */
   focus?: Set<HandCategory>
+  /** Bias toward clear-cut (easy) or borderline (hard) decisions. */
+  difficulty?: Difficulty
+}
+
+// How many of the 5 RFI positions open each hand (0 = always fold, 5 = always
+// open). 1–4 means the right answer is position-dependent → a harder decision.
+const MARGINALITY: Record<string, number> = (() => {
+  const m: Record<string, number> = {}
+  for (const label of ALL_LABELS) {
+    let c = 0
+    for (const p of RFI_POSITIONS) if (isRfiHand(p, label)) c++
+    m[label] = c
+  }
+  return m
+})()
+
+function difficultyOK(spot: Spot, level: Difficulty): boolean {
+  if (level === 'all') return true
+  if (spot.mode === 'postflop' && spot.freqs) {
+    const maxFreq = Math.max(spot.freqs[0], spot.freqs[1])
+    return level === 'easy' ? maxFreq >= 0.78 : maxFreq <= 0.7
+  }
+  const m = MARGINALITY[spot.label] ?? 0
+  return level === 'easy' ? m === 0 || m === 5 : m >= 1 && m <= 4
 }
 
 // ---------- generators -------------------------------------------------------
 
 export function generateSpot(mode: DrillMode, opts: GenOptions = {}): Spot {
   if (mode === 'postflop' && opts.state) return continueHand(opts.state)
-  // Adaptive focus: reject-sample for a spot in a weak category.
-  if (opts.focus && opts.focus.size) {
-    for (let i = 0; i < 18; i++) {
+  const wantFocus = !!opts.focus?.size
+  const wantDiff = !!opts.difficulty && opts.difficulty !== 'all'
+  if (wantFocus || wantDiff) {
+    const ok = (s: Spot) =>
+      (!wantFocus || opts.focus!.has(s.category)) && (!wantDiff || difficultyOK(s, opts.difficulty!))
+    for (let i = 0; i < 30; i++) {
       const s = generateOne(mode)
-      if (opts.focus.has(s.category)) return s
+      if (ok(s)) return s
     }
   }
   return generateOne(mode)

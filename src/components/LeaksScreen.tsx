@@ -1,9 +1,55 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Target, RotateCcw, Layers, Spade } from 'lucide-react'
-import { getLeakSummary, resetProgress, type LeakStat, type LeakSummary, type ModeStats } from '../lib/db'
+import { Target, RotateCcw, Layers, Spade, TrendingUp, TrendingDown, LineChart } from 'lucide-react'
+import {
+  getLeakSummary,
+  progressTrend,
+  resetProgress,
+  type LeakStat,
+  type LeakSummary,
+  type ModeStats,
+  type ProgressTrend,
+} from '../lib/db'
 
 interface Props {
   version: number // bump to force refresh
+}
+
+function ProgressChart({ trend }: { trend: ProgressTrend }) {
+  const up = trend.delta >= 0.02
+  const down = trend.delta <= -0.02
+  return (
+    <section className="panel p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-base font-semibold flex items-center gap-2">
+          <LineChart size={18} className="text-violet-400" /> Progress
+        </h2>
+        <span
+          className={`flex items-center gap-1 text-sm font-semibold ${
+            up ? 'text-emerald-400' : down ? 'text-red-400' : 'text-slate-400'
+          }`}
+        >
+          {up ? <TrendingUp size={15} /> : down ? <TrendingDown size={15} /> : null}
+          {trend.delta >= 0 ? '+' : ''}
+          {Math.round(trend.delta * 100)}%
+        </span>
+      </div>
+      <div className="flex items-end gap-1 h-20">
+        {trend.buckets.map((b, i) => {
+          const pct = Math.round(b.accuracy * 100)
+          const color = pct >= 80 ? 'bg-emerald-500' : pct >= 55 ? 'bg-amber-500' : 'bg-red-500'
+          return (
+            <div
+              key={i}
+              className={`flex-1 rounded-t ${color} transition-all`}
+              style={{ height: `${Math.max(6, b.accuracy * 100)}%` }}
+              title={`${pct}% (${b.count} hands)`}
+            />
+          )
+        })}
+      </div>
+      <p className="text-xs text-slate-500 mt-2 text-center">accuracy per session, oldest → newest</p>
+    </section>
+  )
 }
 
 function Bar({ stat }: { stat: LeakStat }) {
@@ -65,9 +111,11 @@ function ModeSection({
 
 export default function LeaksScreen({ version }: Props) {
   const [sum, setSum] = useState<LeakSummary | null>(null)
+  const [trend, setTrend] = useState<ProgressTrend | null>(null)
 
   useEffect(() => {
     getLeakSummary().then(setSum)
+    progressTrend().then(setTrend)
   }, [version])
 
   if (!sum) return <div className="p-8 text-center text-slate-400">Loading…</div>
@@ -100,6 +148,8 @@ export default function LeaksScreen({ version }: Props) {
           <RotateCcw size={14} /> Reset
         </button>
       </div>
+
+      {trend && <ProgressChart trend={trend} />}
 
       <section>
         <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
