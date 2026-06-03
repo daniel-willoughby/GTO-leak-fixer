@@ -3,7 +3,7 @@
 
 import { parseCards, type Card } from '../lib/cards'
 import type { Position } from './ranges'
-import flopBtnBb from './flop-btn-bb-Qs7h2c.json'
+import flopNodes from './flop-nodes.json'
 
 export interface FlopNode {
   spot: string
@@ -17,7 +17,7 @@ export interface FlopNode {
   meta: { solver: string; iterations: number; exploitability: string; generatedAt: string; approximate?: boolean }
 }
 
-export const FLOP_NODES: FlopNode[] = [flopBtnBb as unknown as FlopNode]
+export const FLOP_NODES: FlopNode[] = flopNodes as unknown as FlopNode[]
 
 export interface FlopStrategy {
   /** index-aligned to node.actions */
