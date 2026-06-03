@@ -6,6 +6,9 @@ interface Props {
   heroPos: Position
   heroCards: [Card, Card]
   raiserPos?: RfiPosition
+  // postflop
+  board?: Card[]
+  villain?: { pos: Position; note: string }
 }
 
 // Seat coordinates as % of the table container, seat 0 = hero (bottom), going clockwise.
@@ -18,14 +21,16 @@ const SEATS = [
   { left: 8, top: 66 },
 ]
 
-type Status = 'hero' | 'raiser' | 'folded' | 'waiting'
+type Status = 'hero' | 'raiser' | 'active' | 'folded' | 'waiting'
 
-export default function PokerTable({ heroPos, heroCards, raiserPos }: Props) {
+export default function PokerTable({ heroPos, heroCards, raiserPos, board, villain }: Props) {
   const heroIdx = actionIndex(heroPos)
+  const postflop = !!board
   const seats = SEATS.map((coord, i) => {
     const pos = POSITION_ORDER[(heroIdx + i) % POSITION_ORDER.length]
     let status: Status = 'waiting'
     if (pos === heroPos) status = 'hero'
+    else if (postflop) status = pos === villain?.pos ? 'active' : 'folded'
     else if (pos === raiserPos) status = 'raiser'
     else if (actionIndex(pos) < heroIdx) status = 'folded'
     return { pos, coord, status }
@@ -46,9 +51,17 @@ export default function PokerTable({ heroPos, heroCards, raiserPos }: Props) {
     <div className="relative w-full max-w-sm mx-auto aspect-[4/3]">
       {/* felt */}
       <div className="absolute inset-[14%] rounded-[50%] bg-emerald-800 border-[6px] border-amber-900/70 shadow-inner flex items-center justify-center">
-        <span className="text-emerald-300/60 text-xs font-semibold tracking-widest">
-          {raiserPos ? 'FACING A RAISE' : 'FOLDED TO YOU'}
-        </span>
+        {board ? (
+          <div className="flex gap-1">
+            {board.map((c, i) => (
+              <PlayingCard key={i} card={c} size="sm" />
+            ))}
+          </div>
+        ) : (
+          <span className="text-emerald-300/60 text-xs font-semibold tracking-widest">
+            {raiserPos ? 'FACING A RAISE' : 'FOLDED TO YOU'}
+          </span>
+        )}
       </div>
 
       {seats.map(({ pos, coord, status }) => (
@@ -70,15 +83,18 @@ export default function PokerTable({ heroPos, heroCards, raiserPos }: Props) {
                 ? 'bg-amber-500 text-slate-900 border-amber-300'
                 : status === 'raiser'
                   ? 'bg-red-600 text-white border-red-300'
-                  : status === 'folded'
-                    ? 'bg-slate-800 text-slate-500 border-slate-700 line-through'
-                    : 'bg-slate-700 text-slate-200 border-slate-600',
+                  : status === 'active'
+                    ? 'bg-slate-600 text-white border-slate-400'
+                    : status === 'folded'
+                      ? 'bg-slate-800 text-slate-500 border-slate-700 line-through'
+                      : 'bg-slate-700 text-slate-200 border-slate-600',
             ].join(' ')}
           >
             {pos}
           </div>
-          {status === 'raiser' && (
-            <span className="text-[10px] text-red-300 font-semibold">raises</span>
+          {status === 'raiser' && <span className="text-[10px] text-red-300 font-semibold">raises</span>}
+          {status === 'active' && villain && (
+            <span className="text-[10px] text-slate-300 font-semibold">{villain.note}</span>
           )}
         </div>
       ))}

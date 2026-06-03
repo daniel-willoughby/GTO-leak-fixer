@@ -38,41 +38,39 @@ export function gridLabels(): string[][] {
   )
 }
 
-/** Deal a random concrete two-card hand whose 169-label matches `label`. */
-export function dealHandForLabel(label: string): [Card, Card] {
+/** Every concrete two-card combo matching a 169-label (pair=6, suited=4, offsuit=12). */
+export function combosForLabel(label: string): [Card, Card][] {
   const r1 = label[0] as Rank
   const r2 = label[1] as Rank
+  const out: [Card, Card][] = []
   if (label.length === 2) {
-    // pair: two different suits
-    const [s1, s2] = pickTwo(SUITS as readonly Suit[])
-    return [
-      { rank: r1, suit: s1 },
-      { rank: r2, suit: s2 },
-    ]
+    for (let i = 0; i < SUITS.length; i++)
+      for (let j = i + 1; j < SUITS.length; j++)
+        out.push([{ rank: r1, suit: SUITS[i] }, { rank: r2, suit: SUITS[j] }])
+  } else if (label.endsWith('s')) {
+    for (const s of SUITS) out.push([{ rank: r1, suit: s }, { rank: r2, suit: s }])
+  } else {
+    for (const s1 of SUITS)
+      for (const s2 of SUITS) if (s1 !== s2) out.push([{ rank: r1, suit: s1 }, { rank: r2, suit: s2 }])
   }
-  if (label.endsWith('s')) {
-    const s = pick(SUITS as readonly Suit[])
-    return [
-      { rank: r1, suit: s },
-      { rank: r2, suit: s },
-    ]
-  }
-  // offsuit
-  const [s1, s2] = pickTwo(SUITS as readonly Suit[])
-  return [
-    { rank: r1, suit: s1 },
-    { rank: r2, suit: s2 },
-  ]
+  return out
 }
 
-function pick<T>(arr: readonly T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)]
+const sameCard = (a: Card, b: Card) => a.rank === b.rank && a.suit === b.suit
+
+/** Deal a random concrete hand for `label`, avoiding any cards in `exclude`. */
+export function dealHandForLabel(label: string, exclude: Card[] = []): [Card, Card] {
+  const combos = combosForLabel(label)
+  const valid = combos.filter(([a, b]) => !exclude.some((e) => sameCard(e, a) || sameCard(e, b)))
+  const pool = valid.length ? valid : combos
+  return pool[Math.floor(Math.random() * pool.length)]
 }
-function pickTwo<T>(arr: readonly T[]): [T, T] {
-  const i = Math.floor(Math.random() * arr.length)
-  let j = Math.floor(Math.random() * (arr.length - 1))
-  if (j >= i) j++
-  return [arr[i], arr[j]]
+
+/** Parse a board string like "Qs7h2c" into cards. */
+export function parseCards(str: string): Card[] {
+  const out: Card[] = []
+  for (let i = 0; i + 1 < str.length; i += 2) out.push({ rank: str[i] as Rank, suit: str[i + 1] as Suit })
+  return out
 }
 
 // ---- Range notation expander ------------------------------------------------

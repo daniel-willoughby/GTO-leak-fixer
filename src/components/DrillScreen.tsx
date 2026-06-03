@@ -10,6 +10,7 @@ import {
 } from '../lib/spot'
 import { isRfiHand, type RfiPosition } from '../data/ranges'
 import { MATCHUPS, respond } from '../data/vsRfi'
+import { strategyFor } from '../data/postflop'
 import { logDecision } from '../lib/db'
 import PokerTable from './PokerTable'
 import RangeGrid, { type CellKind } from './RangeGrid'
@@ -23,14 +24,29 @@ const ACTION_STYLE: Record<Action, string> = {
   call: 'bg-sky-600 hover:bg-sky-500',
   raise: 'bg-emerald-600 hover:bg-emerald-500',
   '3bet': 'bg-emerald-600 hover:bg-emerald-500',
+  check: 'bg-slate-700 hover:bg-slate-600',
+  bet: 'bg-emerald-600 hover:bg-emerald-500',
 }
 
-const KEY_HINT: Record<Action, string> = { fold: 'F', call: 'C', raise: 'R', '3bet': 'T' }
+const KEY_HINT: Record<Action, string> = { fold: 'F', call: 'C', raise: 'R', '3bet': 'T', check: 'K', bet: 'B' }
+
+const MODES: { id: DrillMode; label: string }[] = [
+  { id: 'rfi', label: 'Open' },
+  { id: 'vsRfi', label: 'Facing raise' },
+  { id: 'postflop', label: 'Postflop' },
+]
 
 function cellFor(spot: Spot): (label: string) => CellKind {
   if (spot.mode === 'rfi') {
     const pos = spot.heroPos as RfiPosition
     return (label) => (isRfiHand(pos, label) ? 'raise' : 'fold')
+  }
+  if (spot.mode === 'postflop') {
+    const node = spot.node!
+    return (label) => {
+      const s = strategyFor(node, label)
+      return s && s.primary.startsWith('bet') ? 'raise' : 'fold'
+    }
   }
   const m = MATCHUPS.find((x) => x.raiser === spot.raiserPos && x.hero === spot.heroPos)!
   return (label) => {
@@ -85,6 +101,8 @@ export default function DrillScreen({ onProgress }: Props) {
       else if (k === 'r') answer('raise')
       else if (k === 'c') answer('call')
       else if (k === 't') answer('3bet')
+      else if (k === 'k') answer('check')
+      else if (k === 'b') answer('bet')
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -93,33 +111,43 @@ export default function DrillScreen({ onProgress }: Props) {
   const prompt =
     spot.mode === 'rfi'
       ? 'Folded to you. Open-raise or fold?'
-      : `${spot.raiserPos} raises. Fold, call, or 3-bet?`
+      : spot.mode === 'vsRfi'
+        ? `${spot.raiserPos} raises. Fold, call, or 3-bet?`
+        : 'BB checks. Bet or check back?'
 
   return (
     <div className="flex flex-col items-center gap-4 px-4 pb-28 pt-4 max-w-xl mx-auto">
       {/* mode toggle */}
       <div className="flex gap-1 p-1 rounded-xl bg-slate-800 text-sm">
-        {(['rfi', 'vsRfi'] as DrillMode[]).map((m) => (
+        {MODES.map((m) => (
           <button
-            key={m}
-            onClick={() => switchMode(m)}
-            className={`px-4 py-1.5 rounded-lg font-semibold transition ${
-              mode === m ? 'bg-amber-500 text-slate-900' : 'text-slate-300 hover:text-white'
+            key={m.id}
+            onClick={() => switchMode(m.id)}
+            className={`px-3 py-1.5 rounded-lg font-semibold transition ${
+              mode === m.id ? 'bg-amber-500 text-slate-900' : 'text-slate-300 hover:text-white'
             }`}
           >
-            {m === 'rfi' ? 'Open (RFI)' : 'Facing a raise'}
+            {m.label}
           </button>
         ))}
       </div>
 
       <div className="flex items-center justify-between w-full text-sm">
-        <span className="text-slate-400">100bb · 6-max cash</span>
+        <span className="text-slate-400">
+          {spot.mode === 'postflop' ? 'BTN vs BB · single-raised pot' : '100bb · 6-max cash'}
+        </span>
         <span className="text-slate-400">
           Streak <span className="text-amber-400 font-bold">{streak}</span>
         </span>
       </div>
 
-      <PokerTable heroPos={spot.heroPos} heroCards={spot.cards} raiserPos={spot.raiserPos} />
+      <PokerTable
+        heroPos={spot.heroPos}
+        heroCards={spot.cards}
+        raiserPos={spot.raiserPos}
+        board={spot.board}
+        villain={spot.mode === 'postflop' ? { pos: 'BB', note: 'checks' } : undefined}
+      />
 
       <p className="text-slate-200 text-sm text-center font-medium">{prompt}</p>
 
@@ -148,10 +176,12 @@ export default function DrillScreen({ onProgress }: Props) {
           </div>
           <div className="w-full">
             <p className="text-xs text-slate-400 mb-2 text-center">
-              {spot.mode === 'rfi'
-                ? `${spot.heroPos} opening range`
-                : `${spot.heroPos} vs ${spot.raiserPos} — `}
-              <span className="text-emerald-400">{spot.mode === 'rfi' ? 'green = raise' : 'green = 3bet'}</span>
+              {spot.mode === 'rfi' && `${spot.heroPos} opening range — `}
+              {spot.mode === 'vsRfi' && `${spot.heroPos} vs ${spot.raiserPos} — `}
+              {spot.mode === 'postflop' && `${spot.node?.board} c-bet (majority action) — `}
+              <span className="text-emerald-400">
+                green = {spot.mode === 'rfi' ? 'raise' : spot.mode === 'vsRfi' ? '3bet' : 'bet'}
+              </span>
               {spot.mode === 'vsRfi' && <span className="text-sky-400">, blue = call</span>}
               , amber ring = your hand
             </p>
