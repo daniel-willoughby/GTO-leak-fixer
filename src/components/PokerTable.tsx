@@ -10,6 +10,8 @@ interface Props {
   heroPos: Position
   heroCards: [Card, Card]
   raiserPos?: RfiPosition
+  /** Extra active (still-in) positions beyond hero for multiway spots */
+  activePots?: Position[]
   // postflop
   board?: Card[]
   villain?: { pos: Position; note: string }
@@ -29,6 +31,27 @@ const SEATS = [
 
 type Status = 'hero' | 'raiser' | 'active' | 'folded' | 'waiting'
 
+function CardBack({ delay = 0 }: { delay?: number }) {
+  return (
+    <div
+      className="w-9 h-[3.25rem] rounded-md flex items-center justify-center"
+      style={{
+        background: 'linear-gradient(155deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%)',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.1) inset',
+        animationDelay: `${delay}ms`,
+      }}
+    >
+      {/* card-back diamond pattern */}
+      <svg width="20" height="26" viewBox="0 0 20 26" className="opacity-30">
+        <pattern id="cb" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
+          <rect x="1" y="1" width="2" height="2" fill="white" transform="rotate(45 2 2)" />
+        </pattern>
+        <rect width="20" height="26" fill="url(#cb)" />
+      </svg>
+    </div>
+  )
+}
+
 const SEAT_CLASS: Record<Status, string> = {
   hero: 'bg-gradient-to-b from-amber-300 to-amber-500 text-slate-900 border-amber-200/70 shadow-[0_0_18px_rgba(245,196,81,0.5)]',
   raiser: 'bg-gradient-to-b from-red-500 to-red-600 text-white border-red-300/50 shadow-[0_0_16px_rgba(239,68,68,0.45)]',
@@ -37,7 +60,7 @@ const SEAT_CLASS: Record<Status, string> = {
   waiting: 'bg-slate-700/70 text-slate-200 border-white/10 backdrop-blur-sm',
 }
 
-export default function PokerTable({ heroPos, heroCards, raiserPos, board, villain }: Props) {
+export default function PokerTable({ heroPos, heroCards, raiserPos, activePots = [], board, villain }: Props) {
   const heroIdx = actionIndex(heroPos)
   const postflop = !!board
   const seats = SEATS.map((coord, i) => {
@@ -46,6 +69,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, board, villa
     if (pos === heroPos) status = 'hero'
     else if (postflop) status = pos === villain?.pos ? 'active' : 'folded'
     else if (pos === raiserPos) status = 'raiser'
+    else if (activePots.includes(pos)) status = 'active'
     else if (actionIndex(pos) < heroIdx) status = 'folded'
     return { pos, coord, status }
   })
@@ -137,6 +161,11 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, board, villa
               <div className="animate-deal" style={{ animationDelay: '70ms' }}>
                 <PlayingCard card={heroCards[1]} size="sm" />
               </div>
+            </div>
+          )}
+          {(status === 'active' || status === 'raiser') && (
+            <div className="flex gap-1 mb-0.5 animate-deal">
+              <CardBack /><CardBack delay={70} />
             </div>
           )}
           <div

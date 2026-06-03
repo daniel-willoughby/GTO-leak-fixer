@@ -1,32 +1,45 @@
-// Postflop nodes — real TexasSolver output (see solver-spike/). Each node is a
-// single decision (currently BTN c-betting a flop facing a check).
+// Postflop nodes — real TexasSolver output, flop + turn streets.
+// See solver-spike/transform-multistreet.mjs for how these are produced.
 
 import { parseCards, type Card } from '../lib/cards'
 import type { Position } from './ranges'
-import flopNodes from './flop-nodes.json'
+import rawNodes from './street-nodes.json'
 
-export interface FlopNode {
+export type Street = 'flop' | 'turn' | 'river'
+
+export interface StreetNode {
   spot: string
+  /** Board cards so far. 6 chars = flop, 8 = turn, 10 = river. */
   board: string
+  street: Street
+  heroAction: string
+  /** Human-readable action history up to this decision. */
+  history: string[]
   potType: string
   hero: Position
+  villain: Position
   facing: 'none' | 'check' | 'bet'
   betSizes: number[]
-  actions: string[] // e.g. ['check','bet33']
+  actions: string[]
   strategy: Record<string, number[]>
-  meta: { solver: string; iterations: number; exploitability: string; generatedAt: string; approximate?: boolean }
+  meta: { solver: string; generatedAt: string; approximate?: boolean }
 }
 
-export const FLOP_NODES: FlopNode[] = flopNodes as unknown as FlopNode[]
+export const ALL_NODES: StreetNode[] = rawNodes as unknown as StreetNode[]
+export const FLOP_NODES = ALL_NODES.filter((n) => n.street === 'flop')
+export const TURN_NODES = ALL_NODES.filter((n) => n.street === 'turn')
 
-export interface FlopStrategy {
-  /** index-aligned to node.actions */
+/** All nodes whose first 6 board chars match a given flop. */
+export function turnNodesForFlop(flop: string): StreetNode[] {
+  return TURN_NODES.filter((n) => n.board.startsWith(flop))
+}
+
+export interface NodeStrategy {
   freqs: number[]
-  /** highest-frequency action label, e.g. 'bet33' */
   primary: string
 }
 
-export function strategyFor(node: FlopNode, label: string): FlopStrategy | null {
+export function strategyFor(node: StreetNode, label: string): NodeStrategy | null {
   const freqs = node.strategy[label]
   if (!freqs) return null
   let bi = 0
@@ -34,7 +47,9 @@ export function strategyFor(node: FlopNode, label: string): FlopStrategy | null 
   return { freqs, primary: node.actions[bi] }
 }
 
-export const boardCards = (node: FlopNode): Card[] => parseCards(node.board)
+export const boardCards = (node: StreetNode): Card[] => parseCards(node.board)
 
-/** Labels the node has a strategy for (hands that reach this node). */
-export const nodeLabels = (node: FlopNode): string[] => Object.keys(node.strategy)
+export const nodeLabels = (node: StreetNode): string[] => Object.keys(node.strategy)
+
+// Convenience: parse a 2-char card string like "Ah" → Card
+export const parseCard = (s: string): Card => parseCards(s)[0]

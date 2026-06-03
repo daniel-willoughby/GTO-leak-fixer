@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle2, XCircle, Flame, ArrowRight } from 'lucide-react'
+import { CheckCircle2, XCircle, Flame, ArrowRight, FastForward } from 'lucide-react'
 import {
   ACTION_LABEL,
+  buildContinuationSpot,
   generateSpot,
   judge,
   type Action,
@@ -11,11 +12,13 @@ import {
 } from '../lib/spot'
 import { isRfiHand, type RfiPosition } from '../data/ranges'
 import { MATCHUPS, respond } from '../data/vsRfi'
+import { MULTIWAY_MATCHUPS, respondMultiway } from '../data/multiway'
 import { strategyFor } from '../data/postflop'
 import { logDecision } from '../lib/db'
 import { playCorrect, playWrong, playDeal, playStreak } from '../lib/sound'
 import PokerTable from './PokerTable'
 import RangeGrid, { type CellKind } from './RangeGrid'
+import HandHistory from './HandHistory'
 
 interface Props {
   onProgress: () => void
@@ -28,13 +31,16 @@ const ACTION_STYLE: Record<Action, string> = {
   '3bet': 'btn btn-emerald',
   check: 'btn btn-slate',
   bet: 'btn btn-emerald',
+  squeeze: 'btn btn-emerald',
+  'cold-4bet': 'btn btn-emerald',
 }
 
-const KEY_HINT: Record<Action, string> = { fold: 'F', call: 'C', raise: 'R', '3bet': 'T', check: 'K', bet: 'B' }
+const KEY_HINT: Record<string, string> = { fold: 'F', call: 'C', raise: 'R', '3bet': 'T', check: 'K', bet: 'B', squeeze: 'S', 'cold-4bet': '4' }
 
 const MODES: { id: DrillMode; label: string }[] = [
   { id: 'rfi', label: 'Open' },
-  { id: 'vsRfi', label: 'Facing raise' },
+  { id: 'vsRfi', label: 'vs Raise' },
+  { id: 'multiway', label: 'Multiway' },
   { id: 'postflop', label: 'Postflop' },
 ]
 
@@ -50,6 +56,14 @@ function cellFor(spot: Spot): (label: string) => CellKind {
       return s && s.primary.startsWith('bet') ? 'raise' : 'fold'
     }
   }
+  if (spot.mode === 'multiway') {
+    const m = MULTIWAY_MATCHUPS.find((x) => x.hero === spot.heroPos)!
+    if (!m) return () => 'fold'
+    return (label) => {
+      const a = respondMultiway(m, label)
+      return a === 'squeeze' || a === 'cold-4bet' ? 'raise' : a === 'call' ? 'call' : 'fold'
+    }
+  }
   const m = MATCHUPS.find((x) => x.raiser === spot.raiserPos && x.hero === spot.heroPos)!
   return (label) => {
     const a = respond(m, label)
@@ -62,10 +76,13 @@ export default function DrillScreen({ onProgress }: Props) {
   const [spot, setSpot] = useState<Spot>(() => generateSpot('rfi'))
   const [result, setResult] = useState<Judgement | null>(null)
   const [streak, setStreak] = useState(0)
+  // whether a postflop continuation is available after answering
+  const [canContinue, setCanContinue] = useState(false)
 
   function next(m: DrillMode = mode) {
     setSpot(generateSpot(m))
     setResult(null)
+    setCanContinue(false)
     playDeal()
   }
 
@@ -74,6 +91,16 @@ export default function DrillScreen({ onProgress }: Props) {
     setMode(m)
     setStreak(0)
     next(m)
+  }
+
+  function continueHand() {
+    if (!spot.handState || !result) return
+    const continuation = buildContinuationSpot(spot.handState, result.chosen)
+    if (!continuation) { next(); return }
+    setSpot(continuation)
+    setResult(null)
+    setCanContinue(false)
+    playDeal()
   }
 
   async function answer(action: Action) {
@@ -90,6 +117,11 @@ export default function DrillScreen({ onProgress }: Props) {
     } else {
       setStreak(0)
       playWrong()
+    }
+    // Check if continuation is available (postflop flop streets)
+    if (spot.mode === 'postflop' && spot.handState?.street === 'flop') {
+      const cont = buildContinuationSpot(spot.handState, action)
+      setCanContinue(!!cont)
     }
     await logDecision({
       ts: Date.now(),
@@ -118,27 +150,53 @@ export default function DrillScreen({ onProgress }: Props) {
       else if (k === 't') answer('3bet')
       else if (k === 'k') answer('check')
       else if (k === 'b') answer('bet')
+      else if (k === 's') answer('squeeze')
+      else if (k === '4') answer('cold-4bet')
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   })
 
+  const history = spot.handState?.history ?? []
+  const street = spot.handState?.street
   const prompt =
     spot.mode === 'rfi'
       ? 'Folded to you. Open-raise or fold?'
       : spot.mode === 'vsRfi'
         ? `${spot.raiserPos} raises. Fold, call, or 3-bet?`
-        : 'BB checks. Bet or check back?'
+        : spot.mode === 'multiway'
+          ? (() => {
+              const m = MULTIWAY_MATCHUPS.find((x) => x.hero === spot.heroPos)
+              return m ? m.description : 'What do you do?'
+            })()
+          : street === 'turn'
+            ? 'BB checks the turn. Bet or check back?'
+            : 'BB checks. Bet or check back?'
+
+  // Active positions for multiway (raiser + callers before hero)
+  const multiwayActive =
+    spot.mode === 'multiway'
+      ? (MULTIWAY_MATCHUPS.find((x) => x.hero === spot.heroPos)?.activeBefore ?? [])
+      : []
+
+  const gridLabel =
+    spot.mode === 'rfi'
+      ? `${spot.heroPos} opening range`
+      : spot.mode === 'vsRfi'
+        ? `${spot.heroPos} vs ${spot.raiserPos}`
+        : spot.mode === 'multiway'
+          ? `${spot.heroPos} decision`
+          : `${spot.node?.board.match(/../g)?.join(' ')} (${street})`
 
   return (
-    <div className="flex flex-col items-center gap-4 px-4 pb-28 pt-4 max-w-xl mx-auto">
+    <div className="flex flex-col items-center gap-3 px-4 pb-28 pt-4 max-w-xl mx-auto">
       {/* mode toggle */}
-      <div className="flex gap-1 p-1 rounded-2xl bg-slate-800/60 border border-white/10 backdrop-blur-sm text-sm w-full max-w-sm">
+      <div className="flex gap-1 p-1 rounded-2xl bg-slate-800/60 border border-white/10 backdrop-blur-sm text-sm w-full">
         {MODES.map((m) => (
           <button
             key={m.id}
             onClick={() => switchMode(m.id)}
-            className={`flex-1 px-2 py-2 rounded-xl font-semibold transition ${
+            className={`flex-1 px-1.5 py-2 rounded-xl font-semibold transition text-xs ${
               mode === m.id
                 ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-slate-900 shadow-[0_4px_14px_-3px_rgba(245,196,81,0.55)]'
                 : 'text-slate-300 hover:text-white'
@@ -151,7 +209,7 @@ export default function DrillScreen({ onProgress }: Props) {
 
       <div className="flex items-center justify-between w-full text-sm">
         <span className="text-slate-400">
-          {spot.mode === 'postflop' ? 'BTN vs BB · single-raised pot' : '100bb · 6-max cash'}
+          {spot.mode === 'postflop' ? `BTN vs BB · ${street ?? 'flop'}` : '100bb · 6-max cash'}
         </span>
         <span
           className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 border transition ${
@@ -165,26 +223,29 @@ export default function DrillScreen({ onProgress }: Props) {
         </span>
       </div>
 
+      {/* betting history */}
+      {history.length > 0 && <HandHistory history={history} />}
+
       <PokerTable
         heroPos={spot.heroPos}
         heroCards={spot.cards}
         raiserPos={spot.raiserPos}
+        activePots={multiwayActive}
         board={spot.board}
         villain={spot.mode === 'postflop' ? { pos: 'BB', note: 'checks' } : undefined}
       />
 
-      <p className="text-slate-100 text-[15px] text-center font-medium">{prompt}</p>
+      <p className="text-slate-100 text-[15px] text-center font-medium leading-snug px-2">{prompt}</p>
 
       {!result ? (
-        <div className={`grid gap-3 w-full max-w-sm ${spot.actions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <div className={`grid gap-3 w-full max-w-sm ${spot.actions.length === 3 ? 'grid-cols-3' : spot.actions.length === 4 ? 'grid-cols-2' : 'grid-cols-2'}`}>
           {spot.actions.map((a) => (
             <button key={a} onClick={() => answer(a)} className={`py-4 text-lg ${ACTION_STYLE[a]}`}>
-              {ACTION_LABEL[a]} <span className="text-xs opacity-70">({KEY_HINT[a]})</span>
+              {ACTION_LABEL[a]} <span className="text-xs opacity-70">({KEY_HINT[a] ?? ''})</span>
             </button>
           ))}
         </div>
       ) : (
-        /* Extra bottom padding so the range grid clears the sticky Next button */
         <div className="w-full flex flex-col items-center gap-4 animate-pop pb-24">
           <div
             className={`w-full rounded-2xl p-4 text-sm leading-relaxed flex gap-3 backdrop-blur-md border ${
@@ -202,11 +263,9 @@ export default function DrillScreen({ onProgress }: Props) {
           </div>
           <div className="w-full">
             <p className="text-xs text-slate-400 mb-2 text-center">
-              {spot.mode === 'rfi' && `${spot.heroPos} opening range: `}
-              {spot.mode === 'vsRfi' && `${spot.heroPos} vs ${spot.raiserPos}: `}
-              {spot.mode === 'postflop' && `${spot.node?.board} c-bet (majority action): `}
+              {gridLabel}:&nbsp;
               <span className="text-emerald-400">
-                green = {spot.mode === 'rfi' ? 'raise' : spot.mode === 'vsRfi' ? '3bet' : 'bet'}
+                green = {spot.mode === 'rfi' ? 'raise' : spot.mode === 'vsRfi' ? '3bet' : spot.mode === 'multiway' ? 'squeeze' : 'bet'}
               </span>
               {spot.mode === 'vsRfi' && <span className="text-sky-400">, blue = call</span>}
               , amber ring = your hand
@@ -216,12 +275,21 @@ export default function DrillScreen({ onProgress }: Props) {
         </div>
       )}
 
-      {/* Next hand — always visible, pinned above the nav bar */}
+      {/* Pinned bottom — next or continue */}
       {result && (
-        <div className="fixed bottom-0 inset-x-0 z-20 flex justify-center px-4 pb-[calc(4.25rem+env(safe-area-inset-bottom))] pt-10 bg-gradient-to-t from-[#090d18] via-[#090d18]/90 to-transparent pointer-events-none">
+        <div className="fixed bottom-0 inset-x-0 z-20 flex justify-center gap-3 px-4 pb-[calc(4.25rem+env(safe-area-inset-bottom))] pt-10 bg-gradient-to-t from-[#090d18] via-[#090d18]/90 to-transparent pointer-events-none">
+          {canContinue && (
+            <button
+              onClick={continueHand}
+              className="btn pointer-events-auto flex-1 max-w-[11rem] py-4 text-base flex items-center justify-center gap-2"
+              style={{ background: 'linear-gradient(180deg,#6ee7b7 0%,#34d399 55%,#059669 100%)', color: '#042f1f' }}
+            >
+              <FastForward size={16} /> Turn
+            </button>
+          )}
           <button
             onClick={() => next()}
-            className="btn btn-gold pointer-events-auto w-full max-w-sm py-4 text-lg flex items-center justify-center gap-2"
+            className="btn btn-gold pointer-events-auto flex-1 max-w-sm py-4 text-lg flex items-center justify-center gap-2"
           >
             Next hand <ArrowRight size={18} />
           </button>
