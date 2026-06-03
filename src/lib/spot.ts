@@ -8,7 +8,7 @@ import {
   type RfiPosition,
 } from '../data/ranges'
 import { MATCHUPS, respond, type Matchup } from '../data/vsRfi'
-import { MULTIWAY_MATCHUPS, respondMultiway, type MultiwayAction } from '../data/multiway'
+import { MULTIWAY_MATCHUPS, respondMultiway } from '../data/multiway'
 import { FLOP_NODES, nodeLabels, strategyFor, turnNodesForFlop, type StreetNode } from '../data/postflop'
 import { describeHand } from './flopEval'
 
