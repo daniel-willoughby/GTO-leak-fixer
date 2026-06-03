@@ -180,7 +180,8 @@ export default function DrillScreen({ onProgress }: Props) {
           ))}
         </div>
       ) : (
-        <div className="w-full flex flex-col items-center gap-4 animate-pop">
+        /* Extra bottom padding so the range grid clears the sticky Next button */
+        <div className="w-full flex flex-col items-center gap-4 animate-pop pb-24">
           <div
             className={`w-full rounded-xl p-4 text-sm leading-relaxed flex gap-3 ${
               result.isCorrect
@@ -208,9 +209,15 @@ export default function DrillScreen({ onProgress }: Props) {
             </p>
             <RangeGrid cell={cellFor(spot)} highlight={spot.label} />
           </div>
+        </div>
+      )}
+
+      {/* Next hand — always visible, pinned above the nav bar */}
+      {result && (
+        <div className="fixed bottom-0 inset-x-0 z-20 flex justify-center px-4 pb-[calc(4rem+env(safe-area-inset-bottom))]">
           <button
             onClick={() => next()}
-            className="w-full max-w-sm py-4 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-slate-900 font-bold text-lg transition flex items-center justify-center gap-2"
+            className="w-full max-w-sm py-4 rounded-2xl bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-slate-900 font-bold text-lg shadow-lg transition flex items-center justify-center gap-2"
           >
             Next hand <ArrowRight size={18} />
           </button>
