@@ -11,14 +11,16 @@ interface Props {
   villain?: { pos: Position; note: string }
 }
 
-// Seat coordinates as % of the table container, seat 0 = hero (bottom), going clockwise.
+// Seat coordinates as % of the table container, seat 0 = hero (bottom). Seats
+// trace CLOCKWISE to match POSITION_ORDER, so the player to hero's left (next
+// clockwise position) sits on the left — e.g. the blinds sit left of the button.
 const SEATS = [
-  { left: 50, top: 84 },
-  { left: 92, top: 66 },
-  { left: 96, top: 28 },
-  { left: 50, top: 8 },
-  { left: 4, top: 28 },
-  { left: 8, top: 66 },
+  { left: 50, top: 84 }, // hero (bottom)
+  { left: 8, top: 66 }, //  lower-left
+  { left: 4, top: 28 }, //  upper-left
+  { left: 50, top: 8 }, //  top
+  { left: 96, top: 28 }, // upper-right
+  { left: 92, top: 66 }, // lower-right
 ]
 
 type Status = 'hero' | 'raiser' | 'active' | 'folded' | 'waiting'
