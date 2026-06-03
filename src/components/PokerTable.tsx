@@ -19,12 +19,12 @@ interface Props {
 // trace CLOCKWISE to match POSITION_ORDER, so the player to hero's left (next
 // clockwise position) sits on the left — e.g. the blinds sit left of the button.
 const SEATS = [
-  { left: 50, top: 84 }, // hero (bottom)
-  { left: 8, top: 66 }, //  lower-left
-  { left: 4, top: 28 }, //  upper-left
-  { left: 50, top: 8 }, //  top
-  { left: 96, top: 28 }, // upper-right
-  { left: 92, top: 66 }, // lower-right
+  { left: 50, top: 88 }, // hero (bottom)
+  { left: 6,  top: 68 }, // lower-left
+  { left: 6,  top: 28 }, // upper-left
+  { left: 50, top: 7  }, // top
+  { left: 94, top: 28 }, // upper-right
+  { left: 94, top: 68 }, // lower-right
 ]
 
 type Status = 'hero' | 'raiser' | 'active' | 'folded' | 'waiting'
@@ -59,7 +59,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, board, villa
   const len = Math.hypot(dx, dy) || 1
   const dealer =
     heroPos === 'BTN'
-      ? { left: 71, top: 78 }
+      ? { left: 68, top: 80 }
       : {
           left: btn.coord.left + dx * 0.24 + (-dy / len) * 11,
           top: btn.coord.top + dy * 0.24 + (dx / len) * 11,
@@ -88,7 +88,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, board, villa
   })
 
   return (
-    <div className="relative w-full max-w-sm mx-auto aspect-[4/3]">
+    <div className="relative w-full max-w-lg mx-auto aspect-[5/4]">
       {/* rail */}
       <div
         className="absolute inset-[10%] rounded-full p-[9px]"
