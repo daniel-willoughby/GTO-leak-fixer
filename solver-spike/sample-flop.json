@@ -1,0 +1,35 @@
+{
+  "spot": "BTN_vs_BB_SRP",
+  "board": "Qs7h2c",
+  "potType": "srp",
+  "hero": "BTN",
+  "facing": "check",
+  "betSizes": [0.33],
+  "actions": ["check", "bet33"],
+  "strategy": {
+    "AA": [0.10, 0.90],
+    "KK": [0.18, 0.82],
+    "QQ": [0.15, 0.85],
+    "77": [0.20, 0.80],
+    "22": [0.25, 0.75],
+    "AQs": [0.08, 0.92],
+    "AQo": [0.12, 0.88],
+    "KQo": [0.25, 0.75],
+    "QJs": [0.18, 0.82],
+    "QTs": [0.20, 0.80],
+    "AKo": [0.45, 0.55],
+    "JTs": [0.40, 0.60],
+    "A5s": [0.50, 0.50],
+    "T9s": [0.55, 0.45],
+    "KJo": [0.60, 0.40],
+    "98s": [0.70, 0.30],
+    "65s": [0.75, 0.25]
+  },
+  "meta": {
+    "solver": "hand-tuned placeholder (spike)",
+    "iterations": 0,
+    "exploitability": "n/a",
+    "generatedAt": "2026-06-03",
+    "approximate": true
+  }
+}

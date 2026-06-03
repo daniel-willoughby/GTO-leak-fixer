@@ -1,0 +1,170 @@
+import { useEffect, useState } from 'react'
+import {
+  ACTION_LABEL,
+  generateSpot,
+  judge,
+  type Action,
+  type DrillMode,
+  type Judgement,
+  type Spot,
+} from '../lib/spot'
+import { isRfiHand, type RfiPosition } from '../data/ranges'
+import { MATCHUPS, respond } from '../data/vsRfi'
+import { logDecision } from '../lib/db'
+import PokerTable from './PokerTable'
+import RangeGrid, { type CellKind } from './RangeGrid'
+
+interface Props {
+  onProgress: () => void
+}
+
+const ACTION_STYLE: Record<Action, string> = {
+  fold: 'bg-slate-700 hover:bg-slate-600',
+  call: 'bg-sky-600 hover:bg-sky-500',
+  raise: 'bg-emerald-600 hover:bg-emerald-500',
+  '3bet': 'bg-emerald-600 hover:bg-emerald-500',
+}
+
+const KEY_HINT: Record<Action, string> = { fold: 'F', call: 'C', raise: 'R', '3bet': 'T' }
+
+function cellFor(spot: Spot): (label: string) => CellKind {
+  if (spot.mode === 'rfi') {
+    const pos = spot.heroPos as RfiPosition
+    return (label) => (isRfiHand(pos, label) ? 'raise' : 'fold')
+  }
+  const m = MATCHUPS.find((x) => x.raiser === spot.raiserPos && x.hero === spot.heroPos)!
+  return (label) => {
+    const a = respond(m, label)
+    return a === '3bet' ? 'raise' : a === 'call' ? 'call' : 'fold'
+  }
+}
+
+export default function DrillScreen({ onProgress }: Props) {
+  const [mode, setMode] = useState<DrillMode>('rfi')
+  const [spot, setSpot] = useState<Spot>(() => generateSpot('rfi'))
+  const [result, setResult] = useState<Judgement | null>(null)
+  const [streak, setStreak] = useState(0)
+
+  function next(m: DrillMode = mode) {
+    setSpot(generateSpot(m))
+    setResult(null)
+  }
+
+  function switchMode(m: DrillMode) {
+    if (m === mode) return
+    setMode(m)
+    setStreak(0)
+    next(m)
+  }
+
+  async function answer(action: Action) {
+    if (result || !spot.actions.includes(action)) return
+    const j = judge(spot, action)
+    setResult(j)
+    setStreak((s) => (j.isCorrect ? s + 1 : 0))
+    await logDecision({
+      ts: Date.now(),
+      position: spot.heroPos,
+      label: spot.label,
+      category: spot.category,
+      chosen: j.chosen,
+      correct: j.correct,
+      isCorrect: j.isCorrect,
+    })
+    onProgress()
+  }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const k = e.key.toLowerCase()
+      if (result) {
+        if (e.key === ' ' || e.key === 'Enter') next()
+        return
+      }
+      if (k === 'f') answer('fold')
+      else if (k === 'r') answer('raise')
+      else if (k === 'c') answer('call')
+      else if (k === 't') answer('3bet')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
+  const prompt =
+    spot.mode === 'rfi'
+      ? 'Folded to you. Open-raise or fold?'
+      : `${spot.raiserPos} raises. Fold, call, or 3-bet?`
+
+  return (
+    <div className="flex flex-col items-center gap-4 px-4 pb-28 pt-4 max-w-xl mx-auto">
+      {/* mode toggle */}
+      <div className="flex gap-1 p-1 rounded-xl bg-slate-800 text-sm">
+        {(['rfi', 'vsRfi'] as DrillMode[]).map((m) => (
+          <button
+            key={m}
+            onClick={() => switchMode(m)}
+            className={`px-4 py-1.5 rounded-lg font-semibold transition ${
+              mode === m ? 'bg-amber-500 text-slate-900' : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            {m === 'rfi' ? 'Open (RFI)' : 'Facing a raise'}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between w-full text-sm">
+        <span className="text-slate-400">100bb · 6-max cash</span>
+        <span className="text-slate-400">
+          Streak <span className="text-amber-400 font-bold">{streak}</span>
+        </span>
+      </div>
+
+      <PokerTable heroPos={spot.heroPos} heroCards={spot.cards} raiserPos={spot.raiserPos} />
+
+      <p className="text-slate-200 text-sm text-center font-medium">{prompt}</p>
+
+      {!result ? (
+        <div className={`grid gap-3 w-full max-w-sm ${spot.actions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          {spot.actions.map((a) => (
+            <button
+              key={a}
+              onClick={() => answer(a)}
+              className={`py-4 rounded-xl font-bold text-lg transition ${ACTION_STYLE[a]}`}
+            >
+              {ACTION_LABEL[a]} <span className="text-xs opacity-70">({KEY_HINT[a]})</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="w-full flex flex-col items-center gap-4">
+          <div
+            className={`w-full rounded-xl p-4 text-sm leading-relaxed ${
+              result.isCorrect
+                ? 'bg-emerald-900/40 border border-emerald-600/50'
+                : 'bg-red-900/40 border border-red-600/50'
+            }`}
+          >
+            {result.explanation}
+          </div>
+          <div className="w-full">
+            <p className="text-xs text-slate-400 mb-2 text-center">
+              {spot.mode === 'rfi'
+                ? `${spot.heroPos} opening range`
+                : `${spot.heroPos} vs ${spot.raiserPos} — `}
+              <span className="text-emerald-400">{spot.mode === 'rfi' ? 'green = raise' : 'green = 3bet'}</span>
+              {spot.mode === 'vsRfi' && <span className="text-sky-400">, blue = call</span>}
+              , amber ring = your hand
+            </p>
+            <RangeGrid cell={cellFor(spot)} highlight={spot.label} />
+          </div>
+          <button
+            onClick={() => next()}
+            className="w-full max-w-sm py-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold text-lg transition"
+          >
+            Next hand <span className="text-amber-800 text-xs">(space)</span>
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
