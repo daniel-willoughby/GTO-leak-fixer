@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Design D — Mac</title>
+<style>
+  :root{
+    --accent:#0a84ff; --accent-d:#0060df;
+    --mat:rgba(40,40,44,.62); --mat-side:rgba(28,28,31,.55);
+    --txt:#f2f2f5; --txt2:#a4a6ad; --txt3:#74767d;
+    --hair:rgba(255,255,255,.09); --hair2:rgba(255,255,255,.06);
+    --field:rgba(255,255,255,.06);
+    --green:#30d158; --red:#ff453a; --yellow:#ffd60a;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    font-family:-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+    color:var(--txt); -webkit-font-smoothing:antialiased; letter-spacing:-.01em;
+    display:grid; place-items:center; min-height:100vh; padding:22px;
+  }
+  /* Sonoma-style wallpaper, fixed so it always fills the screen */
+  body::after{
+    content:""; position:fixed; inset:0; z-index:-1;
+    background:
+      radial-gradient(55% 70% at 12% 6%, #6a5cff 0%, rgba(106,92,255,0) 55%),
+      radial-gradient(60% 60% at 92% 10%, #ff5d8f 0%, rgba(255,93,143,0) 52%),
+      radial-gradient(70% 70% at 18% 100%, #18b6c9 0%, rgba(24,182,201,0) 55%),
+      radial-gradient(75% 75% at 88% 96%, #7a4dff 0%, rgba(122,77,255,0) 55%),
+      linear-gradient(135deg, #36285e 0%, #45264f 45%, #163445 100%);
+  }
+
+  /* ===== window ===== */
+  .win{
+    width:1180px; max-width:100%; height:calc(100vh - 44px); max-height:760px; border-radius:13px; overflow:hidden;
+    background:rgba(22,22,24,.72); backdrop-filter:blur(40px) saturate(180%); -webkit-backdrop-filter:blur(40px) saturate(180%);
+    box-shadow:0 1px 0 rgba(255,255,255,.10) inset, 0 0 0 1px rgba(0,0,0,.5), 0 40px 90px rgba(0,0,0,.55);
+    display:flex; flex-direction:column;
+  }
+  /* unified toolbar */
+  .bar{height:52px; display:flex; align-items:center; gap:14px; padding:0 14px; border-bottom:1px solid var(--hair); background:rgba(255,255,255,.02);}
+  .lights{display:flex; gap:8px; width:70px;}
+  .lights i{width:12px;height:12px;border-radius:50%; display:block; box-shadow:inset 0 0 0 .5px rgba(0,0,0,.25);}
+  .lights .r{background:var(--red);} .lights .y{background:var(--yellow);} .lights .g{background:var(--green);}
+  .seg{display:flex; background:rgba(255,255,255,.06); border:1px solid var(--hair); border-radius:8px; padding:2px;}
+  .seg button{border:none; background:transparent; color:var(--txt2); font:inherit; font-size:13px; font-weight:500; padding:4px 13px; border-radius:6px; cursor:pointer;}
+  .seg button.on{background:rgba(120,120,128,.5); color:#fff; box-shadow:0 .5px 1px rgba(0,0,0,.3);}
+  .grow{flex:1;}
+  .tbtn{display:flex; align-items:center; gap:6px; height:28px; padding:0 11px; border-radius:7px; border:1px solid var(--hair); background:var(--field); color:var(--txt); font-size:12.5px; font-weight:500; cursor:pointer;}
+  .streak{display:flex; align-items:center; gap:6px; height:28px; padding:0 11px; border-radius:7px; background:rgba(255,159,10,.16); border:1px solid rgba(255,159,10,.3); color:#ffb340; font-size:12.5px; font-weight:600;}
+  .search{display:flex; align-items:center; gap:6px; width:170px; height:28px; padding:0 9px; border-radius:7px; background:var(--field); border:1px solid var(--hair); color:var(--txt3); font-size:12.5px;}
+
+  .body{flex:1; display:flex; min-height:0;}
+
+  /* ===== sidebar (vibrancy) ===== */
+  .side{width:224px; flex:none; background:var(--mat-side); backdrop-filter:blur(30px) saturate(180%); border-right:1px solid var(--hair); padding:10px 10px 0; display:flex; flex-direction:column;}
+  .sgroup{margin-bottom:14px;}
+  .sgroup h4{font-size:11px; font-weight:600; color:var(--txt3); text-transform:uppercase; letter-spacing:.04em; padding:4px 8px 6px;}
+  .srow{display:flex; align-items:center; gap:9px; height:30px; padding:0 8px; border-radius:7px; color:var(--txt); font-size:13.5px; font-weight:500; cursor:pointer;}
+  .srow .ic{width:20px; text-align:center; font-size:14px; color:var(--txt2);}
+  .srow:hover{background:rgba(255,255,255,.05);}
+  .srow.sel{background:var(--accent); color:#fff;}
+  .srow.sel .ic{color:#fff;}
+  .srow .badge{margin-left:auto; font-size:11px; background:rgba(255,255,255,.2); color:#fff; border-radius:9px; padding:0 6px; font-weight:600;}
+  .side .spacer{flex:1;}
+  .profile{display:flex; align-items:center; gap:9px; padding:9px 8px; border-top:1px solid var(--hair); margin:0 -10px;}
+  .profile .av{width:28px;height:28px;border-radius:50%; background:linear-gradient(135deg,#0a84ff,#6a5cff); display:grid;place-items:center; font-size:11px; font-weight:700; color:#fff;}
+  .profile .nm{font-size:13px; font-weight:600;} .profile .sub{font-size:11px; color:var(--txt3);}
+  .profile .more{margin-left:auto; color:var(--txt3);}
+
+  /* ===== content ===== */
+  .content{flex:1; min-width:0; display:flex; flex-direction:column; padding:22px 26px; overflow:auto;}
+  .ctitle{font-size:22px; font-weight:700; letter-spacing:-.02em;}
+  .csub{font-size:13px; color:var(--txt2); margin-top:2px;}
+  .stage{
+    margin-top:18px; flex:1; border-radius:14px; border:1px solid var(--hair);
+    background:
+      radial-gradient(80% 60% at 50% 32%, rgba(48,209,88,.14), rgba(48,209,88,0) 60%),
+      rgba(255,255,255,.02);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; padding:26px; position:relative;
+  }
+  .potpill{position:absolute; top:14px; left:16px; font-size:12px; color:var(--txt2); background:rgba(255,255,255,.05); border:1px solid var(--hair); border-radius:8px; padding:4px 10px;}
+  .vill{position:absolute; top:14px; right:16px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--txt2);}
+  .vill .back{width:22px;height:30px;border-radius:5px;background:repeating-linear-gradient(45deg,#2a4d8f,#2a4d8f 3px,#3a63b0 3px,#3a63b0 6px); border:1px solid rgba(255,255,255,.25);}
+  .board{display:flex; gap:10px;}
+  .pc{width:58px;height:80px;border-radius:9px; background:linear-gradient(180deg,#fff,#f1f2f4); display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:0 6px 16px rgba(0,0,0,.4); position:relative;}
+  .pc .r{font-size:24px; font-weight:700; line-height:1;}
+  .pc .s{font-size:18px; line-height:1; margin-top:2px;}
+  .pc.h{width:74px;height:104px;}
+  .pc.h .r{font-size:32px;} .pc.h .s{font-size:24px;}
+  .sp{color:#1b1c1e;} .he{color:#e0322f;} .di{color:#1d6fe0;} .cl{color:#1aa251;}
+  .hero{display:flex; gap:12px; margin-top:18px;}
+  .label{margin-top:18px; text-align:center;}
+  .label .h{font-size:19px; font-weight:600;}
+  .label .s{font-size:13px; color:var(--txt2); margin-top:3px;}
+
+  .actions{display:flex; gap:12px; justify-content:center; margin-top:20px;}
+  .btn{height:42px; min-width:150px; border-radius:9px; font:inherit; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:9px; border:1px solid var(--hair);}
+  .btn .kbd{font-size:11px; opacity:.7; border:1px solid currentColor; border-radius:4px; padding:0 5px; line-height:16px;}
+  .btn.secondary{background:rgba(255,255,255,.07); color:var(--txt);}
+  .btn.default{background:linear-gradient(180deg,#2b96ff,#0a84ff); color:#fff; border-color:transparent; box-shadow:0 1px 0 rgba(255,255,255,.3) inset, 0 6px 18px -6px rgba(10,132,255,.8), 0 0 0 4px rgba(10,132,255,.22);}
+
+  /* ===== inspector ===== */
+  .insp{width:288px; flex:none; border-left:1px solid var(--hair); background:rgba(255,255,255,.015); padding:16px 16px 0; overflow:auto;}
+  .ihdr{font-size:11px; font-weight:600; color:var(--txt3); text-transform:uppercase; letter-spacing:.04em; margin:4px 2px 10px;}
+  .icard{background:rgba(255,255,255,.04); border:1px solid var(--hair); border-radius:10px; padding:12px; margin-bottom:14px;}
+  .irow{display:flex; justify-content:space-between; font-size:13px; padding:5px 0; border-bottom:1px solid var(--hair2);}
+  .irow:last-child{border-bottom:none;}
+  .irow span{color:var(--txt2);} .irow b{font-weight:600; font-variant-numeric:tabular-nums;}
+  .irow b.g{color:var(--green);}
+  /* mini matrix */
+  .mini{display:grid; grid-template-columns:repeat(13,1fr); gap:1.5px;}
+  .mc{position:relative; aspect-ratio:1; border-radius:2px; overflow:hidden; background:rgba(255,255,255,.06);}
+  .mc .f{position:absolute; left:0;right:0;bottom:0; background:linear-gradient(180deg,#34d399,#15a06f);}
+  .mc.h{outline:1.5px solid var(--yellow); outline-offset:-1px; z-index:2;}
+  .mcap{display:flex; justify-content:space-between; font-size:11px; color:var(--txt3); margin-top:8px;}
+  .ev{display:flex; height:26px; border-radius:6px; overflow:hidden; font-size:11px; font-weight:600; border:1px solid var(--hair);}
+  .ev .b{background:linear-gradient(180deg,#34d399,#10b981); color:#04241a; display:grid; place-items:center;}
+  .ev .c{background:rgba(255,255,255,.07); color:var(--txt2); display:grid; place-items:center;}
+</style>
+</head>
+<body>
+  <div class="win">
+    <!-- toolbar -->
+    <div class="bar">
+      <div class="lights"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+      <div class="seg">
+        <button>Open</button><button>vs Raise</button><button class="on">Postflop</button>
+      </div>
+      <button class="tbtn">⚡ Focus</button>
+      <button class="tbtn">Difficulty: All ⌄</button>
+      <div class="grow"></div>
+      <div class="streak">🔥 12</div>
+      <div class="search">􀊫 Search spots…</div>
+    </div>
+
+    <div class="body">
+      <!-- sidebar -->
+      <aside class="side">
+        <div class="sgroup">
+          <h4>Practice</h4>
+          <div class="srow sel"><span class="ic">♠</span> Drill</div>
+          <div class="srow"><span class="ic">↻</span> Review <span class="badge">3</span></div>
+        </div>
+        <div class="sgroup">
+          <h4>Analyze</h4>
+          <div class="srow"><span class="ic">◎</span> Leaks</div>
+          <div class="srow"><span class="ic">↘</span> Import hands</div>
+          <div class="srow"><span class="ic">▤</span> Sessions</div>
+        </div>
+        <div class="sgroup">
+          <h4>Library</h4>
+          <div class="srow"><span class="ic">▦</span> Ranges</div>
+          <div class="srow"><span class="ic">✦</span> Lessons</div>
+        </div>
+        <div class="spacer"></div>
+        <div class="profile">
+          <div class="av">DW</div>
+          <div><div class="nm">Dan W.</div><div class="sub">71% · 1,284 hands</div></div>
+          <div class="more">⋯</div>
+        </div>
+      </aside>
+
+      <!-- content -->
+      <main class="content">
+        <div>
+          <div class="ctitle">Postflop drill</div>
+          <div class="csub">Button vs Big Blind · single-raised pot · flop</div>
+        </div>
+
+        <div class="stage">
+          <div class="potpill">Pot 5.5bb · 97.5bb deep</div>
+          <div class="vill"><span>BB checks</span><div class="back"></div></div>
+
+          <div class="board">
+            <div class="pc"><span class="r sp">Q</span><span class="s sp">♠</span></div>
+            <div class="pc"><span class="r he">7</span><span class="s he">♥</span></div>
+            <div class="pc"><span class="r cl">2</span><span class="s cl">♣</span></div>
+          </div>
+          <div class="hero">
+            <div class="pc h"><span class="r sp">A</span><span class="s sp">♠</span></div>
+            <div class="pc h"><span class="r di">Q</span><span class="s di">♦</span></div>
+          </div>
+
+          <div class="label">
+            <div class="h">Top pair, top kicker · AQ♦</div>
+            <div class="s">Big blind checks to you. Bet for value, or check back?</div>
+          </div>
+
+          <div class="actions">
+            <button class="btn secondary">Check <span class="kbd">K</span></button>
+            <button class="btn default">Bet 33% <span class="kbd">⏎</span></button>
+          </div>
+        </div>
+      </main>
+
+      <!-- inspector -->
+      <aside class="insp">
+        <div class="ihdr">Spot</div>
+        <div class="icard">
+          <div class="irow"><span>Node</span><b>BTN_vs_BB</b></div>
+          <div class="irow"><span>Texture</span><b>dry · rainbow</b></div>
+          <div class="irow"><span>Your hand</span><b>AQo · top pair</b></div>
+          <div class="irow"><span>Solver</span><b class="g">0.18%</b></div>
+        </div>
+
+        <div class="ihdr">Solver strategy · c-bet 33%</div>
+        <div class="icard">
+          <div class="mini" id="mini"></div>
+          <div class="mcap"><span>range bets 67%</span><span style="color:var(--green)">AQo bet 90%</span></div>
+        </div>
+
+        <div class="ihdr">Expected value</div>
+        <div class="icard">
+          <div class="ev"><div class="b" style="width:90%">Bet +0.00bb</div><div class="c" style="width:10%">−0.31</div></div>
+          <div class="irow" style="margin-top:8px;"><span>Best action</span><b class="g">Bet 33%</b></div>
+          <div class="irow"><span>EV lost if check</span><b>0.31bb</b></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const R=['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
+    const g=document.getElementById('mini');
+    function bf(i,j){const hi=Math.min(i,j),lo=Math.max(i,j),pair=i===j,su=i<j;let s=(12-hi)*0.05+(12-lo)*0.035+(pair?0.32:0)+(su?0.05:0);if(s>0.35&&s<0.62&&!pair)s-=0.28;if(hi>=8&&lo>=9&&!pair)s+=0.25;return Math.max(0.03,Math.min(0.99,s+0.18));}
+    for(let i=0;i<13;i++)for(let j=0;j<13;j++){const lbl=i===j?R[i]+R[i]:(i<j?R[i]+R[j]+'s':R[j]+R[i]+'o');const c=document.createElement('div');c.className='mc';const f=document.createElement('div');f.className='f';f.style.height=Math.round(bf(i,j)*100)+'%';c.appendChild(f);if(lbl==='AQo')c.classList.add('h');g.appendChild(c);}
+  </script>
+</body>
+</html>
