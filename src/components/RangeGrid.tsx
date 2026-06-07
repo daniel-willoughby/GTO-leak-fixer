@@ -3,9 +3,9 @@ import { gridLabels } from '../lib/cards'
 export type CellKind = 'raise' | 'call' | 'fold'
 
 const KIND_CLASS: Record<CellKind, string> = {
-  raise: 'bg-gradient-to-b from-emerald-500/90 to-emerald-600/90 text-white',
-  call: 'bg-gradient-to-b from-sky-500/90 to-sky-600/90 text-white',
-  fold: 'bg-slate-700/30 text-slate-500',
+  raise: 'bg-sage text-white',
+  call: 'bg-dblue text-white',
+  fold: 'bg-[#e9e3d6] text-ink3',
 }
 
 interface Props {
@@ -31,7 +31,7 @@ export default function RangeGrid({ cell, highlight }: Props) {
             className={[
               'aspect-square flex items-center justify-center rounded-[4px] text-[9px] sm:text-[10px] font-semibold',
               KIND_CLASS[kind],
-              isHero ? 'ring-2 ring-amber-400 z-10 font-bold scale-110 shadow-[0_0_10px_rgba(245,196,81,0.7)]' : '',
+              isHero ? 'ring-2 ring-ink z-10 font-bold scale-110 shadow-[0_0_8px_rgba(34,31,25,0.4)]' : '',
             ].join(' ')}
           >
             {label}

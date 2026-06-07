@@ -43,14 +43,14 @@ interface Props {
 }
 
 const ACTION_STYLE: Record<Action, string> = {
-  fold: 'btn btn-slate',
+  fold: 'btn btn-secondary',
   call: 'btn btn-sky',
-  raise: 'btn btn-emerald',
-  '3bet': 'btn btn-emerald',
-  check: 'btn btn-slate',
-  bet: 'btn btn-emerald',
-  squeeze: 'btn btn-emerald',
-  'cold-4bet': 'btn btn-emerald',
+  raise: 'btn btn-primary',
+  '3bet': 'btn btn-primary',
+  check: 'btn btn-secondary',
+  bet: 'btn btn-primary',
+  squeeze: 'btn btn-primary',
+  'cold-4bet': 'btn btn-primary',
 }
 
 const KEY_HINT: Record<string, string> = { fold: 'F', call: 'C', raise: 'R', '3bet': 'T', check: 'K', bet: 'B', squeeze: 'S', 'cold-4bet': '4' }
@@ -297,33 +297,31 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
   const feedbackTone = !result
     ? ''
     : result.quality === 'acceptable'
-      ? 'bg-amber-500/10 border-amber-500/40 shadow-[0_0_30px_-12px_rgba(245,196,81,0.5)]'
+      ? 'bg-[#c79a4a]/10 border-[#c79a4a]/40'
       : result.isCorrect
-        ? 'bg-emerald-500/10 border-emerald-500/40 shadow-[0_0_30px_-12px_rgba(16,185,129,0.5)]'
-        : 'bg-red-500/10 border-red-500/40 shadow-[0_0_30px_-12px_rgba(239,68,68,0.5)]'
+        ? 'bg-sage/10 border-sage/40'
+        : 'bg-heartred/10 border-heartred/40'
 
   return (
     <div className="flex flex-col items-center gap-3 px-4 pb-28 pt-4 max-w-xl mx-auto">
       {/* mode toggle OR review header */}
       {reviewMode ? (
-        <div className="flex items-center justify-between w-full rounded-2xl bg-amber-500/15 border border-amber-400/30 px-3 py-2">
-          <span className="flex items-center gap-2 text-amber-300 font-semibold text-sm">
+        <div className="flex items-center justify-between w-full rounded-2xl bg-sage/12 border border-sage/30 px-3 py-2">
+          <span className="flex items-center gap-2 text-sage-dark font-semibold text-sm">
             <Repeat2 size={16} /> Reviewing mistakes · {reviewQueue.length} left
           </span>
-          <button onClick={exitReview} className="text-slate-300 hover:text-white p-1 rounded-lg hover:bg-white/10">
+          <button onClick={exitReview} className="text-ink2 hover:text-ink p-1 rounded-lg hover:bg-ink/5">
             <X size={16} />
           </button>
         </div>
       ) : (
-        <div className="flex gap-1 p-1 rounded-2xl bg-slate-800/60 border border-white/10 backdrop-blur-sm text-sm w-full">
+        <div className="flex gap-1 p-1 rounded-2xl bg-ink/[0.06] border border-line text-sm w-full">
           {MODES.map((m) => (
             <button
               key={m.id}
               onClick={() => switchMode(m.id)}
               className={`flex-1 px-1.5 py-2 rounded-xl font-semibold transition text-xs ${
-                mode === m.id
-                  ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-slate-900 shadow-[0_4px_14px_-3px_rgba(245,196,81,0.55)]'
-                  : 'text-slate-300 hover:text-white'
+                mode === m.id ? 'bg-sage text-white shadow-[0_4px_12px_-4px_rgba(67,84,72,0.6)]' : 'text-ink2 hover:text-ink'
               }`}
             >
               {m.label}
@@ -338,9 +336,7 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
           <button
             onClick={toggleFocus}
             className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border transition ${
-              focusOn
-                ? 'bg-violet-500/20 border-violet-400/40 text-violet-200'
-                : 'bg-white/[0.03] border-white/10 text-slate-400 hover:text-slate-200'
+              focusOn ? 'bg-sage/15 border-sage/40 text-sage-dark' : 'bg-paper2 border-line text-ink2 hover:text-ink'
             }`}
           >
             <Zap size={13} /> Focus my leaks
@@ -348,7 +344,7 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
           {mistakeBadge > 0 && (
             <button
               onClick={startReview}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20 transition"
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border border-clay/40 bg-clay/10 text-clay hover:bg-clay/20 transition"
             >
               <Repeat2 size={13} /> Review {mistakeBadge}
             </button>
@@ -357,17 +353,15 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
       )}
 
       <div className="flex items-center justify-between w-full text-sm">
-        <span className="text-slate-400">
+        <span className="text-ink2">
           {spot.mode === 'postflop' ? `BTN vs BB · ${street ?? 'flop'}` : '100bb · 6-max cash'}
         </span>
         <span
           className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 border transition ${
-            streak >= 3
-              ? 'border-amber-400/40 bg-amber-400/10 text-amber-300'
-              : 'border-white/10 bg-white/[0.03] text-slate-400'
+            streak >= 3 ? 'border-clay/40 bg-clay/10 text-clay' : 'border-line bg-paper2 text-ink2'
           }`}
         >
-          <Flame size={15} className={streak >= 3 ? 'text-amber-400' : 'text-slate-500'} />
+          <Flame size={15} className={streak >= 3 ? 'text-clay' : 'text-ink3'} />
           <span className="font-bold tabular-nums">{streak}</span>
         </span>
       </div>
@@ -383,7 +377,7 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
         villain={spot.mode === 'postflop' ? { pos: 'BB', note: 'checks' } : undefined}
       />
 
-      <p className="text-slate-100 text-[15px] text-center font-medium leading-snug px-2">{prompt}</p>
+      <p className="serif text-ink text-[17px] text-center leading-snug px-2">{prompt}</p>
 
       {!result ? (
         <div className={`grid gap-3 w-full max-w-sm ${spot.actions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
@@ -395,24 +389,24 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
         </div>
       ) : (
         <div className="w-full flex flex-col items-center gap-4 animate-pop pb-24">
-          <div className={`w-full rounded-2xl p-4 text-sm leading-relaxed flex gap-3 backdrop-blur-md border ${feedbackTone}`}>
+          <div className={`w-full rounded-2xl p-4 text-sm leading-relaxed flex gap-3 border ${feedbackTone}`}>
             {result.quality === 'acceptable' ? (
-              <MinusCircle size={22} className="text-amber-400 shrink-0 mt-0.5" />
+              <MinusCircle size={22} className="text-[#b88a3a] shrink-0 mt-0.5" />
             ) : result.isCorrect ? (
-              <CheckCircle2 size={22} className="text-emerald-400 shrink-0 mt-0.5" />
+              <CheckCircle2 size={22} className="text-sage shrink-0 mt-0.5" />
             ) : (
-              <XCircle size={22} className="text-red-400 shrink-0 mt-0.5" />
+              <XCircle size={22} className="text-heartred shrink-0 mt-0.5" />
             )}
-            <span>{result.explanation}</span>
+            <span className="text-ink">{result.explanation}</span>
           </div>
           <div className="w-full">
-            <p className="text-xs text-slate-400 mb-2 text-center">
+            <p className="text-xs text-ink2 mb-2 text-center">
               {gridLabel}:&nbsp;
-              <span className="text-emerald-400">
-                green = {spot.mode === 'rfi' ? 'raise' : spot.mode === 'vsRfi' ? '3bet' : spot.mode === 'multiway' ? 'squeeze' : 'bet'}
+              <span className="text-sage-dark font-medium">
+                sage = {spot.mode === 'rfi' ? 'raise' : spot.mode === 'vsRfi' ? '3bet' : spot.mode === 'multiway' ? 'squeeze' : 'bet'}
               </span>
-              {spot.mode === 'vsRfi' && <span className="text-sky-400">, blue = call</span>}
-              , amber ring = your hand
+              {spot.mode === 'vsRfi' && <span className="text-dblue font-medium">, blue = call</span>}
+              , ring = your hand
             </p>
             <RangeGrid cell={cellFor(spot)} highlight={spot.label} />
           </div>
@@ -420,19 +414,18 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
       )}
 
       {result && (
-        <div className="fixed bottom-0 inset-x-0 z-20 flex justify-center gap-3 px-4 pb-[calc(4.25rem+env(safe-area-inset-bottom))] pt-10 bg-gradient-to-t from-[#090d18] via-[#090d18]/90 to-transparent pointer-events-none">
+        <div className="fixed bottom-0 inset-x-0 z-20 flex justify-center gap-3 px-4 pb-[calc(4.25rem+env(safe-area-inset-bottom))] pt-10 bg-gradient-to-t from-paper via-paper/90 to-transparent pointer-events-none">
           {canContinue && (
             <button
               onClick={continueHand}
-              className="btn pointer-events-auto flex-1 max-w-[11rem] py-4 text-base flex items-center justify-center gap-2"
-              style={{ background: 'linear-gradient(180deg,#6ee7b7 0%,#34d399 55%,#059669 100%)', color: '#042f1f' }}
+              className="btn btn-secondary pointer-events-auto flex-1 max-w-[11rem] py-4 text-base flex items-center justify-center gap-2"
             >
               <FastForward size={16} /> Turn
             </button>
           )}
           <button
             onClick={next}
-            className="btn btn-gold pointer-events-auto flex-1 max-w-sm py-4 text-lg flex items-center justify-center gap-2"
+            className="btn btn-primary pointer-events-auto flex-1 max-w-sm py-4 text-lg flex items-center justify-center gap-2"
           >
             {reviewMode && reviewQueue.length === 0 ? 'Done' : reviewMode ? 'Next' : 'Next hand'} <ArrowRight size={18} />
           </button>

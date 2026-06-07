@@ -13,17 +13,15 @@ export default function HandHistory({ history }: { history: string[] }) {
                 className={[
                   'text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap',
                   isBoard
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    ? 'bg-sage/15 text-sage-dark border border-sage/30'
                     : isAction
-                      ? 'bg-white/5 text-slate-300 border border-white/10'
-                      : 'bg-amber-400/10 text-amber-300 border border-amber-400/20',
+                      ? 'bg-paper2 text-ink2 border border-line'
+                      : 'bg-clay/10 text-clay border border-clay/25',
                 ].join(' ')}
               >
                 {item}
               </span>
-              {i < history.length - 1 && (
-                <span className="text-slate-600 text-[10px]">›</span>
-              )}
+              {i < history.length - 1 && <span className="text-ink3 text-[10px]">›</span>}
             </div>
           )
         })}

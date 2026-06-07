@@ -21,13 +21,9 @@ function ProgressChart({ trend }: { trend: ProgressTrend }) {
     <section className="panel p-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base font-semibold flex items-center gap-2">
-          <LineChart size={18} className="text-violet-400" /> Progress
+          <LineChart size={18} className="text-sage" /> Progress
         </h2>
-        <span
-          className={`flex items-center gap-1 text-sm font-semibold ${
-            up ? 'text-emerald-400' : down ? 'text-red-400' : 'text-slate-400'
-          }`}
-        >
+        <span className={`flex items-center gap-1 text-sm font-semibold ${up ? 'text-sage' : down ? 'text-heartred' : 'text-ink2'}`}>
           {up ? <TrendingUp size={15} /> : down ? <TrendingDown size={15} /> : null}
           {trend.delta >= 0 ? '+' : ''}
           {Math.round(trend.delta * 100)}%
@@ -36,7 +32,7 @@ function ProgressChart({ trend }: { trend: ProgressTrend }) {
       <div className="flex items-end gap-1 h-20">
         {trend.buckets.map((b, i) => {
           const pct = Math.round(b.accuracy * 100)
-          const color = pct >= 80 ? 'bg-emerald-500' : pct >= 55 ? 'bg-amber-500' : 'bg-red-500'
+          const color = pct >= 80 ? 'bg-sage' : pct >= 55 ? 'bg-[#c79a4a]' : 'bg-clay'
           return (
             <div
               key={i}
@@ -47,7 +43,7 @@ function ProgressChart({ trend }: { trend: ProgressTrend }) {
           )
         })}
       </div>
-      <p className="text-xs text-slate-500 mt-2 text-center">accuracy per session, oldest → newest</p>
+      <p className="text-xs text-ink3 mt-2 text-center">accuracy per session, oldest → newest</p>
     </section>
   )
 }
@@ -56,14 +52,14 @@ function Bar({ stat }: { stat: LeakStat }) {
   const pct = Math.round(stat.errorRate * 100)
   return (
     <div className="flex items-center gap-3 text-sm">
-      <span className="w-36 sm:w-40 truncate text-slate-300">{stat.key}</span>
-      <div className="flex-1 h-2 rounded-full bg-slate-700 overflow-hidden">
+      <span className="w-36 sm:w-40 truncate text-ink">{stat.key}</span>
+      <div className="flex-1 h-2 rounded-full bg-[#e9e3d6] overflow-hidden">
         <div
-          className={pct > 33 ? 'h-full bg-red-500' : pct > 15 ? 'h-full bg-amber-500' : 'h-full bg-emerald-500'}
+          className={pct > 33 ? 'h-full bg-clay' : pct > 15 ? 'h-full bg-[#c79a4a]' : 'h-full bg-sage'}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="w-20 text-right text-slate-400 tabular-nums">
+      <span className="w-20 text-right text-ink2 tabular-nums">
         {pct}% · {stat.errors}/{stat.attempts}
       </span>
     </div>
@@ -89,17 +85,17 @@ function ModeSection({
           {icon}
           {title}
         </h2>
-        <span className="text-sm text-slate-400">
-          <span className="text-amber-400 font-bold">{Math.round(stats.accuracy * 100)}%</span> · {stats.total} hands
+        <span className="text-sm text-ink2">
+          <span className="text-sage-dark font-bold">{Math.round(stats.accuracy * 100)}%</span> · {stats.total} hands
         </span>
       </div>
-      <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">By {contextLabel}</p>
+      <p className="text-xs uppercase tracking-wide text-ink3 mb-2">By {contextLabel}</p>
       <div className="flex flex-col gap-2 mb-4">
         {stats.byContext.map((s) => (
           <Bar key={s.key} stat={s} />
         ))}
       </div>
-      <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">By hand type</p>
+      <p className="text-xs uppercase tracking-wide text-ink3 mb-2">By hand type</p>
       <div className="flex flex-col gap-2">
         {stats.byCategory.map((s) => (
           <Bar key={s.key} stat={s} />
@@ -118,12 +114,12 @@ export default function LeaksScreen({ version }: Props) {
     progressTrend().then(setTrend)
   }, [version])
 
-  if (!sum) return <div className="p-8 text-center text-slate-400">Loading…</div>
+  if (!sum) return <div className="p-8 text-center text-ink2">Loading…</div>
 
   if (sum.total === 0) {
     return (
-      <div className="p-8 text-center text-slate-400 max-w-md mx-auto pt-16">
-        <p className="text-lg mb-2 text-slate-200">No hands yet.</p>
+      <div className="p-8 text-center text-ink2 max-w-md mx-auto pt-16">
+        <p className="serif text-2xl mb-2 text-ink">No hands yet.</p>
         <p>Play some drills and your top leaks will show up here: the spots you misplay most.</p>
       </div>
     )
@@ -133,8 +129,8 @@ export default function LeaksScreen({ version }: Props) {
     <div className="px-4 pb-28 pt-6 max-w-xl mx-auto flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-4xl font-extrabold gold-text">{Math.round(sum.accuracy * 100)}%</div>
-          <div className="text-slate-400 text-sm">
+          <div className="serif text-5xl font-semibold text-sage-dark">{Math.round(sum.accuracy * 100)}%</div>
+          <div className="text-ink2 text-sm mt-1">
             {sum.total} hands · {sum.correct} correct
           </div>
         </div>
@@ -143,7 +139,7 @@ export default function LeaksScreen({ version }: Props) {
             await resetProgress()
             setSum(await getLeakSummary())
           }}
-          className="text-xs px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 flex items-center gap-1.5"
+          className="text-xs px-3 py-2 rounded-lg bg-paper2 border border-line text-ink2 hover:text-ink flex items-center gap-1.5"
         >
           <RotateCcw size={14} /> Reset
         </button>
@@ -152,19 +148,19 @@ export default function LeaksScreen({ version }: Props) {
       {trend && <ProgressChart trend={trend} />}
 
       <section>
-        <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-          <Target size={20} className="text-red-400" /> Your top leaks
+        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+          <Target size={20} className="text-clay" /> Your top leaks
         </h2>
         {sum.topLeaks.length === 0 ? (
-          <p className="text-slate-400 text-sm">
+          <p className="text-ink2 text-sm">
             No clear leaks yet. Keep playing (need 4+ hands per group to flag one). Nice and tight!
           </p>
         ) : (
           <div className="flex flex-col gap-3">
             {sum.topLeaks.map((l) => (
-              <div key={l.key} className="rounded-xl bg-red-900/30 border border-red-700/40 p-3">
-                <div className="font-semibold text-red-200">{l.key}</div>
-                <div className="text-sm text-slate-300">
+              <div key={l.key} className="rounded-xl bg-clay/10 border border-clay/30 p-3">
+                <div className="font-semibold text-clay">{l.key}</div>
+                <div className="text-sm text-ink2">
                   Wrong {Math.round(l.errorRate * 100)}% of the time ({l.errors} of {l.attempts}). Drill this.
                 </div>
               </div>
@@ -175,16 +171,11 @@ export default function LeaksScreen({ version }: Props) {
 
       <ModeSection
         title="Preflop"
-        icon={<Layers size={18} className="text-sky-400" />}
+        icon={<Layers size={18} className="text-dblue" />}
         contextLabel="position"
         stats={sum.preflop}
       />
-      <ModeSection
-        title="Postflop"
-        icon={<Spade size={18} className="text-emerald-400" />}
-        contextLabel="board"
-        stats={sum.postflop}
-      />
+      <ModeSection title="Postflop" icon={<Spade size={18} className="text-sage" />} contextLabel="board" stats={sum.postflop} />
     </div>
   )
 }

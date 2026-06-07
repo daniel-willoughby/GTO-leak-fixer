@@ -10,15 +10,12 @@ body,
 
 body {
   margin: 0;
-  color: #e6eaf2;
-  background-color: #090d18;
-  background-image:
-    radial-gradient(120% 90% at 50% -10%, rgba(56, 70, 110, 0.45) 0%, rgba(9, 13, 24, 0) 55%),
-    radial-gradient(80% 60% at 50% 110%, rgba(180, 138, 60, 0.1) 0%, rgba(9, 13, 24, 0) 60%);
+  color: #221f19;
+  background-color: #f5f2ea;
+  background-image: radial-gradient(120% 70% at 50% -12%, #fffdf8 0%, rgba(255, 253, 248, 0) 55%);
   background-attachment: fixed;
   font-family: 'Inter Variable', system-ui, -apple-system, sans-serif;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'ss01';
-  letter-spacing: -0.011em;
+  letter-spacing: -0.006em;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -26,7 +23,22 @@ body {
   overscroll-behavior-y: none;
 }
 
-/* hide scrollbars but keep scrolling */
+/* faint paper grain */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+  background-image: radial-gradient(rgba(120, 110, 90, 0.05) 0.5px, transparent 0.5px);
+  background-size: 4px 4px;
+}
+#root {
+  position: relative;
+  z-index: 1;
+}
+
 * {
   scrollbar-width: none;
 }
@@ -42,77 +54,68 @@ body {
 }
 
 @layer components {
-  /* frosted glass surface */
+  /* paper card surface */
   .panel {
-    @apply rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md;
+    @apply rounded-2xl border border-line bg-paper2;
     box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.06) inset,
-      0 12px 30px -12px rgba(0, 0, 0, 0.6);
+      0 1px 0 rgba(34, 31, 25, 0.03),
+      0 10px 26px -16px rgba(34, 31, 25, 0.18);
   }
-
-  /* gold gradient text (wordmark, accents) */
-  .gold-text {
-    background: linear-gradient(180deg, #ffe7a3 0%, #f5c451 45%, #d99a2b 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-
-  /* premium card face */
-  .card-face {
-    background: linear-gradient(155deg, #ffffff 0%, #f4f3ee 100%);
-    box-shadow:
-      0 1px 1px rgba(255, 255, 255, 0.9) inset,
-      0 0 0 1px rgba(15, 23, 42, 0.06) inset,
-      0 6px 14px -4px rgba(0, 0, 0, 0.55),
-      0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  /* serif display */
+  .serif {
+    font-family: 'Fraunces Variable', Georgia, serif;
+    font-weight: 500;
+    letter-spacing: 0.2px;
   }
 }
 
-/* ---- gradient buttons -------------------------------------------------- */
+/* ---- buttons ----------------------------------------------------------- */
 .btn {
-  position: relative;
-  border-radius: 0.9rem;
-  font-weight: 700;
+  border-radius: 14px;
+  font-weight: 600;
+  border: 1px solid transparent;
   transition:
     transform 0.08s ease,
     filter 0.15s ease,
-    box-shadow 0.15s ease;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.18) inset,
-    0 10px 20px -10px rgba(0, 0, 0, 0.7);
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 .btn:active {
-  transform: scale(0.975);
+  transform: scale(0.985);
 }
-.btn-gold {
-  background: linear-gradient(180deg, #ffd968 0%, #f1b431 55%, #dc9a1f 100%);
-  color: #2a1d05;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.45) inset,
-    0 8px 22px -8px rgba(224, 168, 58, 0.65);
+.btn-primary {
+  background: #5b7461;
+  border-color: #5b7461;
+  color: #fff;
+  box-shadow: 0 10px 24px -14px rgba(67, 84, 72, 0.85);
 }
-.btn-gold:hover {
-  filter: brightness(1.05);
+.btn-primary:hover {
+  filter: brightness(1.04);
 }
-.btn-emerald {
-  background: linear-gradient(180deg, #34d399 0%, #10b981 55%, #059669 100%);
-  color: #042f1f;
+.btn-secondary {
+  background: #fcfaf4;
+  border-color: #e6e0d3;
+  color: #221f19;
+}
+.btn-secondary:hover {
+  border-color: #cfc8b8;
 }
 .btn-sky {
-  background: linear-gradient(180deg, #56b8f5 0%, #2f93e0 55%, #1f74c4 100%);
-  color: #042036;
+  background: #3a5a8c;
+  border-color: #3a5a8c;
+  color: #fff;
 }
-.btn-slate {
-  background: linear-gradient(180deg, #3a455c 0%, #2b3447 55%, #232b3b 100%);
-  color: #e6eaf2;
+.btn-ghost {
+  background: transparent;
+  border-color: #e6e0d3;
+  color: #221f19;
 }
 
 /* ---- animations -------------------------------------------------------- */
 @keyframes pop-in {
   0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.985);
+    transform: translateY(8px) scale(0.99);
   }
   100% {
     opacity: 1;
@@ -122,30 +125,16 @@ body {
 .animate-pop {
   animation: pop-in 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
-
 @keyframes deal-in {
   0% {
     opacity: 0;
-    transform: translateY(-10px) rotate(-4deg) scale(0.9);
+    transform: translateY(-8px) scale(0.92);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) rotate(0) scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 .animate-deal {
   animation: deal-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@keyframes glow-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(245, 196, 81, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 0 6px rgba(245, 196, 81, 0);
-  }
-}
-.animate-glow {
-  animation: glow-pulse 1.6s ease-out infinite;
 }

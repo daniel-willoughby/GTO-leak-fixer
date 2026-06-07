@@ -29,35 +29,32 @@ export default function LearnScreen() {
       <section className="flex flex-col gap-3">
         {LESSONS.map((l) => (
           <details key={l.title} className="panel p-4 group">
-            <summary className="font-semibold cursor-pointer list-none flex items-center justify-between">
+            <summary className="serif text-[17px] cursor-pointer list-none flex items-center justify-between">
               {l.title}
-              <ChevronDown size={16} className="text-slate-400 transition group-open:rotate-180" />
+              <ChevronDown size={16} className="text-ink3 transition group-open:rotate-180" />
             </summary>
-            <p className="text-sm text-slate-300 mt-2 leading-relaxed">{l.body}</p>
+            <p className="text-sm text-ink2 mt-2 leading-relaxed">{l.body}</p>
           </details>
         ))}
       </section>
 
       <section className="panel p-4">
-        <h2 className="text-base font-semibold mb-3">Explore opening ranges</h2>
+        <h2 className="serif text-lg mb-3">Explore opening ranges</h2>
         <div className="flex flex-wrap gap-2 mb-3">
           {RFI_POSITIONS.map((p) => (
             <button
               key={p}
               onClick={() => setPos(p)}
               className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition ${
-                pos === p
-                  ? 'bg-gradient-to-b from-emerald-500 to-emerald-600 text-white shadow-[0_4px_12px_-3px_rgba(16,185,129,0.5)]'
-                  : 'bg-white/5 text-slate-300 hover:bg-white/10'
+                pos === p ? 'bg-sage text-white shadow-[0_4px_12px_-4px_rgba(67,84,72,0.6)]' : 'bg-ink/5 text-ink2 hover:bg-ink/10'
               }`}
             >
               {p}
             </button>
           ))}
         </div>
-        <p className="text-sm text-slate-400 mb-3 text-center">
-          {POSITION_LABEL[pos]}, opens ~<span className="text-amber-300 font-semibold">{RFI_RANGES[pos].pct}%</span> of
-          hands
+        <p className="text-sm text-ink2 mb-3 text-center">
+          {POSITION_LABEL[pos]}, opens ~<span className="text-sage-dark font-semibold">{RFI_RANGES[pos].pct}%</span> of hands
         </p>
         <RangeGrid cell={(label) => (isRfiHand(pos, label) ? 'raise' : 'fold')} />
       </section>

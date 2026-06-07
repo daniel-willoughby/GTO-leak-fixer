@@ -36,8 +36,8 @@ function CardBack({ delay = 0 }: { delay?: number }) {
     <div
       className="w-6 h-[2.1rem] rounded-[5px] flex items-center justify-center"
       style={{
-        background: 'linear-gradient(155deg, #1e3a8a 0%, #1e40af 50%, #1d4ed8 100%)',
-        boxShadow: '0 2px 5px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.12) inset',
+        background: 'linear-gradient(155deg, #5b7461 0%, #4c6354 50%, #435448 100%)',
+        boxShadow: '0 2px 5px rgba(34,31,25,0.4), 0 0 0 1px rgba(255,255,255,0.18) inset',
         animationDelay: `${delay}ms`,
       }}
     >
@@ -52,11 +52,11 @@ function CardBack({ delay = 0 }: { delay?: number }) {
 }
 
 const SEAT_CLASS: Record<Status, string> = {
-  hero: 'bg-gradient-to-b from-amber-300 to-amber-500 text-slate-900 border-amber-200/70 shadow-[0_0_18px_rgba(245,196,81,0.5)]',
-  raiser: 'bg-gradient-to-b from-red-500 to-red-600 text-white border-red-300/50 shadow-[0_0_16px_rgba(239,68,68,0.45)]',
-  active: 'bg-gradient-to-b from-slate-500 to-slate-600 text-white border-white/25 shadow-[0_0_14px_rgba(148,163,184,0.35)]',
-  folded: 'bg-slate-800/70 text-slate-500 border-slate-700/50 line-through',
-  waiting: 'bg-slate-700/70 text-slate-200 border-white/10 backdrop-blur-sm',
+  hero: 'bg-paper2 text-ink border-paper2 shadow-[0_3px_10px_rgba(34,31,25,0.18)]',
+  raiser: 'bg-heartred text-white border-[#9a3a26] shadow-[0_3px_10px_rgba(177,66,44,0.4)]',
+  active: 'bg-white/85 text-ink border-white/60 shadow-[0_2px_8px_rgba(34,31,25,0.18)]',
+  folded: 'bg-white/[0.07] text-white/45 border-transparent line-through',
+  waiting: 'bg-white/[0.18] text-white border-white/25',
 }
 
 export default function PokerTable({ heroPos, heroCards, raiserPos, activePots = [], board, villain }: Props) {
@@ -114,22 +114,22 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
     <div className="relative w-full max-w-lg mx-auto aspect-[5/4]">
       {/* rail */}
       <div
-        className="absolute inset-[10%] rounded-full p-[9px]"
+        className="absolute inset-[10%] rounded-full p-[7px]"
         style={{
-          background: 'linear-gradient(160deg, #e7c98c 0%, #bd9250 32%, #7c5a2c 66%, #4c3719 100%)',
-          boxShadow: '0 22px 45px -14px rgba(0,0,0,0.75), 0 1px 0 rgba(255,255,255,0.12) inset',
+          background: 'linear-gradient(160deg, #6f5a45 0%, #5a4736 45%, #463727 100%)',
+          boxShadow: '0 22px 45px -16px rgba(34,31,25,0.5), 0 1px 0 rgba(255,255,255,0.1) inset',
         }}
       >
         {/* felt */}
         <div
           className="relative w-full h-full rounded-full flex items-center justify-center"
           style={{
-            background: 'radial-gradient(circle at 50% 36%, #1f825e 0%, #136349 46%, #0b3d2c 100%)',
-            boxShadow: 'inset 0 3px 14px rgba(0,0,0,0.5), inset 0 0 70px rgba(0,0,0,0.4)',
+            background: 'radial-gradient(circle at 50% 34%, #7e9a85 0%, #67836f 46%, #51695a 100%)',
+            boxShadow: 'inset 0 3px 14px rgba(34,31,25,0.22), inset 0 0 60px rgba(34,31,25,0.16)',
           }}
         >
           {/* subtle inner ring */}
-          <div className="absolute inset-[7%] rounded-full border border-white/[0.06]" />
+          <div className="absolute inset-[7%] rounded-full border border-white/[0.1]" />
           {board ? (
             <div className="flex gap-1.5 z-10">
               {board.map((c, i) => (
@@ -139,8 +139,8 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
               ))}
             </div>
           ) : (
-            <span className="text-emerald-200/35 text-[10px] font-semibold tracking-[0.25em]">
-              {raiserPos ? 'FACING A RAISE' : 'FOLDED TO YOU'}
+            <span className="text-white/55 text-[10px] font-semibold tracking-[0.22em] serif italic">
+              {raiserPos ? 'facing a raise' : "it's on you"}
             </span>
           )}
         </div>
@@ -172,9 +172,9 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
           >
             {pos}
           </div>
-          {status === 'raiser' && <span className="text-[10px] text-red-300 font-semibold">raises</span>}
+          {status === 'raiser' && <span className="text-[10px] text-heartred font-semibold">raises</span>}
           {status === 'active' && villain && (
-            <span className="text-[10px] text-slate-300 font-semibold">{villain.note}</span>
+            <span className="text-[10px] text-white/80 font-semibold">{villain.note}</span>
           )}
         </div>
       ))}
@@ -199,19 +199,19 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
       {postflop && (
         <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-[6] flex items-center gap-1.5" style={{ top: '28%' }}>
           <ChipStack amount={SRP_POT} tone="pot" />
-          <span className="text-[9px] font-semibold tracking-widest text-emerald-200/50">POT</span>
+          <span className="text-[9px] font-semibold tracking-widest text-white/55">POT</span>
         </div>
       )}
 
       {/* dealer button puck on the felt */}
       <div
-        className="absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-extrabold z-10"
+        className="absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold z-10"
         style={{
           left: `${dealer.left}%`,
           top: `${dealer.top}%`,
-          background: 'radial-gradient(circle at 35% 28%, #ffffff 0%, #e8eaef 55%, #c4cad6 100%)',
-          color: '#b07c1e',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.55) inset',
+          background: 'radial-gradient(circle at 35% 28%, #fcfaf4 0%, #efe9da 55%, #ddd2bb 100%)',
+          color: '#435448',
+          boxShadow: '0 2px 6px rgba(34,31,25,0.4), 0 0 0 1px rgba(255,255,255,0.6) inset',
         }}
         title="Dealer button"
       >

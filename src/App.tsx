@@ -51,25 +51,22 @@ export default function App() {
 
   return (
     <div className="min-h-full flex flex-col">
-      <header className="safe-top sticky top-0 z-30 relative text-center py-3 border-b border-white/[0.07] bg-[#090d18]/80 backdrop-blur-md">
-        <h1 className="text-lg font-extrabold tracking-tight flex items-center justify-center gap-1.5">
-          <Spade size={16} className="text-amber-400 -mt-0.5" fill="currentColor" />
-          <span>
-            Leak<span className="gold-text">Tutor</span>
-          </span>
+      <header className="safe-top sticky top-0 z-30 relative text-center py-3 border-b border-line bg-paper/80 backdrop-blur-md">
+        <h1 className="serif text-xl font-semibold flex items-center justify-center gap-1">
+          Leak<span className="text-sage">·</span>Tutor
         </h1>
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
           <button
             onClick={() => setSettingsOpen((o) => !o)}
             aria-label="Settings"
-            className={`p-2 rounded-lg transition ${settingsOpen ? 'text-amber-400 bg-white/5' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
+            className={`p-2 rounded-lg transition ${settingsOpen ? 'text-sage bg-ink/5' : 'text-ink2 hover:text-ink hover:bg-ink/5'}`}
           >
             <SlidersHorizontal size={18} />
           </button>
           <button
             onClick={toggleMute}
             aria-label={muted ? 'Unmute' : 'Mute'}
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/5 transition"
+            className="p-2 rounded-lg text-ink2 hover:text-ink hover:bg-ink/5 transition"
           >
             {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
@@ -78,19 +75,19 @@ export default function App() {
         {settingsOpen && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setSettingsOpen(false)} />
-            <div className="absolute right-3 top-full mt-1 z-50 w-60 rounded-2xl border border-white/10 bg-[#11151f] shadow-2xl p-3 text-left">
-              <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Difficulty</p>
+            <div className="absolute right-3 top-full mt-1 z-50 w-60 rounded-2xl border border-line bg-paper2 shadow-xl p-3 text-left">
+              <p className="text-xs uppercase tracking-wide text-ink3 mb-2">Difficulty</p>
               <div className="flex flex-col gap-1">
                 {DIFFICULTIES.map((d) => (
                   <button
                     key={d.id}
                     onClick={() => pickDifficulty(d.id)}
                     className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm transition ${
-                      difficulty === d.id ? 'bg-amber-500/20 text-amber-200' : 'text-slate-300 hover:bg-white/5'
+                      difficulty === d.id ? 'bg-sage/15 text-sage-dark' : 'text-ink hover:bg-ink/5'
                     }`}
                   >
                     <span className="font-semibold">{d.label}</span>
-                    <span className="text-xs text-slate-500">{d.note}</span>
+                    <span className="text-xs text-ink3">{d.note}</span>
                   </button>
                 ))}
               </div>
@@ -113,7 +110,7 @@ export default function App() {
         {tab === 'learn' && <LearnScreen />}
       </main>
 
-      <nav className="safe-bottom fixed bottom-0 inset-x-0 z-30 bg-[#0b1020]/90 backdrop-blur-xl border-t border-white/[0.07] flex">
+      <nav className="safe-bottom fixed bottom-0 inset-x-0 z-30 bg-paper/90 backdrop-blur-xl border-t border-line flex">
         {TABS.map((t) => {
           const Icon = t.icon
           const active = tab === t.id
@@ -121,13 +118,11 @@ export default function App() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`relative flex-1 py-2.5 flex flex-col items-center gap-1 text-xs font-medium transition ${
-                active ? 'text-amber-400' : 'text-slate-400 hover:text-slate-200'
+              className={`relative flex-1 py-2.5 flex flex-col items-center gap-1 text-xs transition ${
+                active ? 'text-ink font-semibold' : 'text-ink3 hover:text-ink2'
               }`}
             >
-              {active && (
-                <span className="absolute top-0 h-0.5 w-8 rounded-full bg-gradient-to-r from-amber-300 to-amber-500 shadow-[0_0_10px_rgba(245,196,81,0.7)]" />
-              )}
+              {active && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-sage" />}
               <Icon size={22} strokeWidth={active ? 2.4 : 1.9} />
               {t.label}
             </button>
