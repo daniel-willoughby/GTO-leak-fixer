@@ -8,140 +8,136 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet" />
 <style>
-  :root {
-    --ink: #2a1a4a;
-    --pink: #ff4d8d; --pink-d: #d62e6e;
-    --grn: #3ddc97; --grn-d: #1fb87a;
-    --yel: #ffd23f; --yel-d: #f0b400;
-    --vio: #7c5cff;
+  :root{
+    --ink:#2c1b52; --ink2:#8576b3;
+    --pink:#ff5b97; --pink-d:#e23b7c;
+    --grn:#37d9a0; --grn-d:#16b87f;
+    --yel:#ffcf3f; --yel-d:#f0ad00;
+    --vio:#7b5cff; --vio-d:#5e3fe0; --vio-l:#9a7bff;
+    --paper:#fff;
   }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; height: 100%; }
-  body {
-    font-family: 'Nunito', system-ui, sans-serif;
-    color: var(--ink);
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:'Nunito',system-ui,sans-serif; color:var(--ink);
     background:
-      radial-gradient(120% 70% at 50% -10%, #b69bff 0%, rgba(182,155,255,0) 50%),
-      linear-gradient(180deg, #efe7ff 0%, #ffe9f2 55%, #fff6e6 100%);
-    min-height: 100%;
-    overflow-x: hidden;
+      radial-gradient(90% 50% at 12% 4%, rgba(123,92,255,.20), transparent 60%),
+      radial-gradient(80% 50% at 95% 8%, rgba(255,91,151,.18), transparent 55%),
+      linear-gradient(180deg,#efe9ff 0%, #fde9f1 50%, #fff4e3 100%);
+    min-height:100%;
   }
-  .wrap { max-width: 440px; margin: 0 auto; padding: 14px 16px 100px; }
+  .sparkle{position:fixed; inset:0; pointer-events:none; opacity:.5;
+    background-image:
+      radial-gradient(2px 2px at 20% 30%, #fff,transparent),
+      radial-gradient(2px 2px at 70% 18%, #fff,transparent),
+      radial-gradient(1.5px 1.5px at 40% 70%, #fff,transparent),
+      radial-gradient(2px 2px at 88% 60%, #fff,transparent);
+  }
+  .wrap{max-width:440px; margin:0 auto; padding:10px 16px 104px; position:relative;}
 
-  /* top HUD */
-  .hud { display: flex; align-items: center; gap: 10px; }
-  .ring {
-    --p: 72;
-    width: 56px; height: 56px; border-radius: 50%;
-    background: conic-gradient(var(--grn) calc(var(--p) * 1%), #e7defb 0);
-    display: grid; place-items: center; flex: none;
-    box-shadow: 0 6px 0 #d9cdf5, 0 10px 18px rgba(124,92,255,.25);
-  }
-  .ring > div { width: 42px; height: 42px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-family: 'Baloo 2'; font-weight: 800; color: var(--vio); font-size: 13px; line-height: 1; }
-  .ring small { display:block; font-size: 8px; color:#9b8bc0; letter-spacing:.5px; }
-  .pill {
-    flex: 1; display: flex; gap: 8px;
-  }
-  .stat {
-    flex: 1; background: #fff; border-radius: 18px; padding: 8px 10px;
-    box-shadow: 0 5px 0 #ecdff7, 0 8px 16px rgba(124,92,255,.12);
-    display: flex; align-items: center; gap: 7px;
-  }
-  .stat .emoji { font-size: 20px; }
-  .stat b { font-family:'Baloo 2'; font-size: 18px; line-height:1; }
-  .stat span { font-size: 11px; color:#9b8bc0; font-weight:800; display:block; }
+  /* APP BAR */
+  .appbar{display:flex; align-items:center; gap:10px; padding:6px 2px 10px;}
+  .av{width:38px;height:38px;border-radius:13px; background:linear-gradient(135deg,#ffb86b,#ff6ba6); display:grid; place-items:center; color:#fff; font-family:'Baloo 2'; font-weight:800; font-size:15px; box-shadow:0 4px 0 #e98bbb;}
+  .coins{flex:1; display:flex; gap:8px;}
+  .coin{display:flex; align-items:center; gap:5px; background:#fff; border-radius:999px; padding:5px 11px 5px 7px; font-family:'Baloo 2'; font-weight:800; font-size:14px; box-shadow:0 4px 0 #ecdff7;}
+  .coin .e{font-size:16px;}
+  .coin.g{color:#e0a300;} .coin.d{color:#37b0d9;}
+  .gear{width:38px;height:38px;border-radius:13px; background:#fff; display:grid; place-items:center; font-size:18px; box-shadow:0 4px 0 #ecdff7;}
 
-  /* spot card */
-  .card {
-    margin-top: 16px; background: #fff; border-radius: 30px; padding: 18px 16px 20px;
-    box-shadow: 0 10px 0 #ecdff7, 0 20px 40px rgba(124,92,255,.18);
-    position: relative; overflow: hidden;
-  }
-  .card::before { content:""; position:absolute; inset:0 0 auto 0; height:90px; background: linear-gradient(180deg,#7c5cff,#9a7bff); border-radius:30px 30px 40px 40px; }
-  .badge { position: relative; display:flex; justify-content:space-between; align-items:center; color:#fff; }
-  .badge .tag { background: rgba(255,255,255,.22); border:2px solid rgba(255,255,255,.35); border-radius:999px; padding:5px 12px; font-family:'Baloo 2'; font-weight:700; font-size:13px; }
-  .badge .pot { font-family:'Baloo 2'; font-weight:800; font-size:14px; }
+  /* DAILY GOAL */
+  .goal{display:flex; align-items:center; gap:14px; background:#fff; border-radius:22px; padding:12px 16px; margin-top:6px; box-shadow:0 6px 0 #ecdff7, 0 12px 22px rgba(123,92,255,.12);}
+  .ring{--p:72; width:54px;height:54px;border-radius:50%; flex:none; background:conic-gradient(var(--grn) calc(var(--p)*1%), #ece4fb 0); display:grid; place-items:center;}
+  .ring>div{width:42px;height:42px;border-radius:50%; background:#fff; display:grid;place-items:center; font-family:'Baloo 2'; font-weight:800; font-size:14px; color:var(--grn-d);}
+  .goal .txt{flex:1;}
+  .goal .txt b{font-family:'Baloo 2'; font-size:16px;}
+  .goal .txt p{font-size:12px; color:var(--ink2); font-weight:800;}
+  .goal .flame{display:flex; flex-direction:column; align-items:center; background:linear-gradient(180deg,#ffd76b,#ffb43f); border-radius:16px; padding:7px 11px; color:#7a4b00; box-shadow:0 4px 0 var(--yel-d);}
+  .goal .flame b{font-family:'Baloo 2'; font-size:18px; line-height:1;}
+  .goal .flame small{font-size:9px; font-weight:900; letter-spacing:.4px;}
 
-  .felt {
-    position: relative; margin: 14px 6px 0; border-radius: 26px; height: 150px;
-    background: radial-gradient(circle at 50% 35%, #41d39a, #1fae7e);
-    border: 6px solid #169c6c;
-    box-shadow: inset 0 4px 12px rgba(0,0,0,.18);
-    display: grid; place-items: center;
-  }
-  .board { display:flex; gap:7px; }
-  .pc {
-    width: 40px; height: 56px; border-radius: 9px; background:#fff;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    font-family:'Baloo 2'; font-weight:800; box-shadow: 0 4px 8px rgba(0,0,0,.25);
-  }
-  .pc .r { font-size: 20px; line-height:1; }
-  .pc .s { font-size: 17px; line-height:1; }
-  .sp { color:#1b1230; } .he { color:#ff3b6b; } .di { color:#2f6bff; } .cl { color:#15b46b; }
-  .villain { position:absolute; top:8px; right:14px; display:flex; flex-direction:column; align-items:center; gap:4px; }
-  .vchip { background:#ffeb99; color:#7a5c00; font-family:'Baloo 2'; font-weight:800; font-size:11px; padding:3px 9px; border-radius:999px; box-shadow:0 3px 0 #e7c95f; }
-  .back { width:24px; height:34px; border-radius:6px; background: repeating-linear-gradient(45deg,#5b3df0,#5b3df0 3px,#7c5cff 3px,#7c5cff 6px); border:2px solid #fff; box-shadow:0 3px 6px rgba(0,0,0,.3); }
+  /* SPOT CARD */
+  .card{margin-top:14px; background:#fff; border-radius:30px; padding-bottom:18px; box-shadow:0 10px 0 #ecdff7, 0 22px 44px rgba(123,92,255,.20); overflow:hidden;}
+  .cap{background:linear-gradient(135deg,var(--vio),var(--vio-l)); padding:14px 18px 30px; color:#fff; position:relative;}
+  .cap .top{display:flex; justify-content:space-between; align-items:center;}
+  .cap .tag{background:rgba(255,255,255,.22); border:2px solid rgba(255,255,255,.32); border-radius:999px; padding:5px 13px; font-family:'Baloo 2'; font-weight:700; font-size:13px;}
+  .cap .combo{display:flex; align-items:center; gap:5px; font-family:'Baloo 2'; font-weight:800; font-size:14px;}
+  .cap .combo .x{background:#ffd23f; color:#7a4b00; border-radius:8px; padding:1px 7px; box-shadow:0 3px 0 var(--yel-d);}
 
-  .hero { display:flex; justify-content:center; gap:10px; margin-top:-26px; position:relative; z-index:2; }
-  .hero .pc { width: 64px; height: 90px; border-radius:14px; box-shadow: 0 10px 18px rgba(0,0,0,.25); }
-  .hero .pc:first-child { transform: rotate(-7deg); }
-  .hero .pc:last-child { transform: rotate(7deg); }
-  .hero .pc .r { font-size: 30px; } .hero .pc .s { font-size: 26px; }
+  .felt{margin:-18px 14px 0; position:relative; border-radius:24px; height:138px; background:radial-gradient(circle at 50% 30%, #44d8a0,#1eb27f); border:5px solid #149a6c; box-shadow:inset 0 4px 14px rgba(0,0,0,.18); display:grid; place-items:center;}
+  .felt .pot{position:absolute; top:9px; left:14px; background:rgba(0,0,0,.18); color:#eafff5; font-family:'Baloo 2'; font-weight:800; font-size:11px; padding:3px 10px; border-radius:999px;}
+  .villain{position:absolute; top:8px; right:14px; display:flex; flex-direction:column; align-items:center; gap:4px;}
+  .back{width:26px;height:36px;border-radius:6px; background:repeating-linear-gradient(45deg,#6a47f5,#6a47f5 3px,#8a6bff 3px,#8a6bff 6px); border:2px solid #fff; box-shadow:0 3px 6px rgba(0,0,0,.3);}
+  .vchip{background:#ffe79a; color:#7a5c00; font-family:'Baloo 2'; font-weight:800; font-size:10px; padding:3px 9px; border-radius:999px; box-shadow:0 3px 0 #e7c95f;}
+  .board{display:flex; gap:7px;}
+  .pc{width:40px;height:56px;border-radius:9px; background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:'Baloo 2'; font-weight:800; box-shadow:0 4px 8px rgba(0,0,0,.25);}
+  .pc .r{font-size:20px; line-height:1;} .pc .s{font-size:16px; line-height:1;}
+  .sp{color:#1b1230;} .he{color:#ff3b6b;} .di{color:#2f6bff;} .cl{color:#12b06a;}
 
-  .q { text-align:center; margin: 16px 6px 4px; font-family:'Baloo 2'; font-weight:700; font-size:18px; color:var(--ink); }
-  .qs { text-align:center; color:#9b8bc0; font-weight:800; font-size:12px; margin-bottom:4px; }
+  .heroRow{display:flex; align-items:flex-end; justify-content:center; gap:8px; margin-top:-22px; position:relative; z-index:2;}
+  .hero{display:flex; gap:8px;}
+  .hero .pc{width:62px;height:88px;border-radius:14px; box-shadow:0 12px 18px rgba(0,0,0,.22);}
+  .hero .pc:first-child{transform:rotate(-8deg);} .hero .pc:last-child{transform:rotate(8deg);}
+  .hero .pc .r{font-size:28px;} .hero .pc .s{font-size:24px;}
+  /* mascot */
+  .mascot{width:54px;height:54px; margin-bottom:6px; filter:drop-shadow(0 6px 6px rgba(123,92,255,.3)); animation:bob 2.4s ease-in-out infinite;}
+  @keyframes bob{50%{transform:translateY(-5px) rotate(-3deg);}}
 
-  /* actions */
-  .acts { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:18px; }
-  .btn {
-    border:none; border-radius:22px; padding:18px 10px; font-family:'Baloo 2'; font-weight:800; font-size:22px; color:#fff;
-    cursor:pointer; position:relative; transition: transform .05s;
-  }
-  .btn small { display:block; font-size:11px; font-weight:700; opacity:.8; margin-top:2px; }
-  .btn.check { background: linear-gradient(180deg,#9aa6c4,#7d87aa); box-shadow:0 7px 0 #5f678a; color:#fff; }
-  .btn.bet { background: linear-gradient(180deg,#46e6a3,#22c781); box-shadow:0 7px 0 var(--grn-d); }
-  .btn:active { transform: translateY(4px); }
+  .verdict{text-align:center; margin-top:14px;}
+  .verdict .h{font-family:'Baloo 2'; font-weight:800; font-size:20px;}
+  .verdict .h .em{color:var(--grn-d);}
+  .verdict .s{color:var(--ink2); font-weight:800; font-size:13px; margin-top:2px;}
 
-  /* streak chips row */
-  .chips { display:flex; gap:8px; justify-content:center; margin-top:16px; }
-  .schip { width:14px;height:14px;border-radius:50%; background:#e7defb; box-shadow: inset 0 -2px 0 #d6c8f2; }
-  .schip.on { background: var(--yel); box-shadow: 0 3px 0 var(--yel-d); }
+  .acts{display:grid; grid-template-columns:1fr 1.1fr; gap:14px; margin:18px 16px 0;}
+  .btn{border:none; border-radius:22px; padding:16px 8px 18px; font-family:'Baloo 2'; font-weight:800; cursor:pointer; color:#fff; position:relative; transition:transform .05s;}
+  .btn .ico{font-size:22px;}
+  .btn .lab{font-size:21px; line-height:1.1;}
+  .btn .sub{display:block; font-size:11px; font-weight:800; opacity:.85; margin-top:2px;}
+  .btn.check{background:linear-gradient(180deg,#98a3c2,#7d88ab); box-shadow:0 7px 0 #5f678a;}
+  .btn.bet{background:linear-gradient(180deg,#46e6a3,#1fc683); box-shadow:0 7px 0 var(--grn-d);}
+  .btn:active{transform:translateY(4px);} .btn:active{box-shadow:0 3px 0 #5f678a;}
+  .btn.bet:active{box-shadow:0 3px 0 var(--grn-d);}
 
-  /* nav */
-  nav {
-    position: fixed; left:0; right:0; bottom:0; height: 78px;
-    background:#fff; border-radius: 28px 28px 0 0;
-    box-shadow: 0 -8px 24px rgba(124,92,255,.15);
-    display:flex; align-items:center; justify-content:space-around; padding: 6px 14px env(safe-area-inset-bottom);
-    max-width:440px; margin:0 auto;
-  }
-  nav a { display:flex; flex-direction:column; align-items:center; gap:3px; font-weight:900; font-size:11px; color:#b7a8d8; text-decoration:none; }
-  nav a .ic { font-size:22px; }
-  nav a.active { color: var(--vio); }
-  nav a.active .ic { transform: translateY(-2px) scale(1.15); }
+  .hint{display:flex; align-items:center; justify-content:center; gap:7px; margin-top:14px; color:var(--ink2); font-weight:800; font-size:12px;}
+  .hint .dot{width:11px;height:11px;border-radius:50%; background:#e7defb; box-shadow:inset 0 -2px 0 #d6c8f2;}
+  .hint .dot.on{background:var(--yel); box-shadow:0 3px 0 var(--yel-d);}
+
+  nav{position:fixed; bottom:0; left:0; right:0; max-width:440px; margin:0 auto; height:76px; background:#fff; border-radius:26px 26px 0 0; box-shadow:0 -8px 24px rgba(123,92,255,.16); display:flex; align-items:center; justify-content:space-around; padding:6px 12px env(safe-area-inset-bottom);}
+  nav a{position:relative; display:flex; flex-direction:column; align-items:center; gap:3px; font-weight:900; font-size:11px; color:#b7a8d8; text-decoration:none;}
+  nav a .ic{font-size:22px;}
+  nav a.active{color:var(--vio);}
+  nav a.active::before{content:""; position:absolute; top:-7px; width:30px; height:5px; border-radius:6px; background:linear-gradient(90deg,var(--vio),var(--pink));}
+  nav a.active .ic{transform:translateY(-1px) scale(1.12);}
 </style>
 </head>
 <body>
+  <div class="sparkle"></div>
   <div class="wrap">
-    <div class="hud">
-      <div class="ring" style="--p:72"><div>L7<small>LEVEL</small></div></div>
-      <div class="pill">
-        <div class="stat"><span class="emoji">🔥</span><div><b>12</b><span>STREAK</span></div></div>
-        <div class="stat"><span class="emoji">💎</span><div><b>1,480</b><span>XP</span></div></div>
+    <div class="appbar">
+      <div class="av">DW</div>
+      <div class="coins">
+        <div class="coin g"><span class="e">🪙</span>2,140</div>
+        <div class="coin d"><span class="e">💎</span>18</div>
       </div>
+      <div class="gear">⚙️</div>
+    </div>
+
+    <div class="goal">
+      <div class="ring" style="--p:72"><div>17/24</div></div>
+      <div class="txt"><b>Daily goal</b><p>7 more to keep your streak alive!</p></div>
+      <div class="flame"><b>🔥12</b><small>DAYS</small></div>
     </div>
 
     <div class="card">
-      <div class="badge">
-        <span class="tag">🎯 Postflop · BTN vs BB</span>
-        <span class="pot">POT 5.5bb</span>
+      <div class="cap">
+        <div class="top">
+          <span class="tag">🎯 Postflop · BTN vs BB</span>
+          <span class="combo">COMBO <span class="x">×3</span></span>
+        </div>
       </div>
 
       <div class="felt">
-        <div class="villain">
-          <div class="back"></div>
-          <div class="vchip">BB checks</div>
-        </div>
+        <div class="pot">💰 POT 5.5bb</div>
+        <div class="villain"><div class="back"></div><div class="vchip">BB checks</div></div>
         <div class="board">
           <div class="pc"><span class="r sp">Q</span><span class="s sp">♠</span></div>
           <div class="pc"><span class="r he">7</span><span class="s he">♥</span></div>
@@ -149,22 +145,32 @@
         </div>
       </div>
 
-      <div class="hero">
-        <div class="pc"><span class="r sp">A</span><span class="s sp">♠</span></div>
-        <div class="pc"><span class="r di">Q</span><span class="s di">♦</span></div>
+      <div class="heroRow">
+        <div class="hero">
+          <div class="pc"><span class="r sp">A</span><span class="s sp">♠</span></div>
+          <div class="pc"><span class="r di">Q</span><span class="s di">♦</span></div>
+        </div>
+        <svg class="mascot" viewBox="0 0 64 64" fill="none">
+          <path d="M32 6C32 6 12 22 12 36c0 8 6 13 12 13 1.5 0 2.8-.3 4-.8C26 52 23 56 19 57h26c-4-1-7-5-9-8.8 1.2.5 2.5.8 4 .8 6 0 12-5 12-13C52 22 32 6 32 6z" fill="#7b5cff"/>
+          <circle cx="26" cy="33" r="3.4" fill="#fff"/><circle cx="38" cy="33" r="3.4" fill="#fff"/>
+          <circle cx="27" cy="34" r="1.6" fill="#2c1b52"/><circle cx="39" cy="34" r="1.6" fill="#2c1b52"/>
+          <path d="M28 41q4 3 8 0" stroke="#2c1b52" stroke-width="2" stroke-linecap="round"/>
+        </svg>
       </div>
 
-      <div class="q">Top pair, top kicker!</div>
-      <div class="qs">BB checks to you — what's your move?</div>
+      <div class="verdict">
+        <div class="h">Top pair, top kicker! <span class="em">💪</span></div>
+        <div class="s">BB checks to you — what's your move?</div>
+      </div>
 
       <div class="acts">
-        <button class="btn check">Check<small>realise equity</small></button>
-        <button class="btn bet">Bet<small>value + protect</small></button>
+        <button class="btn check"><div class="ico">✋</div><div class="lab">Check</div><span class="sub">pot control</span></button>
+        <button class="btn bet"><div class="ico">🚀</div><div class="lab">Bet 33%</div><span class="sub">value + protect</span></button>
       </div>
 
-      <div class="chips">
-        <span class="schip on"></span><span class="schip on"></span><span class="schip on"></span>
-        <span class="schip on"></span><span class="schip"></span>
+      <div class="hint">
+        <span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot on"></span><span class="dot"></span>
+        &nbsp;4 to next reward
       </div>
     </div>
   </div>

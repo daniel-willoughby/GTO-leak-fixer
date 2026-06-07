@@ -6,138 +6,166 @@
 <title>Design B — Solver</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
-  :root {
-    --bg:#0a0e14; --panel:#0f141d; --line:#1d2633;
-    --txt:#cdd6e4; --dim:#6b7888; --cyan:#22d3ee; --lime:#a3e635; --amber:#fbbf24; --red:#fb7185;
-    --bet:#34d399; --check:#64748b;
+  :root{
+    --bg:#080b11; --panel:#0e131c; --panel2:#0b0f17; --line:#1b2433; --line-hi:#2a384c;
+    --txt:#d3dbe8; --dim:#647387; --dimmer:#3f4a5c;
+    --cyan:#22d3ee; --lime:#a3e635; --amber:#fbbf24; --red:#fb7185; --bet:#2dd4a7;
   }
-  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body{margin:0;height:100%;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; margin:0; padding:0;}
+  html,body{height:100%;}
+  .mono{font-family:'JetBrains Mono',monospace;}
   body{
     font-family:'Inter',system-ui,sans-serif; color:var(--txt);
     background:
-      linear-gradient(0deg, rgba(34,211,238,.03), rgba(34,211,238,0) 30%),
+      radial-gradient(60% 30% at 50% 0%, rgba(34,211,238,.05), transparent 70%),
       var(--bg);
-    background-image:
-      linear-gradient(rgba(29,38,51,.5) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(29,38,51,.5) 1px, transparent 1px);
-    background-size: 28px 28px, 28px 28px;
     min-height:100%;
   }
-  .mono{font-family:'JetBrains Mono',monospace;}
-  .wrap{max-width:480px;margin:0 auto;padding:0 0 70px;}
+  body::before{content:""; position:fixed; inset:0; pointer-events:none; opacity:.45;
+    background-image:linear-gradient(rgba(27,36,51,.6) 1px,transparent 1px),linear-gradient(90deg,rgba(27,36,51,.6) 1px,transparent 1px);
+    background-size:30px 30px;}
+  .wrap{position:relative; max-width:480px; margin:0 auto; padding:0 0 64px;}
 
-  /* top ticker */
-  header{
-    border-bottom:1px solid var(--line); background:rgba(10,14,20,.85); backdrop-filter:blur(8px);
-    padding:10px 14px; display:flex; align-items:center; justify-content:space-between;
-    position:sticky; top:0; z-index:5;
-  }
-  .logo{font-weight:700; letter-spacing:-.02em; font-size:15px;}
+  header{position:sticky; top:0; z-index:10; background:rgba(8,11,17,.9); backdrop-filter:blur(10px); border-bottom:1px solid var(--line); padding:11px 14px;}
+  .hrow{display:flex; align-items:center; justify-content:space-between;}
+  .logo{font-weight:700; font-size:15px; letter-spacing:-.01em;}
   .logo b{color:var(--cyan);}
-  .ticker{display:flex; gap:14px;}
-  .ticker div{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em;}
-  .ticker div b{display:block; font-family:'JetBrains Mono'; font-size:14px; color:var(--txt); letter-spacing:0; margin-top:2px;}
-  .ticker .g b{color:var(--lime);} .ticker .r b{color:var(--red);}
+  .tk{display:flex; gap:16px;}
+  .tk div{font-size:9px; color:var(--dim); text-transform:uppercase; letter-spacing:.1em; text-align:right;}
+  .tk div b{display:block; font-family:'JetBrains Mono'; font-weight:600; font-size:14px; color:var(--txt); letter-spacing:0; margin-top:2px;}
+  .tk .g b{color:var(--lime);} .tk .r b{color:var(--red);}
+  .crumb{display:flex; align-items:center; gap:6px; margin-top:9px; font-family:'JetBrains Mono'; font-size:10px; color:var(--dim);}
+  .crumb b{color:var(--cyan); font-weight:500;}
+  .crumb .sep{color:var(--dimmer);}
 
   section{padding:14px;}
-  .row{display:flex; gap:12px; align-items:flex-start;}
 
   /* spot panel */
-  .spot{flex:1; border:1px solid var(--line); border-radius:8px; background:var(--panel); overflow:hidden;}
-  .spot .hd{display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-bottom:1px solid var(--line); background:#0c1119;}
-  .spot .hd .id{font-family:'JetBrains Mono'; font-size:11px; color:var(--cyan);}
-  .spot .hd .st{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em;}
-  .board{display:flex; gap:6px; padding:14px 10px 8px; justify-content:center;}
-  .pc{width:34px;height:48px;border-radius:5px;background:#f5f7fa;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'JetBrains Mono';font-weight:700;border:1px solid #c9d2dd;}
+  .spot{border:1px solid var(--line); border-radius:9px; background:linear-gradient(180deg,var(--panel),var(--panel2)); overflow:hidden;}
+  .spot .hd{display:flex; justify-content:space-between; align-items:center; padding:9px 12px; border-bottom:1px solid var(--line); background:#0a0f17;}
+  .spot .hd .id{font-family:'JetBrains Mono'; font-size:11px; color:var(--cyan); letter-spacing:.02em;}
+  .spot .hd .tags{display:flex; gap:5px;}
+  .spot .hd .tags span{font-size:9px; font-family:'JetBrains Mono'; color:var(--dim); border:1px solid var(--line-hi); border-radius:4px; padding:2px 6px;}
+  .play{display:flex; gap:18px; align-items:center; padding:16px 14px 12px; justify-content:center;}
+  .cardset{display:flex; gap:6px;}
+  .pc{width:36px;height:50px;border-radius:5px; background:linear-gradient(180deg,#fbfcfe,#eaeef3); display:flex;flex-direction:column;align-items:center;justify-content:center; font-family:'JetBrains Mono'; font-weight:700; border:1px solid #cad3de; box-shadow:0 2px 5px rgba(0,0,0,.4);}
   .pc .r{font-size:16px;line-height:1;} .pc .s{font-size:13px;line-height:1;}
+  .pc.sm{width:30px;height:42px;}
   .sp{color:#0b0f16;} .he{color:#e11d48;} .di{color:#2563eb;} .cl{color:#059669;}
-  .hero-row{display:flex; gap:8px; align-items:center; justify-content:center; padding:0 10px 12px;}
-  .hero-row .pc{width:30px;height:42px;}
-  .hero-row .lbl{font-family:'JetBrains Mono'; font-size:13px; color:var(--amber); margin-left:4px;}
-  .meta{display:flex; gap:0; border-top:1px solid var(--line);}
-  .meta div{flex:1; padding:8px 10px; text-align:center; border-right:1px solid var(--line); font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.06em;}
+  .play .vs{font-family:'JetBrains Mono'; font-size:10px; color:var(--dimmer);}
+  .play .holding{font-family:'JetBrains Mono'; font-size:12px; color:var(--amber); display:flex; flex-direction:column; gap:2px;}
+  .play .holding small{color:var(--dim); font-size:10px;}
+  .meta{display:flex; border-top:1px solid var(--line);}
+  .meta div{flex:1; padding:8px 6px; text-align:center; border-right:1px solid var(--line); font-size:9px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em;}
   .meta div:last-child{border-right:none;}
-  .meta div b{display:block; font-family:'JetBrains Mono'; font-size:13px; color:var(--txt); margin-top:2px; letter-spacing:0;}
+  .meta div b{display:block; font-family:'JetBrains Mono'; font-weight:600; font-size:13px; color:var(--txt); margin-top:3px; letter-spacing:0;}
+  .meta .ok b{color:var(--lime);}
 
-  /* range matrix */
-  .matrix{margin-top:14px; border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:10px;}
-  .matrix .cap{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
-  .matrix .cap span{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em;}
+  .panel{margin-top:13px; border:1px solid var(--line); border-radius:9px; background:var(--panel);}
+  .panel .ph{display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px solid var(--line);}
+  .panel .ph span{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.1em;}
+  .panel .ph .r{font-family:'JetBrains Mono'; font-size:12px; color:var(--bet); letter-spacing:0; text-transform:none;}
+  .panel .pb{padding:12px;}
+
+  /* matrix with per-cell bet-frequency fill */
   .grid{display:grid; grid-template-columns:repeat(13,1fr); gap:2px;}
-  .cell{aspect-ratio:1; border-radius:2px; font-family:'JetBrains Mono'; font-size:7px; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.7);}
-  .cell.hero{outline:2px solid var(--amber); outline-offset:-1px; z-index:2; color:#fff; font-weight:700;}
-  .legend{display:flex; gap:14px; margin-top:8px; font-size:10px; color:var(--dim);}
-  .legend i{display:inline-block; width:10px;height:10px;border-radius:2px; margin-right:4px; vertical-align:-1px;}
+  .cell{position:relative; aspect-ratio:1; border-radius:2px; overflow:hidden; background:#202a38;}
+  .cell .fill{position:absolute; left:0; right:0; bottom:0; background:linear-gradient(180deg,#34d399,#0f9d76);}
+  .cell .lab{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono'; font-size:6.5px; color:rgba(255,255,255,.82); z-index:2;}
+  .cell.hero{outline:2px solid var(--amber); outline-offset:-1px; z-index:3;}
+  .cell.hero .lab{color:#fff; font-weight:700;}
+  .mstats{display:flex; justify-content:space-between; margin-top:10px; font-family:'JetBrains Mono'; font-size:10px; color:var(--dim);}
+  .mstats b{color:var(--txt);}
+  .legend{display:flex; gap:14px; margin-top:8px; font-size:9px; color:var(--dim); text-transform:uppercase; letter-spacing:.06em;}
+  .legend i{display:inline-block; width:9px;height:9px;border-radius:2px; margin-right:4px; vertical-align:-1px;}
 
-  /* EV readout */
-  .ev{margin-top:14px; border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:12px;}
-  .ev .t{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px;}
-  .bar{display:flex; height:30px; border-radius:5px; overflow:hidden; font-family:'JetBrains Mono'; font-size:11px; font-weight:700;}
-  .bar .b{background:linear-gradient(180deg,#34d399,#10b981); color:#04241a; display:flex; align-items:center; justify-content:center; gap:6px;}
-  .bar .c{background:#2b3543; color:#aebacb; display:flex; align-items:center; justify-content:center; gap:6px;}
-  .evnums{display:flex; justify-content:space-between; margin-top:8px; font-family:'JetBrains Mono'; font-size:11px;}
-  .evnums .lime{color:var(--lime);} .evnums .dim{color:var(--dim);}
+  /* EV */
+  .evbar{display:flex; height:34px; border-radius:6px; overflow:hidden; font-family:'JetBrains Mono'; font-size:11px; font-weight:600; border:1px solid var(--line);}
+  .evbar .b{background:linear-gradient(180deg,#34d399,#10b981); color:#04241a; display:flex; align-items:center; justify-content:center; gap:8px;}
+  .evbar .c{background:#222c3a; color:#9fb0c4; display:flex; align-items:center; justify-content:center;}
+  .evgrid{display:grid; grid-template-columns:1fr 1fr; gap:1px; margin-top:10px; background:var(--line); border:1px solid var(--line); border-radius:6px; overflow:hidden;}
+  .evgrid .e{background:var(--panel); padding:9px 11px;}
+  .evgrid .e .t{font-size:9px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em;}
+  .evgrid .e .v{font-family:'JetBrains Mono'; font-size:15px; margin-top:3px;}
+  .evgrid .e.best{box-shadow:inset 0 0 0 1px rgba(45,212,167,.4);}
+  .evgrid .e.best .v{color:var(--bet);} .evgrid .e.best .t b{color:var(--bet);}
+  .evgrid .e .v.neg{color:var(--red);}
+  .exploit{display:flex; gap:8px; align-items:flex-start; margin-top:11px; padding:10px 11px; border:1px solid var(--line); border-left:2px solid var(--amber); border-radius:6px; background:rgba(251,191,36,.04); font-size:12px; color:#cbb98e;}
+  .exploit b{color:var(--amber);}
 
-  /* actions */
-  .acts{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px;}
-  .btn{border:1px solid; border-radius:6px; padding:14px; font-family:'JetBrains Mono'; font-weight:700; font-size:15px; letter-spacing:.04em; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; background:transparent;}
-  .btn .k{font-size:9px; border:1px solid currentColor; border-radius:3px; padding:1px 4px; opacity:.7;}
-  .btn.bet{color:var(--bet); border-color:#1f5b48; background:rgba(52,211,153,.08);}
+  .acts{display:grid; grid-template-columns:1fr 1.2fr; gap:10px; margin-top:14px;}
+  .btn{border:1px solid; border-radius:7px; padding:14px; font-family:'JetBrains Mono'; font-weight:600; font-size:15px; letter-spacing:.04em; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:9px; background:transparent;}
+  .btn .k{font-size:9px; border:1px solid currentColor; border-radius:3px; padding:1px 5px; opacity:.7;}
+  .btn.bet{color:var(--bet); border-color:#1f5b48; background:rgba(45,212,167,.08); box-shadow:0 0 18px -8px rgba(45,212,167,.5);}
   .btn.check{color:#9fb0c4; border-color:#2b3543; background:rgba(148,163,184,.05);}
 
-  nav{position:fixed; bottom:0; left:0; right:0; max-width:480px; margin:0 auto; border-top:1px solid var(--line); background:rgba(10,14,20,.92); backdrop-filter:blur(8px); display:flex;}
-  nav a{flex:1; padding:10px; text-align:center; font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.06em; text-decoration:none; font-family:'JetBrains Mono';}
-  nav a .ic{display:block; font-size:16px; margin-bottom:3px;}
-  nav a.on{color:var(--cyan);}
+  nav{position:fixed; bottom:0; left:0; right:0; max-width:480px; margin:0 auto; border-top:1px solid var(--line); background:rgba(8,11,17,.94); backdrop-filter:blur(10px); display:flex;}
+  nav a{flex:1; padding:9px; text-align:center; font-size:9px; color:var(--dim); text-transform:uppercase; letter-spacing:.08em; text-decoration:none; font-family:'JetBrains Mono';}
+  nav a .ic{display:block; font-size:15px; margin-bottom:3px;}
+  nav a.on{color:var(--cyan);} nav a.on .ic{text-shadow:0 0 10px rgba(34,211,238,.6);}
 </style>
 </head>
 <body>
   <div class="wrap">
     <header>
-      <div class="logo">LEAK<b>/</b>TUTOR</div>
-      <div class="ticker">
-        <div>Hands<b>1,284</b></div>
-        <div class="g">Acc<b>71.4%</b></div>
-        <div class="r">EV lost<b>-2.1bb</b></div>
+      <div class="hrow">
+        <div class="logo">LEAK<b>/</b>TUTOR <span style="color:var(--dim);font-size:10px;font-weight:500">solver view</span></div>
+        <div class="tk">
+          <div>Hands<b>1,284</b></div>
+          <div class="g">Acc<b>71.4%</b></div>
+          <div class="r">EV&nbsp;lost<b>−2.1bb</b></div>
+        </div>
       </div>
+      <div class="crumb mono"><b>BTN open</b><span class="sep">▸</span><b>BB call</b><span class="sep">▸</span><b>flop</b><span class="sep">▸</span>BB check<span class="sep">▸</span><span style="color:var(--amber)">BTN to act</span></div>
     </header>
 
     <section>
       <div class="spot">
-        <div class="hd"><span class="id mono">BTN_vs_BB · SRP · FLOP</span><span class="st">Node #4471</span></div>
-        <div class="board">
-          <div class="pc"><span class="r sp">Q</span><span class="s sp">♠</span></div>
-          <div class="pc"><span class="r he">7</span><span class="s he">♥</span></div>
-          <div class="pc"><span class="r cl">2</span><span class="s cl">♣</span></div>
+        <div class="hd">
+          <span class="id">NODE_4471 · BTN_vs_BB_SRP</span>
+          <div class="tags"><span>DRY</span><span>RAINBOW</span><span>1-BROADWAY</span></div>
         </div>
-        <div class="hero-row">
-          <div class="pc"><span class="r sp">A</span><span class="s sp">♠</span></div>
-          <div class="pc"><span class="r di">Q</span><span class="s di">♦</span></div>
-          <span class="lbl mono">AQo · top pair</span>
+        <div class="play">
+          <div class="cardset">
+            <div class="pc"><span class="r sp">Q</span><span class="s sp">♠</span></div>
+            <div class="pc"><span class="r he">7</span><span class="s he">♥</span></div>
+            <div class="pc"><span class="r cl">2</span><span class="s cl">♣</span></div>
+          </div>
+          <span class="vs mono">◂ board</span>
+          <div class="cardset">
+            <div class="pc sm"><span class="r sp">A</span><span class="s sp">♠</span></div>
+            <div class="pc sm"><span class="r di">Q</span><span class="s di">♦</span></div>
+          </div>
+          <div class="holding">AQo<small>top pair</small></div>
         </div>
         <div class="meta">
           <div>Pot<b>5.5bb</b></div>
-          <div>Stack<b>97.5bb</b></div>
+          <div>Eff<b>97.5bb</b></div>
           <div>Facing<b>check</b></div>
-          <div>Solve<b>0.18%</b></div>
+          <div class="ok">Exploit<b>0.18%</b></div>
         </div>
       </div>
 
-      <div class="matrix">
-        <div class="cap"><span>Solver strategy · BTN c-bet</span><span class="mono" style="color:var(--bet)">bet 82%</span></div>
-        <div class="grid" id="grid"></div>
-        <div class="legend"><span><i style="background:#10b981"></i>bet</span><span><i style="background:#2b3543"></i>check</span><span><i style="background:transparent;border:1px solid #fbbf24"></i>your hand (AQo)</span></div>
+      <div class="panel">
+        <div class="ph"><span>Strategy · BTN c-bet 33%</span><span class="r">range bets 67%</span></div>
+        <div class="pb">
+          <div class="grid" id="grid"></div>
+          <div class="mstats"><span>combos in range <b>1,326</b></span><span>this hand <b style="color:var(--bet)">bet 90% / check 10%</b></span></div>
+          <div class="legend"><span><i style="background:#10b981"></i>bet freq</span><span><i style="background:#202a38"></i>check freq</span><span><i style="background:transparent;border:1px solid var(--amber)"></i>AQo</span></div>
+        </div>
       </div>
 
-      <div class="ev">
-        <div class="t">Expected value · this hand</div>
-        <div class="bar"><div class="b" style="width:90%">BET · 90%</div><div class="c" style="width:10%">10%</div></div>
-        <div class="evnums">
-          <span class="lime">BET&nbsp;&nbsp;+0.00 bb&nbsp;&nbsp;◄ GTO</span>
-          <span class="dim">CHECK&nbsp;&nbsp;−0.31 bb</span>
+      <div class="panel">
+        <div class="ph"><span>Expected value · AQo</span><span class="r">Δ 0.31bb</span></div>
+        <div class="pb">
+          <div class="evbar"><div class="b" style="width:90%">BET · 90%</div><div class="c" style="width:10%">10%</div></div>
+          <div class="evgrid">
+            <div class="e best"><div class="t">BET 33% <b>◄ GTO</b></div><div class="v">+0.00 bb</div></div>
+            <div class="e"><div class="t">CHECK BACK</div><div class="v neg">−0.31 bb</div></div>
+          </div>
+          <div class="exploit"><span>⚑</span><div><b>Why:</b> AQo wants to charge worse Qx, pocket pairs and gutshots while denying free equity to overcards. Checking caps your range.</div></div>
         </div>
       </div>
 
@@ -156,27 +184,26 @@
   </nav>
 
   <script>
-    // build a 13x13 strategy matrix (bet=green intensity, check=grey)
-    const R = ['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
-    const g = document.getElementById('grid');
-    // deterministic-ish strategy by hand strength for the mock
-    function freq(i,j){
+    const R=['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
+    const g=document.getElementById('grid');
+    // realistic-ish mixed strategy: strong & some bluffs bet, mid showdown checks
+    function betFreq(i,j){
       const hi=Math.min(i,j), lo=Math.max(i,j), pair=i===j, suited=i<j;
-      let s = 1 - (hi*0.05 + lo*0.045);            // stronger hands bet more
-      if(pair) s += 0.25;
-      if(suited) s += 0.08;
-      return Math.max(0.02, Math.min(0.99, s));
+      const strength=(12-hi)*0.05+(12-lo)*0.035 + (pair?0.32:0) + (suited?0.05:0);
+      // mid-strength showdown hands check more → dip the curve in the middle
+      let f = strength;
+      if(strength>0.35 && strength<0.62 && !pair) f = strength-0.28; // thin showdown checks back
+      if(hi>=8 && lo>=9 && !pair) f += 0.25; // low cards bluff/barrel some
+      return Math.max(0.03, Math.min(0.99, f+0.18));
     }
     for(let i=0;i<13;i++)for(let j=0;j<13;j++){
-      const lbl = i===j? R[i]+R[i] : (i<j? R[i]+R[j]+'s' : R[j]+R[i]+'o');
-      const f = freq(i,j);
-      const c = document.createElement('div');
-      c.className='cell';
-      const bet = f>0.5;
-      const inten = Math.round(40 + f*60);
-      c.style.background = bet ? `hsl(160 70% ${100-inten}%)` : `hsl(215 18% ${24+(1-f)*6}%)`;
-      c.textContent = lbl.replace('s','').replace('o','');
-      if(lbl==='AQo'){ c.classList.add('hero'); }
+      const lbl=i===j?R[i]+R[i]:(i<j?R[i]+R[j]+'s':R[j]+R[i]+'o');
+      const f=betFreq(i,j);
+      const c=document.createElement('div'); c.className='cell';
+      const fill=document.createElement('div'); fill.className='fill'; fill.style.height=Math.round(f*100)+'%';
+      const lab=document.createElement('div'); lab.className='lab'; lab.textContent=lbl.replace(/[so]/,'');
+      c.appendChild(fill); c.appendChild(lab);
+      if(lbl==='AQo') c.classList.add('hero');
       g.appendChild(c);
     }
   </script>
