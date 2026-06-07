@@ -9,7 +9,16 @@ import {
 } from '../data/ranges'
 import { MATCHUPS, respond, type Matchup } from '../data/vsRfi'
 import { MULTIWAY_MATCHUPS, respondMultiway } from '../data/multiway'
-import { ALL_NODES as ALL_STREET_NODES, FLOP_NODES, nodeLabels, strategyFor, turnNodesForFlop, type StreetNode } from '../data/postflop'
+import {
+  ALL_NODES as ALL_STREET_NODES,
+  FLOP_NODES,
+  hasRiver,
+  nodeLabels,
+  riverNodesForBoard,
+  strategyFor,
+  turnNodesForFlop,
+  type StreetNode,
+} from '../data/postflop'
 import { describeHand } from './flopEval'
 
 export type Action = 'fold' | 'raise' | 'call' | '3bet' | 'check' | 'bet' | 'squeeze' | 'cold-4bet'
@@ -252,27 +261,29 @@ function generatePostflopSpot(): Spot {
   }
 }
 
-/** After answering a flop decision, advance to a turn node with the same cards. */
+const boardStr = (cards: Card[]): string => cards.map((c) => c.rank + c.suit).join('')
+
+/** After answering a flop or turn decision, advance to the next street. */
 export function buildContinuationSpot(state: HandState, heroAction: Action): Spot | null {
+  if (state.street === 'flop') return advanceToTurn(state, heroAction)
+  if (state.street === 'turn') return advanceToRiver(state, heroAction)
+  return null
+}
+
+function advanceToTurn(state: HandState, heroAction: Action): Spot | null {
   const flop = state.flopNode.board // 6 chars
-  const turnNodes = turnNodesForFlop(flop)
+  const turnNodes = turnNodesForFlop(flop).filter((n) => strategyFor(n, state.heroLabel))
   if (!turnNodes.length) return null
-  const node = randOf(turnNodes)
+  // prefer a turn that also has river data, so the hand can run to the river
+  const riverCapable = turnNodes.filter((n) => hasRiver(n.board))
+  const node = randOf(riverCapable.length ? riverCapable : turnNodes)
   const turnCard = parseCards(node.board.slice(6))[0]
   const board = [...state.board, turnCard]
-  const strat = strategyFor(node, state.heroLabel)
-  if (!strat) return null
-  const correct: Action = strat.primary.startsWith('bet') ? 'bet' : 'check'
+  const strat = strategyFor(node, state.heroLabel)!
   const actionVerb = heroAction === 'bet' ? 'BTN bets 1.8bb, BB calls' : 'BTN checks back'
-  const newHistory = [
-    ...state.history,
-    `BB checks`,
-    actionVerb,
-    `Turn: ${node.board.slice(6)}`,
-  ]
   const newState: HandState = {
     ...state,
-    history: newHistory,
+    history: [...state.history, 'BB checks', actionVerb, `Turn: ${node.board.slice(6)}`],
     street: 'turn',
     board,
     heroFlopAction: heroAction,
@@ -282,7 +293,37 @@ export function buildContinuationSpot(state: HandState, heroAction: Action): Spo
     heroPos: node.hero,
     cards: state.heroCards,
     label: state.heroLabel,
-    correct,
+    correct: strat.primary.startsWith('bet') ? 'bet' : 'check',
+    actions: ['check', 'bet'],
+    category: classifyHand(state.heroLabel),
+    board,
+    node,
+    freqs: strat.freqs,
+    handState: newState,
+  }
+}
+
+function advanceToRiver(state: HandState, heroAction: Action): Spot | null {
+  const turnBoard = boardStr(state.board) // 8 chars
+  const rivers = riverNodesForBoard(turnBoard).filter((n) => strategyFor(n, state.heroLabel))
+  if (!rivers.length) return null
+  const node = randOf(rivers)
+  const riverCard = parseCards(node.board.slice(8))[0]
+  const board = [...state.board, riverCard]
+  const strat = strategyFor(node, state.heroLabel)!
+  const actionVerb = heroAction === 'bet' ? 'BTN bets, BB calls' : 'BTN checks back'
+  const newState: HandState = {
+    ...state,
+    history: [...state.history, 'BB checks', actionVerb, `River: ${node.board.slice(8)}`],
+    street: 'river',
+    board,
+  }
+  return {
+    mode: 'postflop',
+    heroPos: node.hero,
+    cards: state.heroCards,
+    label: state.heroLabel,
+    correct: strat.primary.startsWith('bet') ? 'bet' : 'check',
     actions: ['check', 'bet'],
     category: classifyHand(state.heroLabel),
     board,
@@ -398,7 +439,7 @@ function explainPostflop(spot: Spot, chosen: Action): string {
       : chosenFreq >= ACCEPTABLE_FREQ * 100
         ? `Fine: ${chosen === 'bet' ? 'betting' : 'checking'} is played ${chosenFreq}% here, so it's a defensible mixed choice.`
         : `Not the top play: the solver ${spot.correct === 'bet' ? 'bets' : 'checks back'} ${spot.label} more often.`
-  const streetNote = street === 'turn' ? ' on the turn' : ' on this flop'
+  const streetNote = street === 'river' ? ' on the river' : street === 'turn' ? ' on the turn' : ' on this flop'
   const reason: Record<typeof desc.tier, string> = {
     monster: `You have ${desc.text}${streetNote}, a near-lock. Bet to build the pot.`,
     strong: `You have ${desc.text}${streetNote}. Bet for value and to charge worse hands.`,

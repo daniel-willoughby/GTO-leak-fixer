@@ -28,11 +28,20 @@ export interface StreetNode {
 export const ALL_NODES: StreetNode[] = rawNodes as unknown as StreetNode[]
 export const FLOP_NODES = ALL_NODES.filter((n) => n.street === 'flop')
 export const TURN_NODES = ALL_NODES.filter((n) => n.street === 'turn')
+export const RIVER_NODES = ALL_NODES.filter((n) => n.street === 'river')
 
-/** All nodes whose first 6 board chars match a given flop. */
+/** All turn nodes whose first 6 board chars match a given flop. */
 export function turnNodesForFlop(flop: string): StreetNode[] {
   return TURN_NODES.filter((n) => n.board.startsWith(flop))
 }
+
+/** River nodes whose first 8 board chars match a given turn board. */
+export function riverNodesForBoard(turnBoard: string): StreetNode[] {
+  return RIVER_NODES.filter((n) => n.board.startsWith(turnBoard))
+}
+
+/** Whether any river continuation exists for this 8-char turn board. */
+export const hasRiver = (turnBoard: string): boolean => RIVER_NODES.some((n) => n.board.startsWith(turnBoard))
 
 export interface NodeStrategy {
   freqs: number[]

@@ -245,7 +245,11 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
       setStreak(0)
       playWrong()
     }
-    if (spot.mode === 'postflop' && spot.handState?.street === 'flop' && !reviewMode) {
+    if (
+      spot.mode === 'postflop' &&
+      !reviewMode &&
+      (spot.handState?.street === 'flop' || spot.handState?.street === 'turn')
+    ) {
       setCanContinue(!!buildContinuationSpot(spot.handState, action))
     }
 
@@ -308,9 +312,11 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
         ? `${spot.raiserPos} raises. Fold, call, or 3-bet?`
         : spot.mode === 'multiway'
           ? (MULTIWAY_MATCHUPS.find((x) => x.hero === spot.heroPos)?.description ?? 'What do you do?')
-          : street === 'turn'
-            ? 'BB checks the turn. Bet or check back?'
-            : 'BB checks. Bet or check back?'
+          : street === 'river'
+            ? 'BB checks the river. Bet or check back?'
+            : street === 'turn'
+              ? 'BB checks the turn. Bet or check back?'
+              : 'BB checks. Bet or check back?'
 
   const multiwayActive =
     spot.mode === 'multiway'
@@ -406,7 +412,7 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
         raiserPos={spot.raiserPos}
         activePots={multiwayActive}
         chips={chipsFor(spot)}
-        pot={spot.mode === 'postflop' ? (street === 'turn' ? 9 : 5.5) : undefined}
+        pot={spot.mode === 'postflop' ? (street === 'river' ? 15 : street === 'turn' ? 9 : 5.5) : undefined}
         board={spot.board}
         villain={spot.mode === 'postflop' ? { pos: 'BB', note: 'checks' } : undefined}
       />
@@ -458,7 +464,7 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
               onClick={continueHand}
               className="btn btn-secondary pointer-events-auto flex-1 max-w-[11rem] py-4 text-base flex items-center justify-center gap-2"
             >
-              <FastForward size={16} /> Turn
+              <FastForward size={16} /> {spot.handState?.street === 'turn' ? 'River' : 'Turn'}
             </button>
           )}
           <button
