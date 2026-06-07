@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Open · C Zen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root{--paper:#f5f2ea;--paper2:#fcfaf4;--ink:#221f19;--ink2:#6b675c;--ink3:#9a968a;--line:#e6e0d3;--sage:#5b7461;--sage-d:#435448;--red:#b1422c;--blue:#3a5a8c;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  .serif{font-family:'Fraunces',Georgia,serif;}
+  body{font-family:'Inter',system-ui,sans-serif;color:var(--ink);min-height:100%;background:radial-gradient(120% 70% at 50% -10%,#fffdf8,rgba(255,253,248,0) 55%),var(--paper);}
+  .wrap{max-width:432px;margin:0 auto;padding:0 26px 110px;}
+  header{display:flex;align-items:center;justify-content:space-between;padding:22px 0 6px;}
+  .brand{font-family:'Fraunces';font-weight:600;font-size:20px;}.brand i{font-style:normal;color:var(--sage);}
+  .right{display:flex;align-items:center;gap:12px;}.streak{font-size:12px;color:var(--ink2);}
+  .me{width:31px;height:31px;border-radius:50%;background:var(--sage);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:600;}
+  .session{margin:16px 0 8px;}.session .meta{display:flex;justify-content:space-between;font-size:12px;color:var(--ink2);margin-bottom:8px;}.session .meta b{color:var(--ink);font-weight:600;}
+  .track{height:3px;background:var(--line);border-radius:2px;overflow:hidden;}.track .fill{height:100%;width:71%;background:linear-gradient(90deg,var(--sage),#6f8a76);}
+  .rule{height:1px;background:var(--line);margin:22px 0;}
+  .eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink2);text-align:center;}
+
+  /* table */
+  .table{position:relative;aspect-ratio:5/4;margin:18px 0 4px;}
+  .felt{position:absolute;inset:8% 3%;border-radius:50%/46%;background:radial-gradient(circle at 50% 34%,#7e9a85,#5f7a67);border:3px solid #4f6857;box-shadow:inset 0 3px 12px rgba(0,0,0,.16);}
+  .felt .mid{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.65);}
+  .seat{position:absolute;transform:translate(-50%,-50%);}
+  .pos{font-size:11.5px;font-weight:600;color:#fff;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:3px 11px;letter-spacing:.02em;}
+  .pos.fold{color:rgba(255,255,255,.45);text-decoration:line-through;border-color:transparent;background:rgba(255,255,255,.07);}
+  .pos.hero{background:var(--paper2);color:var(--ink);border-color:var(--paper2);box-shadow:0 3px 8px rgba(0,0,0,.15);}
+  .chip{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;}
+  .stack{position:relative;width:22px;height:22px;}
+  .coin3{position:absolute;left:0;width:22px;height:22px;border-radius:50%;box-shadow:0 2px 3px rgba(0,0,0,.3);}
+  .coin3::after{content:'';position:absolute;inset:3px;border-radius:50%;border:1.4px dashed rgba(255,255,255,.85);}
+  .cream{background:radial-gradient(circle at 40% 35%,#fbf6ea,#e6dcc6);}.cream::after{border-color:rgba(120,110,90,.5);}
+  .clay{background:radial-gradient(circle at 40% 35%,#cf8f78,#b16a52);}
+  .stack .c1{top:5px;}.stack .c2{top:0;}
+  .chip .v{font-size:9px;color:#fff;letter-spacing:.02em;}
+  .dealer{position:absolute;transform:translate(-50%,-50%);width:20px;height:20px;border-radius:50%;background:var(--paper2);color:var(--sage-d);font-size:11px;font-weight:700;display:grid;place-items:center;box-shadow:0 2px 4px rgba(0,0,0,.25);}
+  .hero{position:absolute;left:50%;top:94%;transform:translate(-50%,-50%);display:flex;gap:11px;}
+  .pc{position:relative;width:50px;height:72px;border-radius:9px;background:var(--paper2);border:1px solid var(--line);box-shadow:0 1px 0 rgba(34,31,25,.04),0 10px 20px rgba(34,31,25,.12);}
+  .pc .ix{position:absolute;top:6px;left:7px;display:flex;flex-direction:column;align-items:center;line-height:1;}
+  .pc .ix .r{font-family:'Fraunces';font-weight:500;font-size:15px;}.pc .ix .s{font-size:9px;margin-top:1px;}
+  .pc .big{position:absolute;inset:0;display:grid;place-items:center;font-size:22px;opacity:.9;}
+  .sp{color:#2a2722;}.di{color:var(--blue);}
+
+  .holding{text-align:center;margin-top:18px;}.holding .h{font-family:'Fraunces';font-weight:500;font-size:24px;}.holding .sub{color:var(--ink2);font-size:14px;margin-top:6px;}
+  .question{font-family:'Fraunces';font-weight:500;font-size:20px;text-align:center;margin:24px 0 16px;}
+  .actions{display:flex;flex-direction:column;gap:11px;}
+  .btn{border:1px solid var(--line);background:var(--paper2);border-radius:15px;padding:17px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;font-size:17px;font-weight:500;color:var(--ink);}
+  .btn .meta{font-size:13px;color:var(--ink2);font-weight:400;}.btn.primary{background:var(--sage);border-color:var(--sage);color:#fff;box-shadow:0 10px 24px -12px rgba(91,116,97,.7);}.btn.primary .meta{color:rgba(255,255,255,.82);}
+  nav{position:fixed;bottom:0;left:0;right:0;max-width:432px;margin:0 auto;border-top:1px solid var(--line);background:rgba(245,242,234,.92);backdrop-filter:blur(12px);display:flex;justify-content:space-around;padding:12px 0 calc(12px + env(safe-area-inset-bottom));}
+  nav a{font-size:12px;color:var(--ink3);display:flex;flex-direction:column;align-items:center;gap:5px;}nav a .ic{font-size:16px;}nav a.on{color:var(--ink);font-weight:600;}nav a.on .ic{color:var(--sage);}
+</style></head>
+<body><div class="wrap">
+  <header><div class="brand">Leak<i>·</i>Tutor</div><div class="right"><span class="streak">✦ 12-day streak</span><span class="me">DW</span></div></header>
+  <div class="session"><div class="meta"><span>Today's practice</span><span><b>17</b> of 24 · 71% sharp</span></div><div class="track"><div class="fill"></div></div></div>
+  <div class="rule"></div>
+  <div class="eyebrow">Cutoff · 100bb · folded to you</div>
+  <div class="table">
+    <div class="felt"><div class="mid">it's on you</div></div>
+    <div class="seat" style="left:9%;top:66%"><div class="pos">BTN</div></div>
+    <div class="seat" style="left:8%;top:30%"><div class="pos">SB</div></div>
+    <div class="seat" style="left:50%;top:8%"><div class="pos">BB</div></div>
+    <div class="seat" style="left:92%;top:30%"><div class="pos fold">UTG</div></div>
+    <div class="seat" style="left:91%;top:66%"><div class="pos fold">HJ</div></div>
+    <div class="seat" style="left:50%;top:80%"><div class="pos hero">CO</div></div>
+    <div class="dealer" style="left:22%;top:60%">D</div>
+    <div class="chip" style="left:24%;top:40%"><div class="stack"><div class="coin3 cream c1"></div><div class="coin3 cream c2"></div></div><div class="v">0.5</div></div>
+    <div class="chip" style="left:50%;top:26%"><div class="stack"><div class="coin3 clay c1"></div><div class="coin3 clay c2"></div></div><div class="v">1</div></div>
+    <div class="hero">
+      <div class="pc"><span class="ix sp"><span class="r">A</span><span class="s">♠</span></span><span class="big sp">♠</span></div>
+      <div class="pc"><span class="ix di"><span class="r">K</span><span class="s">♦</span></span><span class="big di">♦</span></div>
+    </div>
+  </div>
+  <div class="holding"><div class="h serif">Ace-King · a premium hand</div><div class="sub">Folded to you in the cutoff. With only the button and blinds left, you can open wide — and this hand is never a fold.</div></div>
+  <div class="question serif">Open the pot, or fold?</div>
+  <div class="actions">
+    <button class="btn primary">Open to 2.5bb <span style="display:flex;align-items:center;gap:10px"><span class="meta">raise first in</span><span style="font-size:11px;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.3);border-radius:5px;padding:1px 6px">R</span></span></button>
+    <button class="btn">Fold <span style="display:flex;align-items:center;gap:10px"><span class="meta">give up the blinds</span><span style="font-size:11px;color:var(--ink3);border:1px solid var(--line);border-radius:5px;padding:1px 6px">F</span></span></button>
+  </div>
+</div>
+<nav><a class="on"><span class="ic">◗</span>Practice</a><a><span class="ic">◔</span>Insights</a><a><span class="ic">⌃</span>Import</a><a><span class="ic">❦</span>Learn</a></nav>
+</body></html>

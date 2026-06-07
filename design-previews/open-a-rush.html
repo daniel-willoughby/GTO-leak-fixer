@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Open · A Rush</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet"/>
+<style>
+  :root{--ink:#2c1b52;--ink2:#8576b3;--vio:#7b5cff;--pink:#ff5b97;--grn:#37d9a0;--grn-d:#16b87f;--yel:#ffcf3f;--yel-d:#f0ad00;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{font-family:'Nunito',system-ui,sans-serif;color:var(--ink);min-height:100%;
+    background:radial-gradient(90% 50% at 12% 4%,rgba(123,92,255,.2),transparent 60%),radial-gradient(80% 50% at 95% 8%,rgba(255,91,151,.18),transparent 55%),linear-gradient(180deg,#efe9ff,#fde9f1 50%,#fff4e3);}
+  .wrap{max-width:440px;margin:0 auto;padding:12px 16px 100px;}
+  .bar{display:flex;align-items:center;gap:10px;padding:4px 2px 12px;}
+  .av{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,#ffb86b,#ff6ba6);display:grid;place-items:center;color:#fff;font-family:'Baloo 2';font-weight:800;font-size:14px;box-shadow:0 4px 0 #e98bbb;}
+  .coin{display:flex;align-items:center;gap:5px;background:#fff;border-radius:999px;padding:5px 11px;font-family:'Baloo 2';font-weight:800;font-size:14px;box-shadow:0 4px 0 #ecdff7;}
+  .grow{flex:1;}
+  .flame{display:flex;align-items:center;gap:4px;background:linear-gradient(180deg,#ffd76b,#ffb43f);border-radius:999px;padding:5px 12px;color:#7a4b00;font-family:'Baloo 2';font-weight:800;box-shadow:0 4px 0 var(--yel-d);}
+
+  .card{background:#fff;border-radius:30px;box-shadow:0 10px 0 #ecdff7,0 22px 44px rgba(123,92,255,.2);overflow:hidden;}
+  .cap{background:linear-gradient(135deg,var(--vio),#9a7bff);padding:14px 18px;color:#fff;display:flex;justify-content:space-between;align-items:center;}
+  .cap .tag{background:rgba(255,255,255,.22);border:2px solid rgba(255,255,255,.32);border-radius:999px;padding:5px 13px;font-family:'Baloo 2';font-weight:700;font-size:13px;}
+  .cap .bb{font-family:'Baloo 2';font-weight:800;font-size:13px;}
+
+  /* table */
+  .table{position:relative;margin:18px 14px 8px;aspect-ratio:5/4;}
+  .felt{position:absolute;inset:9% 4%;border-radius:50%/46%;background:radial-gradient(circle at 50% 32%,#46d9a2,#1eb27f);border:6px solid #149a6c;box-shadow:inset 0 5px 16px rgba(0,0,0,.18);}
+  .felt .mid{position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.7);font-family:'Baloo 2';font-weight:800;font-size:13px;letter-spacing:.5px;text-shadow:0 1px 2px rgba(0,0,0,.2);}
+  .seat{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;}
+  .pos{font-family:'Baloo 2';font-weight:800;font-size:12px;color:#fff;background:#8a7bc0;border-radius:999px;padding:4px 11px;box-shadow:0 3px 0 rgba(0,0,0,.15);}
+  .pos.fold{background:#d9d2ec;color:#a99fc9;text-decoration:line-through;box-shadow:none;}
+  .pos.hero{background:linear-gradient(180deg,#ffd56a,#ffb43f);color:#7a4b00;box-shadow:0 3px 0 var(--yel-d);}
+  .lbl{font-family:'Baloo 2';font-weight:800;font-size:10px;color:#fff;background:rgba(0,0,0,.25);padding:2px 7px;border-radius:999px;}
+  /* chips */
+  .chip{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;}
+  .stack{position:relative;width:26px;height:26px;}
+  .coin3{position:absolute;left:0;width:26px;height:26px;border-radius:50%;box-shadow:0 2px 3px rgba(0,0,0,.35);}
+  .coin3::after{content:'';position:absolute;inset:4px;border-radius:50%;border:1.6px dashed rgba(255,255,255,.85);}
+  .blue{background:radial-gradient(circle at 40% 35%,#5b8df0,#2f63c8);}
+  .red{background:radial-gradient(circle at 40% 35%,#ff7a8f,#e23b56);}
+  .stack .c1{top:6px;} .stack .c2{top:3px;} .stack .c3{top:0;}
+  .chip .v{font-family:'Baloo 2';font-weight:800;font-size:10px;color:#fff;background:rgba(0,0,0,.28);padding:1px 7px;border-radius:999px;}
+  /* dealer */
+  .dealer{position:absolute;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#e8eaef);color:#b07c1e;font-family:'Baloo 2';font-weight:800;font-size:12px;display:grid;place-items:center;box-shadow:0 2px 5px rgba(0,0,0,.4);}
+  /* hero cards */
+  .hero{position:absolute;left:50%;top:96%;transform:translate(-50%,-50%);display:flex;gap:8px;}
+  .pc{width:54px;height:76px;border-radius:12px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Baloo 2';font-weight:800;box-shadow:0 10px 16px rgba(0,0,0,.22);}
+  .pc .r{font-size:24px;line-height:1;}.pc .s{font-size:20px;line-height:1;}
+  .pc:first-child{transform:rotate(-8deg);}.pc:last-child{transform:rotate(8deg);}
+  .sp{color:#1b1230;}.di{color:#2f6bff;}
+
+  .q{text-align:center;margin:22px 6px 2px;}
+  .q .h{font-family:'Baloo 2';font-weight:800;font-size:20px;}
+  .q .s{color:var(--ink2);font-weight:800;font-size:13px;margin-top:2px;}
+  .acts{display:grid;grid-template-columns:1fr 1.1fr;gap:14px;margin:16px 16px 18px;}
+  .btn{border:none;border-radius:22px;padding:16px 8px;font-family:'Baloo 2';font-weight:800;color:#fff;cursor:pointer;}
+  .btn .l{font-size:21px;}.btn .sub{display:block;font-size:11px;opacity:.85;margin-top:2px;}
+  .fold{background:linear-gradient(180deg,#98a3c2,#7d88ab);box-shadow:0 7px 0 #5f678a;}
+  .open{background:linear-gradient(180deg,#46e6a3,#1fc683);box-shadow:0 7px 0 var(--grn-d);}
+  nav{position:fixed;bottom:0;left:0;right:0;max-width:440px;margin:0 auto;height:74px;background:#fff;border-radius:26px 26px 0 0;box-shadow:0 -8px 24px rgba(123,92,255,.16);display:flex;align-items:center;justify-content:space-around;}
+  nav a{display:flex;flex-direction:column;align-items:center;gap:3px;font-weight:900;font-size:11px;color:#b7a8d8;}
+  nav a .ic{font-size:22px;} nav a.on{color:var(--vio);}
+</style></head>
+<body><div class="wrap">
+  <div class="bar"><div class="av">DW</div><div class="coin">🪙 2,140</div><div class="grow"></div><div class="flame">🔥 12</div></div>
+  <div class="card">
+    <div class="cap"><span class="tag">🎲 Open · 6-max cash</span><span class="bb">100bb</span></div>
+    <div class="table">
+      <div class="felt"><div class="mid">FOLDED TO YOU</div></div>
+      <!-- seats -->
+      <div class="seat" style="left:9%;top:66%"><div class="pos">BTN</div></div>
+      <div class="seat" style="left:8%;top:30%"><div class="pos">SB</div></div>
+      <div class="seat" style="left:50%;top:8%"><div class="pos">BB</div></div>
+      <div class="seat" style="left:92%;top:30%"><div class="pos fold">UTG</div></div>
+      <div class="seat" style="left:91%;top:66%"><div class="pos fold">HJ</div></div>
+      <div class="seat" style="left:50%;top:80%"><div class="pos hero">CO</div></div>
+      <!-- dealer + chips -->
+      <div class="dealer" style="left:22%;top:60%">D</div>
+      <div class="chip" style="left:24%;top:40%"><div class="stack"><div class="coin3 blue c1"></div><div class="coin3 blue c2"></div><div class="coin3 blue c3"></div></div><div class="v">0.5</div></div>
+      <div class="chip" style="left:50%;top:26%"><div class="stack"><div class="coin3 red c1"></div><div class="coin3 red c2"></div><div class="coin3 red c3"></div></div><div class="v">1 bb</div></div>
+      <!-- hero -->
+      <div class="hero"><div class="pc"><span class="r sp">A</span><span class="s sp">♠</span></div><div class="pc"><span class="r di">K</span><span class="s di">♦</span></div></div>
+    </div>
+    <div class="q"><div class="h">Folded to you! 🎯</div><div class="s">You're in the Cutoff — open or fold?</div></div>
+    <div class="acts">
+      <button class="btn fold"><div class="l">Fold</div><span class="sub">wait for better</span></button>
+      <button class="btn open"><div class="l">Open 🚀</div><span class="sub">raise to 2.5bb</span></button>
+    </div>
+  </div>
+</div>
+<nav><a class="on"><span class="ic">🎮</span>Play</a><a><span class="ic">🎯</span>Leaks</a><a><span class="ic">📥</span>Import</a><a><span class="ic">🏆</span>League</a></nav>
+</body></html>
