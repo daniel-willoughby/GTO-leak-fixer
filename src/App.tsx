@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { Spade, Target, GraduationCap, FileText, Volume2, VolumeX, SlidersHorizontal, type LucideIcon } from 'lucide-react'
 import DrillScreen from './components/DrillScreen'
+import BeginnerPath from './components/BeginnerPath'
+import OnboardingScreen from './components/OnboardingScreen'
 import LeaksScreen from './components/LeaksScreen'
 import LearnScreen from './components/LearnScreen'
 import ImportScreen from './components/ImportScreen'
 import { isMuted, setMuted } from './lib/sound'
+import { getLevel, setLevel, type Level } from './lib/level'
 import type { Difficulty, HandCategory } from './lib/spot'
 
 type Tab = 'drill' | 'leaks' | 'import' | 'learn'
@@ -30,6 +33,7 @@ export default function App() {
   const [difficulty, setDifficulty] = useState<Difficulty>(
     () => (localStorage.getItem('lt-difficulty') as Difficulty) || 'all',
   )
+  const [level, setLevelState] = useState<Level | null>(() => getLevel())
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   function toggleMute() {
@@ -43,6 +47,14 @@ export default function App() {
     localStorage.setItem('lt-difficulty', d)
     setSettingsOpen(false)
   }
+
+  function pickLevel(l: Level) {
+    setLevel(l)
+    setLevelState(l)
+    setSettingsOpen(false)
+  }
+
+  if (!level) return <OnboardingScreen onPick={pickLevel} />
 
   function drillLeaks(cats: HandCategory[]) {
     setFocusRequest(cats)
@@ -76,6 +88,20 @@ export default function App() {
           <>
             <div className="fixed inset-0 z-40" onClick={() => setSettingsOpen(false)} />
             <div className="absolute right-3 top-full mt-1 z-50 w-60 rounded-2xl border border-line bg-paper2 shadow-xl p-3 text-left">
+              <p className="text-xs uppercase tracking-wide text-ink3 mb-2">Experience</p>
+              <div className="flex gap-1 mb-3 p-1 rounded-xl bg-ink/[0.06] border border-line">
+                {(['beginner', 'intermediate'] as Level[]).map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => pickLevel(l)}
+                    className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold capitalize transition ${
+                      level === l ? 'bg-sage text-white' : 'text-ink2 hover:text-ink'
+                    }`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
               <p className="text-xs uppercase tracking-wide text-ink3 mb-2">Difficulty</p>
               <div className="flex flex-col gap-1">
                 {DIFFICULTIES.map((d) => (
@@ -97,14 +123,18 @@ export default function App() {
       </header>
 
       <main className="flex-1 overflow-y-auto">
-        {tab === 'drill' && (
-          <DrillScreen
-            onProgress={() => setProgress((p) => p + 1)}
-            requestFocus={focusRequest}
-            onFocusConsumed={() => setFocusRequest(null)}
-            difficulty={difficulty}
-          />
-        )}
+        {tab === 'drill' &&
+          (level === 'beginner' ? (
+            <BeginnerPath onProgress={() => setProgress((p) => p + 1)} />
+          ) : (
+            <DrillScreen
+              level="intermediate"
+              onProgress={() => setProgress((p) => p + 1)}
+              requestFocus={focusRequest}
+              onFocusConsumed={() => setFocusRequest(null)}
+              difficulty={difficulty}
+            />
+          ))}
         {tab === 'leaks' && <LeaksScreen version={progress} />}
         {tab === 'import' && <ImportScreen onDrillLeaks={drillLeaks} />}
         {tab === 'learn' && <LearnScreen />}

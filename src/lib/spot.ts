@@ -20,6 +20,7 @@ import {
   type StreetNode,
 } from '../data/postflop'
 import { describeHand } from './flopEval'
+import type { Level } from './level'
 
 export type Action = 'fold' | 'raise' | 'call' | '3bet' | 'check' | 'bet' | 'squeeze' | 'cold-4bet'
 export type DrillMode = 'rfi' | 'vsRfi' | 'multiway' | 'postflop'
@@ -78,6 +79,10 @@ export interface GenOptions {
   focus?: Set<HandCategory>
   /** Bias toward clear-cut (easy) or borderline (hard) decisions. */
   difficulty?: Difficulty
+  /** Pin an RFI spot to one position (beginner lessons). */
+  lockPos?: RfiPosition
+  /** Pin a vs-RFI spot to one matchup (beginner lessons). */
+  lockMatchup?: { raiser: RfiPosition; hero: Position }
 }
 
 // How many of the 5 RFI positions open each hand (0 = always fold, 5 = always
@@ -112,25 +117,28 @@ export function generateSpot(mode: DrillMode, opts: GenOptions = {}): Spot {
     const ok = (s: Spot) =>
       (!wantFocus || opts.focus!.has(s.category)) && (!wantDiff || difficultyOK(s, opts.difficulty!))
     for (let i = 0; i < 30; i++) {
-      const s = generateOne(mode)
+      const s = generateOne(mode, opts)
       if (ok(s)) return s
     }
   }
-  return generateOne(mode)
+  return generateOne(mode, opts)
 }
 
-function generateOne(mode: DrillMode): Spot {
+function generateOne(mode: DrillMode, opts: GenOptions = {}): Spot {
   if (mode === 'postflop') return generatePostflopSpot()
   if (mode === 'multiway') return generateMultiwaySpot()
   const label = randOf(ALL_LABELS)
   const cards = dealHandForLabel(label)
   if (mode === 'rfi') {
-    const heroPos = randOf(RFI_POSITIONS)
+    const heroPos = opts.lockPos ?? randOf(RFI_POSITIONS)
     const correct: Action = isRfiHand(heroPos, label) ? 'raise' : 'fold'
     return { mode, heroPos, cards, label, correct, actions: ['fold', 'raise'], category: classifyHand(label) }
   }
   // vsRfi
-  const m = randOf(MATCHUPS)
+  const m =
+    (opts.lockMatchup &&
+      MATCHUPS.find((x) => x.raiser === opts.lockMatchup!.raiser && x.hero === opts.lockMatchup!.hero)) ||
+    randOf(MATCHUPS)
   const correct = respond(m, label) as Action
   return {
     mode,
@@ -398,7 +406,7 @@ export interface Judgement {
 /** Threshold: a mixed action played at >= this frequency is not a mistake. */
 const ACCEPTABLE_FREQ = 0.3
 
-export function judge(spot: Spot, chosen: Action): Judgement {
+export function judge(spot: Spot, chosen: Action, level: Level = 'intermediate'): Judgement {
   let quality: Quality
   if (chosen === spot.correct) {
     quality = 'correct'
@@ -414,15 +422,110 @@ export function judge(spot: Spot, chosen: Action): Judgement {
     quality,
     chosen,
     correct: spot.correct,
-    explanation: explain(spot, chosen),
+    explanation: explain(spot, chosen, level),
   }
 }
 
-function explain(spot: Spot, chosen: Action): string {
+function explain(spot: Spot, chosen: Action, level: Level): string {
+  if (level === 'beginner') {
+    if (spot.mode === 'rfi') return explainRfiBeginner(spot, chosen)
+    if (spot.mode === 'vsRfi') return explainVsRfiBeginner(spot, chosen)
+    if (spot.mode === 'multiway') return explainMultiwayBeginner(spot, chosen)
+    return explainPostflopBeginner(spot, chosen)
+  }
   if (spot.mode === 'rfi') return explainRfi(spot, chosen)
   if (spot.mode === 'vsRfi') return explainVsRfi(spot, chosen)
   if (spot.mode === 'multiway') return explainMultiway(spot, chosen)
   return explainPostflop(spot, chosen)
+}
+
+// ---------- beginner copy (plain language, [term] glossary markers) ----------
+
+/** Prompt shown above the action buttons, phrased for the chosen level. */
+export function promptFor(spot: Spot, level: Level): string {
+  const street = spot.handState?.street
+  const mwDesc = MULTIWAY_MATCHUPS.find((x) => x.hero === spot.heroPos)?.description ?? 'What do you do?'
+  if (level === 'beginner') {
+    if (spot.mode === 'rfi') return 'Everyone folded to you. Raise this hand, or fold?'
+    if (spot.mode === 'vsRfi') return `The ${POSITION_LABEL[spot.raiserPos!]} raised. Fold, call, or 3-bet?`
+    if (spot.mode === 'multiway') return mwDesc
+    return street === 'river'
+      ? 'They checked the river to you. Bet, or check it back?'
+      : street === 'turn'
+        ? 'They checked the turn to you. Bet, or check it back?'
+        : 'They checked to you. Bet, or check it back?'
+  }
+  if (spot.mode === 'rfi') return 'Folded to you. Open-raise or fold?'
+  if (spot.mode === 'vsRfi') return `${spot.raiserPos} raises. Fold, call, or 3-bet?`
+  if (spot.mode === 'multiway') return mwDesc
+  return street === 'river'
+    ? 'BB checks the river. Bet or check back?'
+    : street === 'turn'
+      ? 'BB checks the turn. Bet or check back?'
+      : 'BB checks. Bet or check back?'
+}
+
+/** One-line "what to think about" nudge (beginner pre-answer hint). */
+export function hintFor(spot: Spot): string {
+  if (spot.mode === 'rfi')
+    return 'Is this hand strong enough to [open] from this seat? Later [position] lets you play more hands.'
+  if (spot.mode === 'vsRfi')
+    return 'Is it strong enough to [3-bet], good enough to [call], or better to fold?'
+  if (spot.mode === 'multiway')
+    return 'Is this hand strong enough to [squeeze], or should you stay out of a multiway pot?'
+  return 'Do you have enough to bet for [value] or as a [semi-bluff], or is this a [check]?'
+}
+
+function explainRfiBeginner(spot: Spot, chosen: Action): string {
+  const pos = spot.heroPos as RfiPosition
+  const posName = POSITION_LABEL[pos]
+  const inRange = spot.correct === 'raise'
+  const right = chosen === spot.correct
+  const verdict = right ? 'Correct.' : `The better play is to ${inRange ? 'raise' : 'fold'}.`
+  const body = inRange
+    ? `${spot.label} is strong enough to [open] from the ${posName}. Raising pressures the [blinds] and lets you play the pot with the lead.`
+    : `${spot.label} is too weak to [open] from the ${posName}. Fold it and wait for a better hand.`
+  return `${verdict} ${body}`
+}
+
+function explainVsRfiBeginner(spot: Spot, chosen: Action): string {
+  const right = chosen === spot.correct
+  const heroName = POSITION_LABEL[spot.heroPos]
+  const verdict = right ? 'Correct.' : `The better play is to ${ACTION_LABEL[spot.correct].toLowerCase()}.`
+  const why: Partial<Record<Action, string>> = {
+    '3bet': `${spot.label} is strong enough to [3-bet] (re-raise) for [value] or pressure.`,
+    call: `${spot.label} is good enough to [call] and see a flop, but not strong enough to [3-bet].`,
+    fold: `${spot.label} is too weak to continue from the ${heroName}. Fold and wait.`,
+  }
+  return `${verdict} ${why[spot.correct] ?? ''}`
+}
+
+function explainMultiwayBeginner(spot: Spot, chosen: Action): string {
+  const right = chosen === spot.correct
+  const verdict = right ? 'Correct.' : `The better play is to ${ACTION_LABEL[spot.correct].toLowerCase()}.`
+  const why: Partial<Record<Action, string>> = {
+    squeeze: `${spot.label} is strong enough to [squeeze]: re-raise over the raiser and caller to win the pot now.`,
+    call: `${spot.label} can [call] and see a flop, but is not strong enough to [squeeze].`,
+    fold: `${spot.label} is too weak to play this multiway pot. Fold.`,
+    'cold-4bet': `${spot.label} is strong enough to re-raise big ([4-bet]) for [value].`,
+  }
+  return `${verdict} ${why[spot.correct] ?? ''}`
+}
+
+function explainPostflopBeginner(spot: Spot, chosen: Action): string {
+  const board = spot.board!
+  const desc = describeHand(spot.cards, board)
+  const right = chosen === spot.correct
+  const verdict = right ? 'Correct.' : `The better play is usually to ${spot.correct === 'bet' ? 'bet' : 'check'}.`
+  const reason: Record<typeof desc.tier, string> = {
+    monster: `You have ${desc.text}, a huge hand. Bet for [value] to build the pot.`,
+    strong: `You have ${desc.text}. Bet for [value] to get called by worse hands.`,
+    top: `You have ${desc.text}. Usually a [value] bet for protection.`,
+    draw: `You have ${desc.text}. Betting as a [semi-bluff] gives you two ways to win.`,
+    weak: `You have ${desc.text}. Often a [check] to see another card cheaply.`,
+    air: `You have ${desc.text}. [Check] and give up, or bet now and then as a [bluff].`,
+  }
+  return `${verdict} ${reason[desc.tier]}`
 }
 
 function explainPostflop(spot: Spot, chosen: Action): string {

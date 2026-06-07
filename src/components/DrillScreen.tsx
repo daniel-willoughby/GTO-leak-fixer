@@ -1,20 +1,40 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle2, XCircle, MinusCircle, Flame, ArrowRight, FastForward, Zap, Repeat2, X } from 'lucide-react'
+import {
+  CheckCircle2,
+  XCircle,
+  MinusCircle,
+  Flame,
+  ArrowRight,
+  ArrowLeft,
+  FastForward,
+  Zap,
+  Repeat2,
+  X,
+  Lightbulb,
+  Sparkles,
+} from 'lucide-react'
 import {
   ACTION_LABEL,
   buildContinuationSpot,
   generateSpot,
   judge,
+  promptFor,
+  hintFor,
   seedKey,
   seedOf,
   spotFromSeed,
   type Action,
   type Difficulty,
   type DrillMode,
+  type GenOptions,
   type HandCategory,
   type Judgement,
   type Spot,
 } from '../lib/spot'
+import type { Level } from '../lib/level'
+import { lessonProgress, recordLessonCorrect } from '../lib/level'
+import type { Lesson } from '../data/curriculum'
+import GlossaryText from './GlossaryText'
 import { isRfiHand, type Position, type RfiPosition } from '../data/ranges'
 import { MATCHUPS, respond } from '../data/vsRfi'
 import { MULTIWAY_MATCHUPS, respondMultiway } from '../data/multiway'
@@ -62,6 +82,12 @@ interface Props {
   requestFocus?: HandCategory[] | null
   onFocusConsumed?: () => void
   difficulty?: Difficulty
+  /** Experience level — drives prompt wording, hints, and explanation depth. */
+  level?: Level
+  /** When set, run as a scoped beginner lesson instead of free play. */
+  lesson?: Lesson | null
+  /** Leave the lesson and return to the learning path. */
+  onExitLesson?: () => void
 }
 
 const ACTION_STYLE: Record<Action, string> = {
@@ -121,12 +147,27 @@ function freqFor(spot: Spot): ((label: string) => number | null) | undefined {
   }
 }
 
-export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed, difficulty = 'all' }: Props) {
-  const [mode, setMode] = useState<DrillMode>('rfi')
-  const [spot, setSpot] = useState<Spot>(() => generateSpot('rfi'))
+export default function DrillScreen({
+  onProgress,
+  requestFocus,
+  onFocusConsumed,
+  difficulty = 'all',
+  level = 'intermediate',
+  lesson = null,
+  onExitLesson,
+}: Props) {
+  const scopeOpts: GenOptions = lesson?.scope
+    ? { lockPos: lesson.scope.lockPos, lockMatchup: lesson.scope.lockMatchup }
+    : {}
+  const [mode, setMode] = useState<DrillMode>(() => (lesson ? lesson.mode : 'rfi'))
+  const [spot, setSpot] = useState<Spot>(() => generateSpot(lesson ? lesson.mode : 'rfi', scopeOpts))
   const [result, setResult] = useState<Judgement | null>(null)
   const [streak, setStreak] = useState(0)
   const [canContinue, setCanContinue] = useState(false)
+  const [showHint, setShowHint] = useState(false)
+  // beginner lesson progress (persisted in localStorage)
+  const [lessonCorrect, setLessonCorrect] = useState(() => (lesson ? lessonProgress(lesson.id).correct : 0))
+  const [lessonDone, setLessonDone] = useState(() => (lesson ? lessonProgress(lesson.id).done : false))
   // adaptive focus
   const [focusOn, setFocusOn] = useState(false)
   const [focusCats, setFocusCats] = useState<Set<HandCategory>>(new Set())
@@ -141,9 +182,10 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
     mistakeCount().then(setMistakeBadge)
   }, [])
 
-  // re-deal when difficulty changes (unless mid-feedback or reviewing)
+  // re-deal when difficulty changes (unless mid-feedback, reviewing, or in a lesson)
   useEffect(() => {
-    if (!reviewMode && !result) setSpot(generateSpot(mode, { focus: focusOn ? focusCats : undefined, difficulty }))
+    if (!reviewMode && !result && !lesson)
+      setSpot(generateSpot(mode, { focus: focusOn ? focusCats : undefined, difficulty }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [difficulty])
 
@@ -161,9 +203,14 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
   }, [requestFocus])
 
   function dealNormal(m: DrillMode = mode) {
-    setSpot(generateSpot(m, { focus: focusOn ? focusCats : undefined, difficulty }))
+    setSpot(
+      lesson
+        ? generateSpot(lesson.mode, scopeOpts)
+        : generateSpot(m, { focus: focusOn ? focusCats : undefined, difficulty }),
+    )
     setResult(null)
     setCanContinue(false)
+    setShowHint(false)
     playDeal()
   }
 
@@ -177,6 +224,7 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
         setSpot(s)
         setResult(null)
         setCanContinue(false)
+        setShowHint(false)
         playDeal()
         return
       }
@@ -195,7 +243,7 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
   }
 
   function switchMode(m: DrillMode) {
-    if (m === mode || reviewMode) return
+    if (m === mode || reviewMode || lesson) return
     setMode(m)
     setStreak(0)
     dealNormal(m)
@@ -227,12 +275,13 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
     setSpot(continuation)
     setResult(null)
     setCanContinue(false)
+    setShowHint(false)
     playDeal()
   }
 
   async function answer(action: Action) {
     if (result || !spot.actions.includes(action)) return
-    const j = judge(spot, action)
+    const j = judge(spot, action, level)
     setResult(j)
     if (j.isCorrect) {
       setStreak((s) => {
@@ -245,7 +294,14 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
       setStreak(0)
       playWrong()
     }
+    // beginner lesson: advance the goal on every correct (or acceptable) answer
+    if (lesson && j.isCorrect && !lessonDone) {
+      const st = recordLessonCorrect(lesson.id, lesson.goal)
+      setLessonCorrect(st.correct)
+      if (st.done) setLessonDone(true)
+    }
     if (
+      !lesson &&
       spot.mode === 'postflop' &&
       !reviewMode &&
       (spot.handState?.street === 'flop' || spot.handState?.street === 'turn')
@@ -305,18 +361,7 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
 
   const history = spot.handState?.history ?? []
   const street = spot.handState?.street
-  const prompt =
-    spot.mode === 'rfi'
-      ? 'Folded to you. Open-raise or fold?'
-      : spot.mode === 'vsRfi'
-        ? `${spot.raiserPos} raises. Fold, call, or 3-bet?`
-        : spot.mode === 'multiway'
-          ? (MULTIWAY_MATCHUPS.find((x) => x.hero === spot.heroPos)?.description ?? 'What do you do?')
-          : street === 'river'
-            ? 'BB checks the river. Bet or check back?'
-            : street === 'turn'
-              ? 'BB checks the turn. Bet or check back?'
-              : 'BB checks. Bet or check back?'
+  const prompt = promptFor(spot, level)
 
   const multiwayActive =
     spot.mode === 'multiway'
@@ -342,8 +387,29 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
 
   return (
     <div className="flex flex-col items-center gap-3 px-4 pb-28 pt-4 max-w-xl mx-auto">
-      {/* mode toggle OR review header */}
-      {reviewMode ? (
+      {/* lesson header OR mode toggle OR review header */}
+      {lesson ? (
+        <div className="flex w-full flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              onClick={onExitLesson}
+              className="flex items-center gap-1 rounded-lg px-1 py-1 text-sm text-ink2 hover:text-ink"
+            >
+              <ArrowLeft size={16} /> Path
+            </button>
+            <span className="serif min-w-0 flex-1 truncate text-center text-sm text-ink">{lesson.title}</span>
+            <span className="text-xs tabular-nums text-ink3">
+              {Math.min(lessonCorrect, lesson.goal)}/{lesson.goal}
+            </span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink/[0.07]">
+            <div
+              className="h-full rounded-full bg-sage transition-all"
+              style={{ width: `${Math.min(100, (lessonCorrect / lesson.goal) * 100)}%` }}
+            />
+          </div>
+        </div>
+      ) : reviewMode ? (
         <div className="flex items-center justify-between w-full rounded-2xl bg-sage/12 border border-sage/30 px-3 py-2">
           <span className="flex items-center gap-2 text-sage-dark font-semibold text-sm">
             <Repeat2 size={16} /> Reviewing mistakes · {reviewQueue.length} left
@@ -369,7 +435,7 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
       )}
 
       {/* focus + review controls */}
-      {!reviewMode && (
+      {!reviewMode && !lesson && (
         <div className="flex items-center justify-between w-full gap-2">
           <button
             onClick={toggleFocus}
@@ -420,15 +486,41 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
       <p className="serif text-ink text-[17px] text-center leading-snug px-2">{prompt}</p>
 
       {!result ? (
-        <div className={`grid gap-3 w-full max-w-sm ${spot.actions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-          {spot.actions.map((a) => (
-            <button key={a} onClick={() => answer(a)} className={`py-4 text-lg ${ACTION_STYLE[a]}`}>
-              {ACTION_LABEL[a]} <span className="text-xs opacity-70">({KEY_HINT[a] ?? ''})</span>
-            </button>
-          ))}
+        <div className="flex w-full max-w-sm flex-col items-center gap-3">
+          {level === 'beginner' && (
+            <div className="flex w-full flex-col items-center gap-2">
+              {showHint && (
+                <div className="w-full rounded-xl border border-line bg-paper2 p-3 text-sm leading-relaxed text-ink2">
+                  <GlossaryText text={hintFor(spot)} />
+                </div>
+              )}
+              <button
+                onClick={() => setShowHint((h) => !h)}
+                className="flex items-center gap-1.5 text-xs font-semibold text-sage-dark hover:text-sage"
+              >
+                <Lightbulb size={13} /> {showHint ? 'Hide hint' : 'Need a hint?'}
+              </button>
+            </div>
+          )}
+          <div className={`grid w-full gap-3 ${spot.actions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+            {spot.actions.map((a) => (
+              <button key={a} onClick={() => answer(a)} className={`py-4 text-lg ${ACTION_STYLE[a]}`}>
+                {ACTION_LABEL[a]} <span className="text-xs opacity-70">({KEY_HINT[a] ?? ''})</span>
+              </button>
+            ))}
+          </div>
         </div>
       ) : (
         <div className="w-full flex flex-col items-center gap-4 animate-pop pb-24">
+          {lesson && lessonDone && (
+            <div className="flex w-full items-center gap-3 rounded-2xl border border-sage/40 bg-sage/10 p-4">
+              <Sparkles size={22} className="shrink-0 text-sage" />
+              <span className="text-sm text-ink">
+                <span className="serif font-semibold">Lesson complete.</span> Nicely done — tap Finish to head back to
+                your path.
+              </span>
+            </div>
+          )}
           <div className={`w-full rounded-2xl p-4 text-sm leading-relaxed flex gap-3 border ${feedbackTone}`}>
             {result.quality === 'acceptable' ? (
               <MinusCircle size={22} className="text-[#b88a3a] shrink-0 mt-0.5" />
@@ -437,7 +529,11 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
             ) : (
               <XCircle size={22} className="text-heartred shrink-0 mt-0.5" />
             )}
-            <span className="text-ink">{result.explanation}</span>
+            {level === 'beginner' ? (
+              <GlossaryText text={result.explanation} className="text-ink" />
+            ) : (
+              <span className="text-ink">{result.explanation}</span>
+            )}
           </div>
           <div className="w-full">
             <p className="text-xs text-ink2 mb-2 text-center">
@@ -468,10 +564,17 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
             </button>
           )}
           <button
-            onClick={next}
+            onClick={lesson && lessonDone ? onExitLesson : next}
             className="btn btn-primary pointer-events-auto flex-1 max-w-sm py-4 text-lg flex items-center justify-center gap-2"
           >
-            {reviewMode && reviewQueue.length === 0 ? 'Done' : reviewMode ? 'Next' : 'Next hand'} <ArrowRight size={18} />
+            {lesson && lessonDone
+              ? 'Finish lesson'
+              : reviewMode && reviewQueue.length === 0
+                ? 'Done'
+                : reviewMode
+                  ? 'Next'
+                  : 'Next hand'}{' '}
+            <ArrowRight size={18} />
           </button>
         </div>
       )}

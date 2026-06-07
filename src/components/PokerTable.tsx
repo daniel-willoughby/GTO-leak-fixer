@@ -98,10 +98,15 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
   // Chips on the felt come from the caller (blinds, opens, calls, 3-bets per
   // mode); only render those whose seat is actually on the table.
   const bets = chips.filter((c) => seats.some((s) => s.pos === c.pos))
-  const chipPos = (coord: { left: number; top: number }) => ({
-    left: coord.left + (50 - coord.left) * 0.4,
-    top: coord.top + (50 - coord.top) * 0.4,
-  })
+  // Park each chip a uniform distance inboard of its own seat (toward center)
+  // so stacks hug their player instead of drifting into the pot or each other.
+  const chipPos = (coord: { left: number; top: number }) => {
+    const dx = 50 - coord.left
+    const dy = 50 - coord.top
+    const len = Math.hypot(dx, dy) || 1
+    const inset = 15
+    return { left: coord.left + (dx / len) * inset, top: coord.top + (dy / len) * inset }
+  }
 
   return (
     <div className="relative w-full max-w-lg mx-auto aspect-[5/4]">
@@ -155,7 +160,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
               </div>
             </div>
           )}
-          {(status === 'active' || status === 'raiser') && (
+          {status !== 'hero' && status !== 'folded' && (
             <div className="flex gap-1 mb-0.5 animate-deal">
               <CardBack /><CardBack delay={70} />
             </div>
@@ -175,8 +180,9 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
       {/* chips: posted blinds + the raiser's bet, in front of each player */}
       {bets.map((b) => {
         const seat = seats.find((s) => s.pos === b.pos)!
-        // the hero (bottom) shows big cards — park their own chip beside them
-        const p = b.pos === heroPos ? { left: 29, top: 72 } : chipPos(seat.coord)
+        // the hero (bottom) shows big cards — park their own chip to the left
+        // of those cards so it never sits on top of them or the next seat.
+        const p = b.pos === heroPos ? { left: 34, top: 80 } : chipPos(seat.coord)
         return (
           <div
             key={`chip-${b.pos}`}
