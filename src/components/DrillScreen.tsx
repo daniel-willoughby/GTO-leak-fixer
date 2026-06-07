@@ -15,7 +15,7 @@ import {
   type Judgement,
   type Spot,
 } from '../lib/spot'
-import { isRfiHand, type RfiPosition } from '../data/ranges'
+import { isRfiHand, type Position, type RfiPosition } from '../data/ranges'
 import { MATCHUPS, respond } from '../data/vsRfi'
 import { MULTIWAY_MATCHUPS, respondMultiway } from '../data/multiway'
 import { strategyFor } from '../data/postflop'
@@ -30,8 +30,30 @@ import {
   type MistakeRecord,
 } from '../lib/db'
 import { playCorrect, playWrong, playDeal, playStreak } from '../lib/sound'
-import PokerTable from './PokerTable'
+import PokerTable, { type Chip } from './PokerTable'
 import RangeGrid, { type CellKind } from './RangeGrid'
+
+/** Chips in front of each seat for the current spot (blinds, opens, calls, 3-bets). */
+function chipsFor(spot: Spot): Chip[] {
+  if (spot.mode === 'postflop') return []
+  if (spot.mode === 'multiway') {
+    const m = MULTIWAY_MATCHUPS.find((x) => x.hero === spot.heroPos)
+    if (!m) return []
+    return Object.entries(m.bets).map(([pos, amt]) => ({
+      pos: pos as Position,
+      amount: amt,
+      tone: amt > 1 ? 'bet' : 'blind',
+    }))
+  }
+  const map: Partial<Record<Position, Chip>> = {
+    SB: { pos: 'SB', amount: 0.5, tone: 'blind' },
+    BB: { pos: 'BB', amount: 1, tone: 'blind' },
+  }
+  if (spot.mode === 'vsRfi' && spot.raiserPos) {
+    map[spot.raiserPos] = { pos: spot.raiserPos, amount: 2.5, tone: 'bet' }
+  }
+  return Object.values(map)
+}
 import HandHistory from './HandHistory'
 
 interface Props {
@@ -86,6 +108,16 @@ function cellFor(spot: Spot): (label: string) => CellKind {
   return (label) => {
     const a = respond(m, label)
     return a === '3bet' ? 'raise' : a === 'call' ? 'call' : 'fold'
+  }
+}
+
+/** Per-hand bet frequency for the postflop strategy grid (B-style fill). */
+function freqFor(spot: Spot): ((label: string) => number | null) | undefined {
+  if (spot.mode !== 'postflop' || !spot.node) return undefined
+  const node = spot.node
+  return (label) => {
+    const s = strategyFor(node, label)
+    return s ? s.freqs[1] : null // freqs = [check, bet]
   }
 }
 
@@ -373,6 +405,8 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
         heroCards={spot.cards}
         raiserPos={spot.raiserPos}
         activePots={multiwayActive}
+        chips={chipsFor(spot)}
+        pot={spot.mode === 'postflop' ? (street === 'turn' ? 9 : 5.5) : undefined}
         board={spot.board}
         villain={spot.mode === 'postflop' ? { pos: 'BB', note: 'checks' } : undefined}
       />
@@ -402,13 +436,17 @@ export default function DrillScreen({ onProgress, requestFocus, onFocusConsumed,
           <div className="w-full">
             <p className="text-xs text-ink2 mb-2 text-center">
               {gridLabel}:&nbsp;
-              <span className="text-sage-dark font-medium">
-                sage = {spot.mode === 'rfi' ? 'raise' : spot.mode === 'vsRfi' ? '3bet' : spot.mode === 'multiway' ? 'squeeze' : 'bet'}
-              </span>
+              {spot.mode === 'postflop' ? (
+                <span className="text-sage-dark font-medium">sage fill = bet frequency</span>
+              ) : (
+                <span className="text-sage-dark font-medium">
+                  sage = {spot.mode === 'rfi' ? 'raise' : spot.mode === 'vsRfi' ? '3bet' : 'squeeze'}
+                </span>
+              )}
               {spot.mode === 'vsRfi' && <span className="text-dblue font-medium">, blue = call</span>}
               , ring = your hand
             </p>
-            <RangeGrid cell={cellFor(spot)} highlight={spot.label} />
+            <RangeGrid cell={cellFor(spot)} freq={freqFor(spot)} highlight={spot.label} />
           </div>
         </div>
       )}

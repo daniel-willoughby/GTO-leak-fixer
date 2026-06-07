@@ -15,6 +15,8 @@ export interface MultiwayMatchup {
   hero: Position
   pot: number // in bb, approximate
   actions: MultiwayAction[]
+  /** Chips already in front of each seat (incl. blinds + hero's own posted bet). */
+  bets: Partial<Record<Position, number>>
   squeeze: Set<string>
   call: Set<string>
   /** If empty, everything not in squeeze/call is a fold. */
@@ -31,6 +33,7 @@ const MATCHUPS: Omit<MultiwayMatchup, 'squeeze' | 'call'>[] = [
     hero: 'CO',
     pot: 7.5,
     actions: ['fold', 'squeeze'],
+    bets: { SB: 0.5, BB: 1, UTG: 2.5, HJ: 2.5 },
   },
   // CO opens, BTN calls, SB squeezes (SB is OOP so 3b-or-fold)
   {
@@ -40,6 +43,7 @@ const MATCHUPS: Omit<MultiwayMatchup, 'squeeze' | 'call'>[] = [
     hero: 'SB',
     pot: 8.5,
     actions: ['fold', 'squeeze'],
+    bets: { SB: 0.5, BB: 1, CO: 2.5, BTN: 2.5 },
   },
   // BTN opens, BB 3-bets, BTN cold-calls or 4-bets (BTN defends 3-bet)
   {
@@ -49,6 +53,7 @@ const MATCHUPS: Omit<MultiwayMatchup, 'squeeze' | 'call'>[] = [
     hero: 'BTN',
     pot: 13.5,
     actions: ['fold', 'call', 'cold-4bet'],
+    bets: { SB: 0.5, BTN: 2.5, BB: 9 },
   },
   // UTG opens, CO cold-calls or 3-bets (in position, vs tight range)
   {
@@ -58,6 +63,7 @@ const MATCHUPS: Omit<MultiwayMatchup, 'squeeze' | 'call'>[] = [
     hero: 'CO',
     pot: 6,
     actions: ['fold', 'call', 'squeeze'],
+    bets: { SB: 0.5, BB: 1, UTG: 2.5 },
   },
 ]
 

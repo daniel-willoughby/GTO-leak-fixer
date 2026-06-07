@@ -3,8 +3,11 @@ import type { Card } from '../lib/cards'
 import PlayingCard from './PlayingCard'
 import ChipStack, { type ChipTone } from './ChipStack'
 
-const OPEN_SIZE = 2.5 // a standard 2.5bb open, shown as the raiser's bet
-const SRP_POT = 5.5 // BTN open + BB call + dead SB
+export interface Chip {
+  pos: Position
+  amount: number
+  tone: ChipTone
+}
 
 interface Props {
   heroPos: Position
@@ -12,6 +15,10 @@ interface Props {
   raiserPos?: RfiPosition
   /** Extra active (still-in) positions beyond hero for multiway spots */
   activePots?: Position[]
+  /** Chips in front of each seat (blinds, opens, calls, 3-bets). */
+  chips?: Chip[]
+  /** Central pot to show (postflop). */
+  pot?: number
   // postflop
   board?: Card[]
   villain?: { pos: Position; note: string }
@@ -54,12 +61,12 @@ function CardBack({ delay = 0 }: { delay?: number }) {
 const SEAT_CLASS: Record<Status, string> = {
   hero: 'bg-paper2 text-ink border-paper2 shadow-[0_3px_10px_rgba(34,31,25,0.18)]',
   raiser: 'bg-heartred text-white border-[#9a3a26] shadow-[0_3px_10px_rgba(177,66,44,0.4)]',
-  active: 'bg-white/85 text-ink border-white/60 shadow-[0_2px_8px_rgba(34,31,25,0.18)]',
-  folded: 'bg-white/[0.07] text-white/45 border-transparent line-through',
-  waiting: 'bg-white/[0.18] text-white border-white/25',
+  active: 'bg-paper2 text-ink border-paper2 shadow-[0_2px_8px_rgba(34,31,25,0.18)]',
+  folded: 'bg-[#33423a] text-white/55 border-transparent line-through',
+  waiting: 'bg-[#33423a] text-white border-[#283228] shadow-[0_2px_6px_rgba(34,31,25,0.25)]',
 }
 
-export default function PokerTable({ heroPos, heroCards, raiserPos, activePots = [], board, villain }: Props) {
+export default function PokerTable({ heroPos, heroCards, raiserPos, activePots = [], chips = [], pot, board, villain }: Props) {
   const heroIdx = actionIndex(heroPos)
   const postflop = !!board
   const seats = SEATS.map((coord, i) => {
@@ -88,23 +95,9 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
           top: btn.coord.top + dy * 0.24 + (dx / len) * 11,
         }
 
-  // Chips on the felt: posted blinds + the raiser's bet preflop; a central pot
-  // postflop (blinds + preflop action are already in the middle).
-  const bets: { pos: Position; amount: number; tone: ChipTone }[] = []
-  if (!postflop) {
-    const amounts: Partial<Record<Position, { amount: number; tone: ChipTone }>> = {
-      SB: { amount: 0.5, tone: 'blind' },
-      BB: { amount: 1, tone: 'blind' },
-    }
-    if (raiserPos) amounts[raiserPos] = { amount: OPEN_SIZE, tone: 'bet' }
-    for (const s of seats) {
-      const a = amounts[s.pos]
-      if (a) {
-        // sit the chip ~40% of the way from the seat toward the centre
-        bets.push({ pos: s.pos, amount: a.amount, tone: a.tone })
-      }
-    }
-  }
+  // Chips on the felt come from the caller (blinds, opens, calls, 3-bets per
+  // mode); only render those whose seat is actually on the table.
+  const bets = chips.filter((c) => seats.some((s) => s.pos === c.pos))
   const chipPos = (coord: { left: number; top: number }) => ({
     left: coord.left + (50 - coord.left) * 0.4,
     top: coord.top + (50 - coord.top) * 0.4,
@@ -195,10 +188,10 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
         )
       })}
 
-      {/* central pot (postflop) */}
-      {postflop && (
+      {/* central pot */}
+      {pot != null && (
         <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-[6] flex items-center gap-1.5" style={{ top: '28%' }}>
-          <ChipStack amount={SRP_POT} tone="pot" />
+          <ChipStack amount={pot} tone="pot" />
           <span className="text-[9px] font-semibold tracking-widest text-white/55">POT</span>
         </div>
       )}
