@@ -62,6 +62,34 @@ const DEFS: MatchupDef[] = [
     threeBet: ['66+', 'A7s+', 'A9o+', 'KTs+', 'KJo+', 'QTs+', 'JTs', 'A2s', 'A3s', 'A4s', 'A5s', 'K9s'],
     call: ['22-55', 'A2s+', 'K2s+', 'Q6s+', 'J7s+', 'T7s+', '96s+', '86s+', '75s+', '65s', '54s', 'A7o+', 'KTo+', 'QTo+', 'JTo'],
   },
+  // UTG opens, CO cold-calls / 3-bets in position vs a tight range
+  {
+    raiser: 'UTG',
+    hero: 'CO',
+    threeBet: ['QQ+', 'AKs', 'AQs', 'AKo', 'A5s'],
+    call: ['22-JJ', 'AJs', 'ATs', 'KQs', 'KJs', 'QJs', 'JTs', 'T9s', '98s', 'AQo', 'KQo'],
+  },
+  // HJ opens, BB defends (wide, closing OOP)
+  {
+    raiser: 'HJ',
+    hero: 'BB',
+    threeBet: ['TT+', 'AJs+', 'AKo', 'A4s', 'A5s', 'KQs'],
+    call: ['22-99', 'A2s+', 'K9s+', 'Q9s+', 'J9s+', 'T8s+', '97s+', '86s+', '76s', '65s', '54s', 'ATo+', 'KJo+', 'QJo'],
+  },
+  // HJ opens, CO 3-bets / flats in position
+  {
+    raiser: 'HJ',
+    hero: 'CO',
+    threeBet: ['99+', 'AQs+', 'AKo', 'A5s', 'A4s', 'KQs', 'KJs'],
+    call: ['22-88', 'AJs', 'ATs', 'KTs+', 'QJs', 'JTs', 'T9s', '98s', 'AQo', 'KQo'],
+  },
+  // CO opens, SB 3-bets-or-folds out of position (small flat)
+  {
+    raiser: 'CO',
+    hero: 'SB',
+    threeBet: ['77+', 'ATs+', 'KTs+', 'QTs+', 'JTs', 'AJo+', 'KQo', 'A5s', 'A4s', 'A3s'],
+    call: ['22-66', 'AJs', 'KQs', 'QJs', 'JTs', 'T9s'],
+  },
 ]
 
 export interface Matchup {

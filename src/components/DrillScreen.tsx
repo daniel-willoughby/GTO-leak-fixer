@@ -18,6 +18,7 @@ import {
   buildContinuationSpot,
   generateSpot,
   judge,
+  multiwayOf,
   promptFor,
   hintFor,
   seedKey,
@@ -37,7 +38,7 @@ import type { Lesson } from '../data/curriculum'
 import GlossaryText from './GlossaryText'
 import { isRfiHand, type Position, type RfiPosition } from '../data/ranges'
 import { MATCHUPS, respond } from '../data/vsRfi'
-import { MULTIWAY_MATCHUPS, respondMultiway } from '../data/multiway'
+import { respondMultiway } from '../data/multiway'
 import { strategyFor } from '../data/postflop'
 import {
   dueMistakes,
@@ -57,7 +58,7 @@ import RangeGrid, { type CellKind } from './RangeGrid'
 function chipsFor(spot: Spot): Chip[] {
   if (spot.mode === 'postflop') return []
   if (spot.mode === 'multiway') {
-    const m = MULTIWAY_MATCHUPS.find((x) => x.hero === spot.heroPos)
+    const m = multiwayOf(spot)
     if (!m) return []
     return Object.entries(m.bets).map(([pos, amt]) => ({
       pos: pos as Position,
@@ -123,7 +124,7 @@ function cellFor(spot: Spot): (label: string) => CellKind {
     }
   }
   if (spot.mode === 'multiway') {
-    const m = MULTIWAY_MATCHUPS.find((x) => x.hero === spot.heroPos)!
+    const m = multiwayOf(spot)
     if (!m) return () => 'fold'
     return (label) => {
       const a = respondMultiway(m, label)
@@ -363,10 +364,7 @@ export default function DrillScreen({
   const street = spot.handState?.street
   const prompt = promptFor(spot, level)
 
-  const multiwayActive =
-    spot.mode === 'multiway'
-      ? (MULTIWAY_MATCHUPS.find((x) => x.hero === spot.heroPos)?.activeBefore ?? [])
-      : []
+  const multiwayActive = spot.mode === 'multiway' ? (multiwayOf(spot)?.activeBefore ?? []) : []
 
   const gridLabel =
     spot.mode === 'rfi'

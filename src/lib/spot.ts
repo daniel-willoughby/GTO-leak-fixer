@@ -46,6 +46,8 @@ export interface Spot {
   correct: Action
   actions: Action[]
   category: HandCategory
+  /** Which multiway matchup this spot is (heroes are not unique, so we need the id). */
+  matchupId?: string
   // postflop
   board?: Card[]
   node?: StreetNode
@@ -161,6 +163,8 @@ export interface SpotSeed {
   label: string
   /** board string for postflop, e.g. "Qs7h2c" */
   board?: string
+  /** multiway matchup id */
+  matchupId?: string
 }
 
 export function seedOf(spot: Spot): SpotSeed {
@@ -170,11 +174,12 @@ export function seedOf(spot: Spot): SpotSeed {
     raiserPos: spot.raiserPos,
     label: spot.label,
     board: spot.node?.board,
+    matchupId: spot.matchupId,
   }
 }
 
 export const seedKey = (s: SpotSeed): string =>
-  `${s.mode}|${s.heroPos}|${s.raiserPos ?? ''}|${s.label}|${s.board ?? ''}`
+  `${s.mode}|${s.heroPos}|${s.raiserPos ?? ''}|${s.label}|${s.board ?? ''}|${s.matchupId ?? ''}`
 
 /** Recreate a concrete spot from a seed (e.g. when reviewing a past mistake). */
 export function spotFromSeed(seed: SpotSeed): Spot | null {
@@ -207,7 +212,7 @@ export function spotFromSeed(seed: SpotSeed): Spot | null {
     }
   }
   if (mode === 'multiway') {
-    const m = MULTIWAY_MATCHUPS.find((x) => x.hero === seed.heroPos)
+    const m = MULTIWAY_MATCHUPS.find((x) => x.id === seed.matchupId) ?? MULTIWAY_MATCHUPS.find((x) => x.hero === seed.heroPos)
     if (!m) return null
     return {
       mode,
@@ -217,6 +222,7 @@ export function spotFromSeed(seed: SpotSeed): Spot | null {
       correct: respondMultiway(m, label) as Action,
       actions: m.actions as Action[],
       category: classifyHand(label),
+      matchupId: m.id,
     }
   }
   // postflop
@@ -380,8 +386,12 @@ function generateMultiwaySpot(): Spot {
     correct,
     actions: m.actions as Action[],
     category: classifyHand(label),
+    matchupId: m.id,
   }
 }
+
+/** The multiway matchup a spot belongs to (by id — heroes are not unique). */
+export const multiwayOf = (spot: Spot) => MULTIWAY_MATCHUPS.find((x) => x.id === spot.matchupId)
 
 const boardCards = (node: StreetNode): Card[] => {
   const cards: Card[] = []
@@ -444,7 +454,7 @@ function explain(spot: Spot, chosen: Action, level: Level): string {
 /** Prompt shown above the action buttons, phrased for the chosen level. */
 export function promptFor(spot: Spot, level: Level): string {
   const street = spot.handState?.street
-  const mwDesc = MULTIWAY_MATCHUPS.find((x) => x.hero === spot.heroPos)?.description ?? 'What do you do?'
+  const mwDesc = multiwayOf(spot)?.description ?? 'What do you do?'
   if (level === 'beginner') {
     if (spot.mode === 'rfi') return 'Everyone folded to you. Raise this hand, or fold?'
     if (spot.mode === 'vsRfi') return `The ${POSITION_LABEL[spot.raiserPos!]} raised. Fold, call, or 3-bet?`
@@ -544,8 +554,8 @@ function explainPostflop(spot: Spot, chosen: Action): string {
         : `Not the top play: the solver ${spot.correct === 'bet' ? 'bets' : 'checks back'} ${spot.label} more often.`
   const streetNote = street === 'river' ? ' on the river' : street === 'turn' ? ' on the turn' : ' on this flop'
   const reason: Record<typeof desc.tier, string> = {
-    monster: `You have ${desc.text}${streetNote}, a near-lock. Bet to build the pot.`,
-    strong: `You have ${desc.text}${streetNote}. Bet for value and to charge worse hands.`,
+    monster: `You have ${desc.text}${streetNote}, a near-lock. Usually bet to build the pot.`,
+    strong: `You have ${desc.text}${streetNote}, a strong hand that usually bets for value.`,
     top: `You have ${desc.text}${streetNote}. Usually a bet for value and protection.`,
     draw: `You have ${desc.text}${streetNote}. Betting as a semi-bluff adds fold equity.`,
     weak: `You have ${desc.text}${streetNote}. Often a check to realise equity cheaply.`,
@@ -593,7 +603,7 @@ function explainVsRfi(spot: Spot, chosen: Action): string {
 
 function explainMultiway(spot: Spot, chosen: Action): string {
   const right = chosen === spot.correct
-  const m = MULTIWAY_MATCHUPS.find((x) => x.hero === spot.heroPos)!
+  const m = multiwayOf(spot)
   const correctLabel = ACTION_LABEL[spot.correct].toLowerCase()
   const verdict = right
     ? `Correct: GTO ${correctLabel}s ${spot.label} here.`
