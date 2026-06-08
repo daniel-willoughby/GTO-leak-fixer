@@ -106,7 +106,10 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
     const dx = 50 - coord.left
     const dy = 50 - coord.top
     const len = Math.hypot(dx, dy) || 1
-    const inset = 15
+    // Seats above centre have their pill pushed down by the cards above it, and
+    // the chip's inboard direction is straight down — so give top seats extra
+    // clearance proportional to how downward the chip travels (none at bottom).
+    const inset = 15 + 7 * Math.max(0, dy / len)
     return { left: coord.left + (dx / len) * inset, top: coord.top + (dy / len) * inset }
   }
 
