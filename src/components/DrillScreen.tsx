@@ -383,8 +383,34 @@ export default function DrillScreen({
         ? 'bg-sage/10 border-sage/40'
         : 'bg-heartred/10 border-heartred/40'
 
+  const navButtons = (
+    <>
+      {canContinue && (
+        <button
+          onClick={continueHand}
+          className="btn btn-secondary pointer-events-auto flex-1 max-w-[11rem] py-4 text-base flex items-center justify-center gap-2"
+        >
+          <FastForward size={16} /> {spot.handState?.street === 'turn' ? 'River' : 'Turn'}
+        </button>
+      )}
+      <button
+        onClick={lesson && lessonDone ? onExitLesson : next}
+        className="btn btn-primary pointer-events-auto flex-1 max-w-sm py-4 text-lg flex items-center justify-center gap-2"
+      >
+        {lesson && lessonDone
+          ? 'Finish lesson'
+          : reviewMode && reviewQueue.length === 0
+            ? 'Done'
+            : reviewMode
+              ? 'Next'
+              : 'Next hand'}{' '}
+        <ArrowRight size={18} />
+      </button>
+    </>
+  )
+
   return (
-    <div className="flex flex-col items-center gap-3 px-4 pb-28 pt-4 max-w-xl mx-auto">
+    <div className="flex flex-col items-center gap-3 px-4 pb-28 lg:pb-12 pt-4 max-w-xl lg:max-w-5xl mx-auto">
       {/* lesson header OR mode toggle OR review header */}
       {lesson ? (
         <div className="flex w-full flex-col gap-2">
@@ -454,6 +480,10 @@ export default function DrillScreen({
         </div>
       )}
 
+      {/* main: table | decision (two columns on desktop) */}
+      <div className="w-full flex flex-col items-center gap-3 lg:grid lg:grid-cols-2 lg:gap-8 lg:items-start">
+        {/* table column */}
+        <div className="w-full flex flex-col items-center gap-3">
       <div className="flex items-center justify-between w-full text-sm">
         <span className="text-ink2">
           {spot.mode === 'postflop' ? `BTN vs BB · ${street ?? 'flop'}` : '100bb · 6-max cash'}
@@ -480,8 +510,11 @@ export default function DrillScreen({
         board={spot.board}
         villain={spot.mode === 'postflop' ? { pos: 'BB', note: 'checks' } : undefined}
       />
+        </div>
 
-      <p className="serif text-ink text-[17px] text-center leading-snug px-2">{prompt}</p>
+        {/* decision column */}
+        <div className="w-full flex flex-col items-center gap-3">
+      <p className="serif text-ink text-[17px] lg:text-xl text-center leading-snug px-2">{prompt}</p>
 
       {!result ? (
         <div className="flex w-full max-w-sm flex-col items-center gap-3">
@@ -551,29 +584,15 @@ export default function DrillScreen({
         </div>
       )}
 
+          {/* desktop: inline action bar under the decision column */}
+          {result && <div className="hidden lg:flex w-full justify-center gap-3 pt-1">{navButtons}</div>}
+        </div>
+      </div>
+
+      {/* mobile: sticky action bar */}
       {result && (
-        <div className="fixed bottom-0 inset-x-0 z-20 flex justify-center gap-3 px-4 pb-[calc(4.25rem+env(safe-area-inset-bottom))] pt-10 bg-gradient-to-t from-paper via-paper/90 to-transparent pointer-events-none">
-          {canContinue && (
-            <button
-              onClick={continueHand}
-              className="btn btn-secondary pointer-events-auto flex-1 max-w-[11rem] py-4 text-base flex items-center justify-center gap-2"
-            >
-              <FastForward size={16} /> {spot.handState?.street === 'turn' ? 'River' : 'Turn'}
-            </button>
-          )}
-          <button
-            onClick={lesson && lessonDone ? onExitLesson : next}
-            className="btn btn-primary pointer-events-auto flex-1 max-w-sm py-4 text-lg flex items-center justify-center gap-2"
-          >
-            {lesson && lessonDone
-              ? 'Finish lesson'
-              : reviewMode && reviewQueue.length === 0
-                ? 'Done'
-                : reviewMode
-                  ? 'Next'
-                  : 'Next hand'}{' '}
-            <ArrowRight size={18} />
-          </button>
+        <div className="fixed bottom-0 inset-x-0 z-20 lg:hidden flex justify-center gap-3 px-4 pb-[calc(4.25rem+env(safe-area-inset-bottom))] pt-10 bg-gradient-to-t from-paper via-paper/90 to-transparent pointer-events-none">
+          {navButtons}
         </div>
       )}
     </div>

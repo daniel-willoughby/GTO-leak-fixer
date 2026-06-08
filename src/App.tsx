@@ -140,7 +140,7 @@ export default function App() {
         {tab === 'learn' && <LearnScreen />}
       </main>
 
-      <nav className="safe-bottom fixed bottom-0 inset-x-0 z-30 bg-paper/90 backdrop-blur-xl border-t border-line flex">
+      <nav className="safe-bottom fixed bottom-0 inset-x-0 z-30 bg-paper/90 backdrop-blur-xl border-t border-line flex sm:inset-x-auto sm:left-1/2 sm:bottom-5 sm:-translate-x-1/2 sm:w-[26rem] sm:rounded-2xl sm:border sm:px-1 sm:shadow-[0_12px_34px_-14px_rgba(34,31,25,0.4)]">
         {TABS.map((t) => {
           const Icon = t.icon
           const active = tab === t.id

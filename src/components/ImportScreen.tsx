@@ -84,7 +84,7 @@ export default function ImportScreen({ onDrillLeaks }: Props) {
   }
 
   return (
-    <div className="px-4 pb-28 pt-6 max-w-xl mx-auto flex flex-col gap-5">
+    <div className="px-4 pb-28 pt-6 max-w-xl lg:max-w-3xl mx-auto flex flex-col gap-5">
       <div>
         <h2 className="serif text-xl flex items-center gap-2">
           <FileText size={20} className="text-dblue" /> Import your hands

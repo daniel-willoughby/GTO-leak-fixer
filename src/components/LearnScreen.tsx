@@ -33,7 +33,7 @@ export default function LearnScreen() {
     ? GLOSSARY_ENTRIES.filter(([term, def]) => term.includes(q) || def.toLowerCase().includes(q))
     : GLOSSARY_ENTRIES
   return (
-    <div className="px-4 pb-28 pt-6 max-w-xl mx-auto flex flex-col gap-6">
+    <div className="px-4 pb-28 pt-6 max-w-xl lg:max-w-3xl mx-auto flex flex-col gap-6">
       <section className="flex flex-col gap-3">
         {LESSONS.map((l) => (
           <details key={l.title} className="panel p-4 group">

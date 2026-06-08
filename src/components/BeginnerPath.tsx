@@ -38,7 +38,7 @@ export default function BeginnerPath({ onProgress }: Props) {
 
   const done = CURRICULUM.filter((l) => lessonProgress(l.id).done).length
   return (
-    <div className="px-4 pb-28 pt-5 max-w-xl mx-auto flex flex-col gap-4">
+    <div className="px-4 pb-28 pt-5 max-w-xl lg:max-w-2xl mx-auto flex flex-col gap-4">
       <div className="text-center">
         <h2 className="serif text-xl text-ink">Your learning path</h2>
         <p className="text-sm text-ink2 mt-1">

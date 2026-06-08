@@ -38,21 +38,23 @@ const SEATS = [
 
 type Status = 'hero' | 'raiser' | 'active' | 'folded' | 'waiting'
 
+// Face-down cards for the other players. A warm claret back with a cream
+// border so they read clearly as held cards and pop off the green felt.
 function CardBack({ delay = 0 }: { delay?: number }) {
   return (
     <div
-      className="w-6 h-[2.1rem] rounded-[5px] flex items-center justify-center"
+      className="w-[1.6rem] h-[2.2rem] rounded-[5px] border-[1.5px] border-[#efe6d2] flex items-center justify-center"
       style={{
-        background: 'linear-gradient(155deg, #5b7461 0%, #4c6354 50%, #435448 100%)',
-        boxShadow: '0 2px 5px rgba(34,31,25,0.4), 0 0 0 1px rgba(255,255,255,0.18) inset',
+        background: 'linear-gradient(150deg, #9c4234 0%, #863a2d 48%, #6f2f25 100%)',
+        boxShadow: '0 3px 7px rgba(34,31,25,0.45), 0 0 0 0.5px rgba(0,0,0,0.2)',
         animationDelay: `${delay}ms`,
       }}
     >
-      <svg width="14" height="20" viewBox="0 0 14 20" className="opacity-30">
+      <svg width="15" height="21" viewBox="0 0 15 21" className="opacity-50">
         <pattern id="cb" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
-          <rect x="1" y="1" width="2" height="2" fill="white" transform="rotate(45 2 2)" />
+          <rect x="1" y="1" width="2" height="2" fill="#f3ead6" transform="rotate(45 2 2)" />
         </pattern>
-        <rect width="14" height="20" fill="url(#cb)" />
+        <rect width="15" height="21" fill="url(#cb)" />
       </svg>
     </div>
   )

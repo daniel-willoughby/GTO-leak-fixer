@@ -126,7 +126,7 @@ export default function LeaksScreen({ version }: Props) {
   }
 
   return (
-    <div className="px-4 pb-28 pt-6 max-w-xl mx-auto flex flex-col gap-5">
+    <div className="px-4 pb-28 pt-6 max-w-xl lg:max-w-3xl mx-auto flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <div>
           <div className="serif text-5xl font-semibold text-sage-dark">{Math.round(sum.accuracy * 100)}%</div>
