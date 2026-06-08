@@ -539,6 +539,74 @@ function explainPostflopBeginner(spot: Spot, chosen: Action): string {
   return `${verdict} ${reason[desc.tier]}`
 }
 
+// ---------- strategic-depth helpers ------------------------------------------
+
+const RANK_SEQ = 'AKQJT98765432'
+const rk = (r: string) => RANK_SEQ.indexOf(r)
+
+/** A short clause describing a starting hand's strategic character. */
+function handCharacter(label: string): string {
+  const cat = classifyHand(label)
+  const hi = label[0]
+  const lo = label[1]
+  const suited = label.endsWith('s')
+  const wheelAce = suited && hi === 'A' && '2345'.includes(lo)
+  switch (cat) {
+    case 'Pocket pair':
+      return rk(hi) <= rk('Q')
+        ? 'It is a premium pair with a big equity edge and the initiative.'
+        : rk(hi) <= rk('8')
+          ? 'It is a middling pair that flops sets and keeps useful showdown value.'
+          : 'It is a small pair that plays mainly for set value, so it wants cheap flops and position.'
+    case 'Suited ace':
+      return wheelAce
+        ? 'A suited wheel ace brings nut-flush and wheel potential plus an ace blocker, so it doubles as a strong semi-bluff.'
+        : 'A suited ace has nut-flush potential and blocks the strongest hands.'
+    case 'Offsuit ace':
+      return 'An offsuit ace has high-card strength but is dominated by better aces, so it needs position to play well.'
+    case 'Suited broadway':
+      return 'Two big suited cards flop strong top pairs and nut draws.'
+    case 'Offsuit broadway':
+      return 'Two big offsuit cards have solid high-card value but less postflop playability than the suited version.'
+    case 'Suited connector':
+      return 'A suited connector adds straight and flush equity that realises well in position.'
+    case 'Suited gapper':
+      return 'A one-gap suited hand keeps straight and flush potential with slightly less connectivity.'
+    case 'Suited other':
+      return 'A speculative suited hand that leans on flush equity and position.'
+    default:
+      return 'An offsuit, disconnected hand flops weak and plays poorly out of position.'
+  }
+}
+
+/** Heuristic: is a 3-bet of this hand primarily for value (true) or a bluff (false)? */
+function isValue3Bet(label: string): boolean {
+  if (classifyHand(label) === 'Pocket pair') return rk(label[0]) <= rk('T') // TT+
+  return label === 'AKs' || label === 'AKo' || label === 'AQs'
+}
+
+/** Board-texture + range-dynamic note for the postflop spots (button vs big blind). */
+function boardTexture(board: Card[], street: 'flop' | 'turn' | 'river'): string {
+  if (street === 'turn')
+    return 'By the turn ranges are narrower, so bets polarise toward clear value and the best draws while medium hands check to keep the pot small.'
+  if (street === 'river')
+    return 'On the river the hand is decided, so play is polarised: bet your value hands and chosen bluffs (ideally with blockers) and check the rest to bluff-catch.'
+  const flop = board.slice(0, 3)
+  const suits = new Set(flop.map((c) => c.suit)).size
+  const hi = flop.map((c) => 14 - rk(c.rank))
+  const top = Math.max(...hi)
+  const paired = new Set(flop.map((c) => c.rank)).size < 3
+  const sorted = [...hi].sort((a, b) => b - a)
+  const connected = !paired && sorted[0] - sorted[2] <= 4
+  if (top >= 12 && !connected && !paired && suits >= 2)
+    return 'This dry, high flop favours the button (the raiser), so the textbook line is a small c-bet of about a third pot at a high frequency for thin value and equity denial.'
+  if (paired)
+    return 'Paired flops make strong hands rarer for both players, so the raiser leans on range advantage with a cheap bet and gives up little by checking back.'
+  if (suits === 1 || connected || top <= 9)
+    return "This wetter or lower flop connects better with the big blind's calling range, shrinking the raiser's edge, so it is checked more and bets are more selective."
+  return 'On a neutral flop the raiser keeps a small range edge and mixes a small c-bet with checks.'
+}
+
 function explainPostflop(spot: Spot, chosen: Action): string {
   const checkPct = Math.round((spot.freqs?.[0] ?? 0) * 100)
   const betPct = 100 - checkPct
@@ -555,15 +623,15 @@ function explainPostflop(spot: Spot, chosen: Action): string {
         : `Not the top play: the solver ${spot.correct === 'bet' ? 'bets' : 'checks back'} ${spot.label} more often.`
   const streetNote = street === 'river' ? ' on the river' : street === 'turn' ? ' on the turn' : ' on this flop'
   const reason: Record<typeof desc.tier, string> = {
-    monster: `You have ${desc.text}${streetNote}, a near-lock. Usually bet to build the pot.`,
-    strong: `You have ${desc.text}${streetNote}, a strong hand that usually bets for value.`,
-    top: `You have ${desc.text}${streetNote}. Usually a bet for value and protection.`,
-    draw: `You have ${desc.text}${streetNote}. Betting as a semi-bluff adds fold equity.`,
-    weak: `You have ${desc.text}${streetNote}. Often a check to realise equity cheaply.`,
-    air: `You have ${desc.text}${streetNote}. Check back or use as an occasional bluff.`,
+    monster: `You have ${desc.text}${streetNote}, a near-lock that wants to build the pot.`,
+    strong: `You have ${desc.text}${streetNote}, a strong made hand that mostly bets for value.`,
+    top: `You have ${desc.text}${streetNote}, a solid one-pair hand with real showdown value.`,
+    draw: `You have ${desc.text}${streetNote}, a draw that can semi-bluff for fold equity or check to realise it.`,
+    weak: `You have ${desc.text}${streetNote}, a marginal made hand with modest showdown value.`,
+    air: `You have ${desc.text}${streetNote}, with little showdown value, so it works as a check or a bluff.`,
   }
   const freq = `Solver mix: bet ${betPct}% / check ${checkPct}%.${mixed ? ' Genuinely mixed: both are fine, lean to the majority.' : ''}`
-  return `${verdict} ${reason[desc.tier]} ${freq}`
+  return `${verdict} ${reason[desc.tier]} ${boardTexture(board, street)} ${freq}`
 }
 
 function explainRfi(spot: Spot, chosen: Action): string {
@@ -577,7 +645,7 @@ function explainRfi(spot: Spot, chosen: Action): string {
     ? `${spot.label} is inside the ${posName} opening range (~${range.pct}% of hands). From ${pos} the GTO play is to raise first in.`
     : `${spot.label} is outside the ${posName} opening range (~${range.pct}% of hands). From ${pos} the GTO play is to fold and wait for a better spot.`
   const verdict = right ? `Correct: GTO ${verb} this hand here.` : `Not GTO: the solver ${verb} ${spot.label} from ${pos}.`
-  return `${verdict} ${base} ${positionWhy(pos, inRange)}`
+  return `${verdict} ${base} ${handCharacter(spot.label)} ${positionWhy(pos, inRange)}`
 }
 
 function explainVsRfi(spot: Spot, chosen: Action): string {
@@ -585,10 +653,13 @@ function explainVsRfi(spot: Spot, chosen: Action): string {
   const raiser = spot.raiserPos!
   const heroName = POSITION_LABEL[spot.heroPos]
   const correctLabel = ACTION_LABEL[spot.correct].toLowerCase()
+  const isIP = spot.heroPos === 'BTN' || spot.heroPos === 'CO'
   const reason: Partial<Record<Action, string>> = {
-    '3bet': `${spot.label} is strong enough (or a good bluff candidate) to 3-bet for value/pressure against a ${raiser} open.`,
-    call: `${spot.label} plays well as a flat call here. Enough equity and playability to continue, but not strong enough to 3-bet.`,
-    fold: `${spot.label} is too weak to continue profitably against a ${raiser} open from the ${heroName}; fold and wait.`,
+    '3bet': isValue3Bet(spot.label)
+      ? `${spot.label} 3-bets for value: it is ahead of a ${raiser} continuing range, so you build the pot now and charge their draws and worse pairs.`
+      : `${spot.label} is a 3-bet bluff: it blocks the opener's premiums (an ace or broadway card removes some of their AA/AK), keeps backup equity, and folds out better hands often enough to profit.`,
+    call: `Flatting keeps a ${raiser} opener's dominated and bluffing hands in the pot. ${spot.label} has the equity and playability to continue${isIP ? ' in position' : ' for a price'}, but 3-betting would mostly fold out the hands you already beat${isIP ? '' : ' and bloat the pot out of position'}.`,
+    fold: `${spot.label} is dominated by a ${raiser} opening range and realises equity poorly${isIP ? '' : ' out of position'}; calling bleeds chips through reverse implied odds, so the ${heroName} folds.`,
   }
   const verdict = right
     ? `Correct: GTO ${correctLabel}s here.`
@@ -612,12 +683,15 @@ function explainMultiway(spot: Spot, chosen: Action): string {
   const context = m
     ? `Spot: ${m.description} Pot is ~${m.pot}bb.`
     : ''
+  const oop = spot.heroPos === 'SB' || spot.heroPos === 'BB'
   const why: Partial<Record<Action, string>> = {
-    squeeze: `${spot.label} is strong enough to squeeze. You're getting extra value from the caller's dead money and isolating one player instead of playing multiway.`,
-    '3bet': `${spot.label} is strong enough to 3-bet for value or pressure against this open.`,
-    call: `${spot.label} has the equity to call but isn't strong enough to raise profitably here. Take the price and see the flop.`,
-    fold: `${spot.label} is too weak to continue against the ranges in this spot.`,
-    'cold-4bet': `${spot.label} is strong enough to 4-bet for value here. You represent a very tight range and get maximum value.`,
+    squeeze: `${spot.label} is strong enough to squeeze. With a caller already in there is dead money to attack: size up to charge the field, deny their equity, and take the pot heads-up with the lead.`,
+    '3bet': isValue3Bet(spot.label)
+      ? `${spot.label} 3-bets the opener for value: you are ahead of their continuing range and want chips in now.`
+      : `${spot.label} is a 3-bet bluff against the opener: its blockers and backup equity make a clean semi-bluff.`,
+    call: `${spot.label} can call but is not strong enough to raise. Multiway you need hands that flop nutty (pairs for sets, suited and connected cards for strong draws), so take the price and proceed carefully.`,
+    fold: `${spot.label} is too weak for a multiway pot: it is dominated by the ranges still in and realises little equity against several opponents${oop ? ' out of position' : ''}.`,
+    'cold-4bet': `${spot.label} 4-bets for value: against a 3-betting range you represent a very tight, nutted range, and your blockers cut into the hands that could continue.`,
   }
   return `${verdict} ${context} ${why[spot.correct] ?? ''}`
 }
