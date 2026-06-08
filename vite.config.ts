@@ -16,7 +16,7 @@ export default defineConfig(({ command }) => {
     plugins: [
       react(),
       VitePWA({
-        registerType: 'autoUpdate',
+        registerType: 'prompt',
         includeAssets: ['favicon-32.png', 'apple-touch-icon.png'],
         manifest: {
           name: 'Leak Tutor — GTO Poker',

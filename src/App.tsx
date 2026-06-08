@@ -6,6 +6,7 @@ import OnboardingScreen from './components/OnboardingScreen'
 import LeaksScreen from './components/LeaksScreen'
 import LearnScreen from './components/LearnScreen'
 import ImportScreen from './components/ImportScreen'
+import PwaUpdater from './components/PwaUpdater'
 import { isMuted, setMuted } from './lib/sound'
 import { getLevel, setLevel, type Level } from './lib/level'
 import type { Difficulty, HandCategory } from './lib/spot'
@@ -159,6 +160,8 @@ export default function App() {
           )
         })}
       </nav>
+
+      <PwaUpdater />
     </div>
   )
 }
