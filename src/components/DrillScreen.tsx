@@ -128,7 +128,7 @@ function cellFor(spot: Spot): (label: string) => CellKind {
     if (!m) return () => 'fold'
     return (label) => {
       const a = respondMultiway(m, label)
-      return a === 'squeeze' || a === 'cold-4bet' ? 'raise' : a === 'call' ? 'call' : 'fold'
+      return a === 'squeeze' || a === 'cold-4bet' || a === '3bet' ? 'raise' : a === 'call' ? 'call' : 'fold'
     }
   }
   const m = MATCHUPS.find((x) => x.raiser === spot.raiserPos && x.hero === spot.heroPos)!
@@ -540,7 +540,7 @@ export default function DrillScreen({
                 <span className="text-sage-dark font-medium">sage fill = bet frequency</span>
               ) : (
                 <span className="text-sage-dark font-medium">
-                  sage = {spot.mode === 'rfi' ? 'raise' : spot.mode === 'vsRfi' ? '3bet' : 'squeeze'}
+                  sage = {spot.mode === 'rfi' ? 'raise' : spot.mode === 'vsRfi' ? '3bet' : 'raise'}
                 </span>
               )}
               {spot.mode === 'vsRfi' && <span className="text-dblue font-medium">, blue = call</span>}

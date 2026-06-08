@@ -1,12 +1,12 @@
 import type { Card } from '../lib/cards'
 
 const SUIT_SYMBOL: Record<string, string> = { s: '♠', h: '♥', d: '♦', c: '♣' }
-// muted, editorial 4-colour palette
+// muted, editorial 4-colour palette (slightly richer for legibility on cream)
 const SUIT_COLOR: Record<string, string> = {
-  s: 'text-[#2a2722]',
-  c: 'text-sage-dark',
-  h: 'text-heartred',
-  d: 'text-dblue',
+  s: 'text-[#23201b]',
+  c: 'text-[#3f6b4d]',
+  h: 'text-[#b23a29]',
+  d: 'text-[#2f5aa0]',
 }
 
 const SIZES = {

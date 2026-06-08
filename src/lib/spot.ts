@@ -515,8 +515,9 @@ function explainMultiwayBeginner(spot: Spot, chosen: Action): string {
   const verdict = right ? 'Correct.' : `The better play is to ${ACTION_LABEL[spot.correct].toLowerCase()}.`
   const why: Partial<Record<Action, string>> = {
     squeeze: `${spot.label} is strong enough to [squeeze]: re-raise over the raiser and caller to win the pot now.`,
-    call: `${spot.label} can [call] and see a flop, but is not strong enough to [squeeze].`,
-    fold: `${spot.label} is too weak to play this multiway pot. Fold.`,
+    '3bet': `${spot.label} is strong enough to [3-bet] (re-raise) the opener.`,
+    call: `${spot.label} can [call] and see a flop, but is not strong enough to raise.`,
+    fold: `${spot.label} is too weak to continue here. Fold.`,
     'cold-4bet': `${spot.label} is strong enough to re-raise big ([4-bet]) for [value].`,
   }
   return `${verdict} ${why[spot.correct] ?? ''}`
@@ -613,8 +614,9 @@ function explainMultiway(spot: Spot, chosen: Action): string {
     : ''
   const why: Partial<Record<Action, string>> = {
     squeeze: `${spot.label} is strong enough to squeeze. You're getting extra value from the caller's dead money and isolating one player instead of playing multiway.`,
-    call: `${spot.label} has the equity to call but isn't strong enough to squeeze profitably here. Take the price and see the flop.`,
-    fold: `${spot.label} is too weak to continue in a multiway pot or against the ranges in this spot.`,
+    '3bet': `${spot.label} is strong enough to 3-bet for value or pressure against this open.`,
+    call: `${spot.label} has the equity to call but isn't strong enough to raise profitably here. Take the price and see the flop.`,
+    fold: `${spot.label} is too weak to continue against the ranges in this spot.`,
     'cold-4bet': `${spot.label} is strong enough to 4-bet for value here. You represent a very tight range and get maximum value.`,
   }
   return `${verdict} ${context} ${why[spot.correct] ?? ''}`

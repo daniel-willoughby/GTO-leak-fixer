@@ -5,7 +5,10 @@
 import { expandRange } from '../lib/cards'
 import type { Position } from './ranges'
 
-export type MultiwayAction = 'fold' | 'call' | 'squeeze' | 'cold-4bet'
+export type MultiwayAction = 'fold' | 'call' | '3bet' | 'squeeze' | 'cold-4bet'
+
+// Aggressive (raising) actions, in label-preference order.
+const AGGRO: MultiwayAction[] = ['squeeze', 'cold-4bet', '3bet']
 
 export interface MultiwayMatchup {
   id: string
@@ -55,14 +58,15 @@ const MATCHUPS: Omit<MultiwayMatchup, 'squeeze' | 'call'>[] = [
     actions: ['fold', 'call', 'cold-4bet'],
     bets: { SB: 0.5, BTN: 2.5, BB: 9 },
   },
-  // UTG opens, CO cold-calls or 3-bets (in position, vs tight range)
+  // UTG opens, CO cold-calls or 3-bets (in position, vs tight range).
+  // Heads-up vs a single open → the raise is a 3-bet, not a squeeze.
   {
     id: 'UTG_open_CO_cold',
     description: 'UTG opens. CO: call, 3-bet, or fold?',
     activeBefore: ['UTG'],
     hero: 'CO',
     pot: 6,
-    actions: ['fold', 'call', 'squeeze'],
+    actions: ['fold', 'call', '3bet'],
     bets: { SB: 0.5, BB: 1, UTG: 2.5 },
   },
   // HJ opens, CO calls, BTN squeezes or flats in position
@@ -98,7 +102,7 @@ const MATCHUPS: Omit<MultiwayMatchup, 'squeeze' | 'call'>[] = [
 ]
 
 // Ranges (solver-approximate)
-const RANGES: Record<string, { squeeze?: string[]; call?: string[]; 'cold-4bet'?: string[] }> = {
+const RANGES: Record<string, { squeeze?: string[]; '3bet'?: string[]; call?: string[]; 'cold-4bet'?: string[] }> = {
   UTG_open_HJ_call_CO_squeeze: {
     squeeze: ['QQ+', 'AKs', 'AQs', 'AKo', 'A5s', 'KQs'],
     call: [],
@@ -112,7 +116,7 @@ const RANGES: Record<string, { squeeze?: string[]; call?: string[]; 'cold-4bet'?
     call: ['22-JJ', 'ATs+', 'KQs', 'KJs', 'QJs', 'JTs', 'T9s', 'AQo', 'KQo'],
   },
   UTG_open_CO_cold: {
-    squeeze: ['TT+', 'AQs+', 'AKo', 'A5s', 'KQs'],
+    '3bet': ['TT+', 'AQs+', 'AKo', 'A5s', 'KQs'],
     call: ['22-99', 'ATs+', 'KTs+', 'QTs+', 'JTs', 'T9s', '98s', 'AQo', 'KQo'],
   },
   HJ_open_CO_call_BTN_squeeze: {
@@ -135,13 +139,14 @@ export const MULTIWAY_MATCHUPS: MultiwayMatchup[] = MATCHUPS.map((m) => {
   // squeeze or a cold 4-bet — respondMultiway returns whichever the spot uses.
   return {
     ...m,
-    squeeze: def([...(r.squeeze ?? []), ...(r['cold-4bet'] ?? [])]),
+    squeeze: def([...(r.squeeze ?? []), ...(r['3bet'] ?? []), ...(r['cold-4bet'] ?? [])]),
     call: def(r.call ?? []),
   }
 })
 
 export function respondMultiway(m: MultiwayMatchup, label: string): MultiwayAction {
-  if (m.squeeze.has(label)) return m.actions.includes('cold-4bet') ? 'cold-4bet' : 'squeeze'
+  // `squeeze` holds the aggressive-raise hands; return whichever raise this spot uses.
+  if (m.squeeze.has(label)) return m.actions.find((a) => AGGRO.includes(a)) ?? 'squeeze'
   if (m.call.has(label)) return 'call'
   return 'fold'
 }
