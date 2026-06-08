@@ -172,7 +172,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
           >
             {pos}
           </div>
-          {status === 'raiser' && <span className="text-[10px] text-heartred font-semibold">raises</span>}
+          {/* the red seat pill + the chip already show the raise — no extra label needed */}
           {status === 'active' && villain && (
             <span className="text-[10px] text-white/80 font-semibold">{villain.note}</span>
           )}
