@@ -176,8 +176,7 @@ set_range_oop ${oop}
 set_bet_sizes oop,flop,bet,33
 set_bet_sizes oop,flop,raise,75
 set_bet_sizes oop,flop,allin
-set_bet_sizes ip,flop,bet,33
-set_bet_sizes ip,flop,bet,75
+set_bet_sizes ip,flop,bet,33,75
 set_bet_sizes ip,flop,raise,75
 set_bet_sizes ip,flop,allin
 set_bet_sizes oop,turn,bet,33
@@ -237,7 +236,7 @@ for (const board of boards) {
   } catch (e) {
     console.error(`solve failed for ${board} (exit ${e.status}). Log tail:`)
     try {
-      console.error(execSync(`tail -5 ${join(INSTALL, logName)}`).toString())
+      console.error(execSync(`tail -5 "${join(INSTALL, logName)}"`).toString())
     } catch {}
     continue
   }
