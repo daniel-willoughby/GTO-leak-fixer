@@ -15,6 +15,17 @@ if (!existsSync(STAGING)) {
   process.exit(1)
 }
 const staged = JSON.parse(readFileSync(STAGING, 'utf8'))
+// Guard: never let an empty/partial staging file clobber the live dataset.
+// (solve-boards.mjs creates the staging file as `[]` before it solves anything,
+// so "exists" is not enough — it must actually contain flop nodes.)
+const flopCount = staged.filter((n) => n.street === 'flop').length
+if (!Array.isArray(staged) || staged.length === 0 || flopCount === 0) {
+  console.error(
+    `Refusing to finalize: staging has ${staged.length} nodes (${flopCount} flop). ` +
+      'Run solve-boards.mjs to completion first — the live dataset was left untouched.',
+  )
+  process.exit(1)
+}
 const by = staged.reduce((m, n) => ((m[n.street] = (m[n.street] || 0) + 1), m), {})
 console.log(`staged: ${staged.length} nodes`, by)
 writeFileSync(OUT, JSON.stringify(staged, null, 2) + '\n')

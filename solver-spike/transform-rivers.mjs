@@ -11,6 +11,10 @@ import { dirname, join } from 'node:path'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const INSTALL = '/Users/danwilloughby/Documents/Code Projects/TexasSolver/install'
+// Where the persistent turn-rooted river dumps (turn_*_result.json, ~650MB) live.
+// Override with LEAKTUTOR_TURN_DUMPS to keep them on an external drive (read via
+// Node, so paths with spaces — e.g. /Volumes/X9 Pro/… — are fine).
+const TURN_DUMP_DIR = process.env.LEAKTUTOR_TURN_DUMPS || INSTALL
 const OUT = join(here, '..', 'src', 'data', 'street-nodes.json')
 
 const RANKS = 'AKQJT98765432'
@@ -91,11 +95,15 @@ function riverNodes(board8, tree) {
 }
 
 const existing = JSON.parse(readFileSync(OUT, 'utf8')).filter((n) => n.street !== 'river')
-const files = readdirSync(INSTALL).filter((f) => /^turn_.+_result\.json$/.test(f))
+const files = readdirSync(TURN_DUMP_DIR).filter((f) => /^turn_.+_result\.json$/.test(f))
+if (files.length === 0) {
+  console.error(`No turn_*_result.json found in ${TURN_DUMP_DIR} — river nodes would be dropped. Aborting.`)
+  process.exit(1)
+}
 const rivers = []
 for (const f of files) {
   const board8 = f.replace(/^turn_/, '').replace(/_result\.json$/, '')
-  const tree = JSON.parse(readFileSync(join(INSTALL, f), 'utf8'))
+  const tree = JSON.parse(readFileSync(join(TURN_DUMP_DIR, f), 'utf8'))
   const rn = riverNodes(board8, tree)
   rivers.push(...rn)
   console.log(`  ${board8}: ${rn.length} river nodes`)
