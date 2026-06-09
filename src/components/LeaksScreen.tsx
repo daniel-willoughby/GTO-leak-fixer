@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Target, RotateCcw, Layers, Spade, TrendingUp, TrendingDown, LineChart } from 'lucide-react'
+import { Target, RotateCcw, Layers, Spade, TrendingUp, TrendingDown, LineChart, Zap } from 'lucide-react'
 import {
   getLeakSummary,
   progressTrend,
@@ -9,9 +9,11 @@ import {
   type ModeStats,
   type ProgressTrend,
 } from '../lib/db'
+import type { FocusRequest } from '../lib/spot'
 
 interface Props {
   version: number // bump to force refresh
+  onDrillLeaks: (req: FocusRequest) => void
 }
 
 function ProgressChart({ trend }: { trend: ProgressTrend }) {
@@ -105,7 +107,7 @@ function ModeSection({
   )
 }
 
-export default function LeaksScreen({ version }: Props) {
+export default function LeaksScreen({ version, onDrillLeaks }: Props) {
   const [sum, setSum] = useState<LeakSummary | null>(null)
   const [trend, setTrend] = useState<ProgressTrend | null>(null)
 
@@ -158,11 +160,21 @@ export default function LeaksScreen({ version }: Props) {
         ) : (
           <div className="flex flex-col gap-3">
             {sum.topLeaks.map((l) => (
-              <div key={l.key} className="rounded-xl bg-clay/10 border border-clay/30 p-3">
-                <div className="font-semibold text-clay">{l.key}</div>
-                <div className="text-sm text-ink2">
-                  Wrong {Math.round(l.errorRate * 100)}% of the time ({l.errors} of {l.attempts}). Drill this.
+              <div key={l.key} className="rounded-xl bg-clay/10 border border-clay/30 p-3 flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-clay truncate">{l.key}</div>
+                  <div className="text-sm text-ink2">
+                    Wrong {Math.round(l.errorRate * 100)}% of the time ({l.errors} of {l.attempts}).
+                  </div>
                 </div>
+                {l.drill && (
+                  <button
+                    onClick={() => onDrillLeaks(l.drill!)}
+                    className="btn btn-primary shrink-0 px-3 py-2 text-sm flex items-center gap-1.5"
+                  >
+                    <Zap size={14} /> Drill
+                  </button>
+                )}
               </div>
             ))}
           </div>

@@ -9,7 +9,7 @@ import ImportScreen from './components/ImportScreen'
 import PwaUpdater from './components/PwaUpdater'
 import { isMuted, setMuted } from './lib/sound'
 import { getLevel, setLevel, type Level } from './lib/level'
-import type { Difficulty, HandCategory } from './lib/spot'
+import type { Difficulty, FocusRequest } from './lib/spot'
 
 type Tab = 'drill' | 'leaks' | 'import' | 'learn'
 
@@ -30,7 +30,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('drill')
   const [progress, setProgress] = useState(0)
   const [muted, setMutedState] = useState(isMuted())
-  const [focusRequest, setFocusRequest] = useState<HandCategory[] | null>(null)
+  const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null)
   const [difficulty, setDifficulty] = useState<Difficulty>(
     () => (localStorage.getItem('lt-difficulty') as Difficulty) || 'all',
   )
@@ -57,8 +57,9 @@ export default function App() {
 
   if (!level) return <OnboardingScreen onPick={pickLevel} />
 
-  function drillLeaks(cats: HandCategory[]) {
-    setFocusRequest(cats)
+  function drillLeaks(req: FocusRequest) {
+    // new object identity each time so the DrillScreen effect always re-fires
+    setFocusRequest({ ...req })
     setTab('drill')
   }
 
@@ -136,7 +137,7 @@ export default function App() {
               difficulty={difficulty}
             />
           ))}
-        {tab === 'leaks' && <LeaksScreen version={progress} />}
+        {tab === 'leaks' && <LeaksScreen version={progress} onDrillLeaks={drillLeaks} />}
         {tab === 'import' && <ImportScreen onDrillLeaks={drillLeaks} />}
         {tab === 'learn' && <LearnScreen />}
       </main>

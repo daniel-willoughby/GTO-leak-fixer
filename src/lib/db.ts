@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie'
-import type { Action, DrillMode, HandCategory, SpotSeed } from './spot'
-import type { Position } from '../data/ranges'
+import type { Action, DrillMode, FocusRequest, HandCategory, SpotSeed } from './spot'
+import { RFI_POSITIONS, type Position, type RfiPosition } from '../data/ranges'
 
 // One row per decision the player makes. Offline-first; all local.
 export interface DecisionRecord {
@@ -123,6 +123,11 @@ function modeStats(rows: DecisionRecord[]): ModeStats {
   }
 }
 
+/** A top leak, plus how to drill it (null when no targeted drill fits). */
+export interface TopLeak extends LeakStat {
+  drill?: FocusRequest
+}
+
 export interface LeakSummary {
   total: number
   correct: number
@@ -130,8 +135,15 @@ export interface LeakSummary {
   preflop: ModeStats
   postflop: ModeStats
   /** Top leaks across everything, with enough samples and a real error rate. */
-  topLeaks: LeakStat[]
+  topLeaks: TopLeak[]
 }
+
+const RFI_SET = new Set<string>(RFI_POSITIONS)
+/** Drill a leaky hand type by biasing the deal toward that category. */
+const catDrill = (cat: string, mode: DrillMode): FocusRequest => ({ mode, cats: [cat as HandCategory], label: cat })
+/** Drill a leaky seat by pinning RFI to that position (only seats that open). */
+const posDrill = (pos: string): FocusRequest | undefined =>
+  RFI_SET.has(pos) ? { mode: 'rfi', lockPos: pos as RfiPosition, label: `${pos} opens` } : undefined
 
 export async function getLeakSummary(): Promise<LeakSummary> {
   const all = await db.decisions.toArray()
@@ -143,11 +155,10 @@ export async function getLeakSummary(): Promise<LeakSummary> {
   const preStats = modeStats(pre)
   const postStats = modeStats(post)
 
-  const tagged = (stats: LeakStat[], suffix: string) => stats.map((s) => ({ ...s, key: `${s.key} ${suffix}` }))
-  const topLeaks = [
-    ...preStats.byCategory.map((s) => ({ ...s, key: `${s.key} (preflop)` })),
-    ...tagged(preStats.byContext, '(preflop)'),
-    ...postStats.byCategory.map((s) => ({ ...s, key: `${s.key} (postflop)` })),
+  const topLeaks: TopLeak[] = [
+    ...preStats.byCategory.map((s) => ({ ...s, key: `${s.key} (preflop)`, drill: catDrill(s.key, 'rfi') })),
+    ...preStats.byContext.map((s) => ({ ...s, key: `${s.key} (preflop)`, drill: posDrill(s.key) })),
+    ...postStats.byCategory.map((s) => ({ ...s, key: `${s.key} (postflop)`, drill: catDrill(s.key, 'postflop') })),
   ]
     .filter((s) => s.attempts >= 4 && s.errorRate > 0)
     .sort((a, b) => b.errorRate - a.errorRate || b.attempts - a.attempts)

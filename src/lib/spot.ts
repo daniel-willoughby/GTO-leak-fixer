@@ -89,6 +89,22 @@ export interface GenOptions {
   lockMatchup?: { raiser: RfiPosition; hero: Position }
 }
 
+/**
+ * A targeted-drill request: "drill this specific leak". Produced by the Leaks
+ * report and the hand-history importer, consumed by the DrillScreen, which
+ * switches mode and biases the deal toward the leaky spot.
+ */
+export interface FocusRequest {
+  /** Drill mode to switch to (defaults to 'rfi'). */
+  mode?: DrillMode
+  /** Bias the deal toward these hand categories. */
+  cats?: HandCategory[]
+  /** Pin RFI spots to one position (drills a leaky seat). */
+  lockPos?: RfiPosition
+  /** Short human label for the focus banner, e.g. "UTG opens" or "Suited aces". */
+  label?: string
+}
+
 // How many of the 5 RFI positions open each hand (0 = always fold, 5 = always
 // open). 1–4 means the right answer is position-dependent → a harder decision.
 const MARGINALITY: Record<string, number> = (() => {

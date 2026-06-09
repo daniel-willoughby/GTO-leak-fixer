@@ -27,6 +27,7 @@ import {
   type Action,
   type Difficulty,
   type DrillMode,
+  type FocusRequest,
   type GenOptions,
   type HandCategory,
   type Judgement,
@@ -79,8 +80,8 @@ import HandHistory from './HandHistory'
 
 interface Props {
   onProgress: () => void
-  /** Categories to focus drilling on (from a hand-history import) */
-  requestFocus?: HandCategory[] | null
+  /** A targeted-drill request from the Leaks report or hand-history import. */
+  requestFocus?: FocusRequest | null
   onFocusConsumed?: () => void
   difficulty?: Difficulty
   /** Experience level — drives prompt wording, hints, and explanation depth. */
@@ -176,6 +177,9 @@ export default function DrillScreen({
   // adaptive focus
   const [focusOn, setFocusOn] = useState(false)
   const [focusCats, setFocusCats] = useState<Set<HandCategory>>(new Set())
+  // a targeted-leak drill: pin RFI to a leaky seat + show a banner label
+  const [focusPos, setFocusPos] = useState<RfiPosition | null>(null)
+  const [focusLabel, setFocusLabel] = useState<string | null>(null)
   // review queue (spaced repetition)
   const [reviewQueue, setReviewQueue] = useState<MistakeRecord[]>([])
   const [reviewMode, setReviewMode] = useState(false)
@@ -190,20 +194,33 @@ export default function DrillScreen({
   // re-deal when difficulty changes (unless mid-feedback, reviewing, or in a lesson)
   useEffect(() => {
     if (!reviewMode && !result && !lesson)
-      setSpot(generateSpot(mode, { focus: focusOn ? focusCats : undefined, difficulty }))
+      setSpot(generateSpot(mode, { focus: focusOn ? focusCats : undefined, lockPos: focusPos ?? undefined, difficulty }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [difficulty])
 
-  // focus request from import
+  // targeted-drill request from the Leaks report or import
   useEffect(() => {
-    if (requestFocus && requestFocus.length) {
-      setFocusCats(new Set(requestFocus))
-      setFocusOn(true)
-      if (mode === 'postflop') setMode('rfi')
-      setSpot(generateSpot(mode === 'postflop' ? 'rfi' : mode, { focus: new Set(requestFocus) }))
-      setResult(null)
-      onFocusConsumed?.()
-    }
+    if (!requestFocus) return
+    const cats = requestFocus.cats?.length ? new Set(requestFocus.cats) : new Set<HandCategory>()
+    const nextMode = requestFocus.mode ?? (requestFocus.lockPos ? 'rfi' : mode === 'postflop' ? 'rfi' : mode)
+    const lockPos = requestFocus.lockPos ?? null
+    setFocusCats(cats)
+    setFocusOn(cats.size > 0)
+    setFocusPos(lockPos)
+    setFocusLabel(requestFocus.label ?? null)
+    setMode(nextMode)
+    setStreak(0)
+    setSpot(
+      generateSpot(nextMode, {
+        focus: cats.size > 0 ? cats : undefined,
+        lockPos: lockPos ?? undefined,
+        difficulty,
+      }),
+    )
+    setResult(null)
+    setCanContinue(false)
+    setShowHint(false)
+    onFocusConsumed?.()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestFocus])
 
@@ -211,7 +228,11 @@ export default function DrillScreen({
     setSpot(
       lesson
         ? generateSpot(lesson.mode, scopeOpts)
-        : generateSpot(m, { focus: focusOn ? focusCats : undefined, difficulty }),
+        : generateSpot(m, {
+            focus: focusOn ? focusCats : undefined,
+            lockPos: focusPos ?? undefined,
+            difficulty,
+          }),
     )
     setResult(null)
     setCanContinue(false)
@@ -254,10 +275,18 @@ export default function DrillScreen({
     dealNormal(m)
   }
 
+  const focusActive = focusOn || !!focusPos
+
   function toggleFocus() {
-    const on = !focusOn
-    setFocusOn(on)
-    if (on) weakCategories().then((cats) => setFocusCats(new Set(cats)))
+    if (focusActive) {
+      // clear any active focus (category bias + positional leak lock + banner)
+      setFocusOn(false)
+      setFocusPos(null)
+      setFocusLabel(null)
+    } else {
+      setFocusOn(true)
+      weakCategories().then((cats) => setFocusCats(new Set(cats)))
+    }
   }
 
   async function startReview() {
@@ -470,10 +499,11 @@ export default function DrillScreen({
           <button
             onClick={toggleFocus}
             className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border transition ${
-              focusOn ? 'bg-sage/15 border-sage/40 text-sage-dark' : 'bg-paper2 border-line text-ink2 hover:text-ink'
+              focusActive ? 'bg-sage/15 border-sage/40 text-sage-dark' : 'bg-paper2 border-line text-ink2 hover:text-ink'
             }`}
           >
-            <Zap size={13} /> Focus my leaks
+            <Zap size={13} /> {focusActive ? (focusLabel ?? 'Focusing leaks') : 'Focus my leaks'}
+            {focusActive && <X size={12} className="opacity-70" />}
           </button>
           {mistakeBadge > 0 && (
             <button

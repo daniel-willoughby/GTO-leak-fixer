@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { FileText, Zap, AlertCircle } from 'lucide-react'
 import { parseHandHistory, type ImportReport, type LeakBar } from '../lib/hhParser'
-import type { HandCategory } from '../lib/spot'
+import type { FocusRequest } from '../lib/spot'
 
 interface Props {
-  onDrillLeaks: (cats: HandCategory[]) => void
+  onDrillLeaks: (req: FocusRequest) => void
 }
 
 const SAMPLE = `PokerStars Hand #1: Hold'em No Limit ($0.05/$0.10) - 2024/01/01 12:00:00 ET
@@ -168,7 +168,7 @@ export default function ImportScreen({ onDrillLeaks }: Props) {
               )}
 
               {report.weakCategories.length > 0 && (
-                <button onClick={() => onDrillLeaks(report.weakCategories)} className="btn btn-primary w-full py-4 text-base flex items-center justify-center gap-2">
+                <button onClick={() => onDrillLeaks({ cats: report.weakCategories, label: 'Import leaks' })} className="btn btn-primary w-full py-4 text-base flex items-center justify-center gap-2">
                   <Zap size={18} /> Drill these leaks
                 </button>
               )}
