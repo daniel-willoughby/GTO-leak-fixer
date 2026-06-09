@@ -12,6 +12,8 @@ import {
   X,
   Lightbulb,
   Sparkles,
+  CalendarCheck,
+  Trophy,
 } from 'lucide-react'
 import {
   ACTION_LABEL,
@@ -35,6 +37,7 @@ import {
 } from '../lib/spot'
 import type { Level } from '../lib/level'
 import { lessonProgress, recordLessonCorrect } from '../lib/level'
+import { getDaily, recordDailyCorrect, isDailyDone, liveStreak, type DailyState } from '../lib/daily'
 import type { Lesson } from '../data/curriculum'
 import GlossaryText from './GlossaryText'
 import { isRfiHand, type Position, type RfiPosition } from '../data/ranges'
@@ -184,12 +187,23 @@ export default function DrillScreen({
   const [reviewQueue, setReviewQueue] = useState<MistakeRecord[]>([])
   const [reviewMode, setReviewMode] = useState(false)
   const [mistakeBadge, setMistakeBadge] = useState(0)
+  // daily challenge / streak
+  const [daily, setDaily] = useState<DailyState | null>(null)
+  const [dailyFlash, setDailyFlash] = useState<{ kind: 'done' | 'milestone'; streak: number } | null>(null)
 
-  // load weak categories + mistake count once
+  // load weak categories + mistake count + today's challenge state once
   useEffect(() => {
     weakCategories().then((cats) => setFocusCats(new Set(cats)))
     mistakeCount().then(setMistakeBadge)
+    setDaily(getDaily())
   }, [])
+
+  // auto-dismiss the daily celebration banner
+  useEffect(() => {
+    if (!dailyFlash) return
+    const t = setTimeout(() => setDailyFlash(null), 6000)
+    return () => clearTimeout(t)
+  }, [dailyFlash])
 
   // re-deal when difficulty changes (unless mid-feedback, reviewing, or in a lesson)
   useEffect(() => {
@@ -328,6 +342,13 @@ export default function DrillScreen({
       setStreak(0)
       playWrong()
     }
+    // daily challenge: every correct decision in free play counts toward today
+    if (!lesson && j.isCorrect) {
+      const tick = recordDailyCorrect()
+      setDaily(tick.state)
+      if (tick.milestone) setDailyFlash({ kind: 'milestone', streak: tick.milestone })
+      else if (tick.justCompleted) setDailyFlash({ kind: 'done', streak: tick.state.streak })
+    }
     // beginner lesson: advance the goal on every correct (or acceptable) answer
     if (lesson && j.isCorrect && !lessonDone) {
       const st = recordLessonCorrect(lesson.id, lesson.goal)
@@ -446,6 +467,54 @@ export default function DrillScreen({
 
   return (
     <div className="flex flex-col items-center gap-3 px-4 pb-28 lg:pb-12 pt-4 max-w-xl lg:max-w-5xl mx-auto">
+      {/* daily challenge: progress + streak (free play only) */}
+      {!lesson && daily && (
+        dailyFlash ? (
+          <div className="flex w-full animate-pop items-center gap-3 rounded-2xl border border-sage/40 bg-sage/10 px-4 py-3">
+            {dailyFlash.kind === 'milestone' ? (
+              <Trophy size={22} className="shrink-0 text-clay" />
+            ) : (
+              <Sparkles size={22} className="shrink-0 text-sage" />
+            )}
+            <span className="text-sm text-ink">
+              <span className="serif font-semibold">
+                {dailyFlash.kind === 'milestone'
+                  ? `${dailyFlash.streak}-day streak!`
+                  : 'Daily challenge complete.'}
+              </span>{' '}
+              {dailyFlash.kind === 'milestone'
+                ? 'Big milestone — keep the run alive tomorrow.'
+                : `Nice. Come back tomorrow to keep your ${dailyFlash.streak}-day streak going.`}
+            </span>
+          </div>
+        ) : (
+          <div className="flex w-full items-center gap-3 rounded-2xl border border-line bg-paper2 px-3 py-2">
+            <CalendarCheck size={16} className={isDailyDone(daily) ? 'text-sage' : 'text-ink3'} />
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex items-center justify-between text-xs text-ink2">
+                <span className="font-semibold uppercase tracking-wide text-ink3">
+                  {isDailyDone(daily) ? 'Daily done' : 'Daily challenge'}
+                </span>
+                <span className="tabular-nums">
+                  {Math.min(daily.count, daily.goal)}/{daily.goal}
+                </span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink/[0.07]">
+                <div
+                  className="h-full rounded-full bg-sage transition-all"
+                  style={{ width: `${Math.min(100, (daily.count / daily.goal) * 100)}%` }}
+                />
+              </div>
+            </div>
+            {liveStreak(daily) > 0 && (
+              <span className="flex shrink-0 items-center gap-1 rounded-full border border-clay/40 bg-clay/10 px-2.5 py-1 text-xs font-bold text-clay">
+                <Flame size={13} /> {liveStreak(daily)}
+              </span>
+            )}
+          </div>
+        )
+      )}
+
       {/* lesson header OR mode toggle OR review header */}
       {lesson ? (
         <div className="flex w-full flex-col gap-2">
