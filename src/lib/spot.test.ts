@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { judge, classifyHand, generateSpot, spotFromSeed, type Spot } from './spot'
 import { parseCards } from './cards'
+import { ALL_NODES } from '../data/postflop'
 
 describe('classifyHand', () => {
   it('classifies hand categories', () => {
@@ -67,5 +68,46 @@ describe('spotFromSeed', () => {
     const s = spotFromSeed({ mode: 'multiway', heroPos: 'CO', label: 'AA', matchupId: 'UTG_open_CO_cold' })!
     expect(s.matchupId).toBe('UTG_open_CO_cold')
     expect(s.correct).toBe('3bet')
+  })
+})
+
+const postflop3 = (freqs: [number, number, number], correct: 'check' | 'bet33' | 'bet75'): Spot =>
+  ({
+    mode: 'postflop',
+    heroPos: 'BTN',
+    cards: parseCards('AhKh'),
+    label: 'AKs',
+    correct,
+    actions: ['check', 'bet33', 'bet75'],
+    category: 'Suited ace',
+    board: parseCards('As8c3h'),
+    freqs,
+  }) as unknown as Spot
+
+describe('judge (bet-sizing, 3 actions)', () => {
+  it('scores each size by its own frequency', () => {
+    const s = (c: 'check' | 'bet33' | 'bet75') => postflop3([0.2, 0.5, 0.3], c)
+    expect(judge(s('bet33'), 'bet33').quality).toBe('correct')
+    expect(judge(s('bet33'), 'bet75').quality).toBe('acceptable') // 30% ≥ threshold
+    expect(judge(s('bet33'), 'check').quality).toBe('wrong') // 20% < threshold
+  })
+})
+
+describe('postflop data integrity', () => {
+  it('actions start with check, betSizes line up, and freqs sum to ~1', () => {
+    for (const n of ALL_NODES) {
+      expect(n.actions[0], n.board).toBe('check')
+      expect(n.betSizes.length, n.board).toBe(n.actions.length - 1)
+      for (const [lab, fr] of Object.entries(n.strategy)) {
+        expect(fr.length, `${n.board}/${lab}`).toBe(n.actions.length)
+        const sum = fr.reduce((a, b) => a + b, 0)
+        expect(Math.abs(sum - 1), `${n.board}/${lab} sum=${sum}`).toBeLessThan(0.03)
+      }
+    }
+  })
+
+  it('uses only known action tags', () => {
+    const ok = new Set(['check', 'bet33', 'bet75'])
+    for (const n of ALL_NODES) for (const a of n.actions) expect(ok.has(a), `${n.board}: ${a}`).toBe(true)
   })
 })

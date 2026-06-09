@@ -98,11 +98,13 @@ const ACTION_STYLE: Record<Action, string> = {
   '3bet': 'btn btn-primary',
   check: 'btn btn-secondary',
   bet: 'btn btn-primary',
+  bet33: 'btn btn-primary',
+  bet75: 'btn btn-primary',
   squeeze: 'btn btn-primary',
   'cold-4bet': 'btn btn-primary',
 }
 
-const KEY_HINT: Record<string, string> = { fold: 'F', call: 'C', raise: 'R', '3bet': 'T', check: 'K', bet: 'B', squeeze: 'S', 'cold-4bet': '4' }
+const KEY_HINT: Record<string, string> = { fold: 'F', call: 'C', raise: 'R', '3bet': 'T', check: 'K', bet: 'B', bet33: 'B', bet75: 'V', squeeze: 'S', 'cold-4bet': '4' }
 
 const MODES: { id: DrillMode; label: string }[] = [
   { id: 'rfi', label: 'Open' },
@@ -144,7 +146,9 @@ function freqFor(spot: Spot): ((label: string) => number | null) | undefined {
   const node = spot.node
   return (label) => {
     const s = strategyFor(node, label)
-    return s ? s.freqs[1] : null // freqs = [check, bet]
+    if (!s) return null
+    // total bet frequency across all sizes (B-style fill = how often you bet)
+    return node.actions.reduce((sum, a, i) => (a === 'check' ? sum : sum + (s.freqs[i] ?? 0)), 0)
   }
 }
 
@@ -305,6 +309,7 @@ export default function DrillScreen({
       !lesson &&
       spot.mode === 'postflop' &&
       !reviewMode &&
+      action !== 'bet75' && // continuation data follows the check / ⅓ line only
       (spot.handState?.street === 'flop' || spot.handState?.street === 'turn')
     ) {
       setCanContinue(!!buildContinuationSpot(spot.handState, action))
@@ -352,7 +357,8 @@ export default function DrillScreen({
       else if (k === 'c') answer('call')
       else if (k === 't') answer('3bet')
       else if (k === 'k') answer('check')
-      else if (k === 'b') answer('bet')
+      else if (k === 'b') answer(spot.actions.includes('bet33') ? 'bet33' : 'bet')
+      else if (k === 'v') answer('bet75')
       else if (k === 's') answer('squeeze')
       else if (k === '4') answer('cold-4bet')
     }

@@ -22,7 +22,7 @@ import {
 import { describeHand } from './flopEval'
 import type { Level } from './level'
 
-export type Action = 'fold' | 'raise' | 'call' | '3bet' | 'check' | 'bet' | 'squeeze' | 'cold-4bet'
+export type Action = 'fold' | 'raise' | 'call' | '3bet' | 'check' | 'bet' | 'bet33' | 'bet75' | 'squeeze' | 'cold-4bet'
 export type DrillMode = 'rfi' | 'vsRfi' | 'multiway' | 'postflop'
 
 export const ACTION_LABEL: Record<Action, string> = {
@@ -32,6 +32,8 @@ export const ACTION_LABEL: Record<Action, string> = {
   '3bet': '3-Bet',
   check: 'Check',
   bet: 'Bet',
+  bet33: 'Bet ⅓',
+  bet75: 'Bet ¾',
   squeeze: 'Squeeze',
   'cold-4bet': '4-Bet',
 }
@@ -236,8 +238,8 @@ export function spotFromSeed(seed: SpotSeed): Spot | null {
     heroPos: node.hero,
     cards: dealHandForLabel(label, board),
     label,
-    correct: strat.primary.startsWith('bet') ? 'bet' : 'check',
-    actions: ['check', 'bet'],
+    correct: strat.primary as Action,
+    actions: node.actions as Action[],
     category: classifyHand(label),
     board,
     node,
@@ -251,7 +253,7 @@ function generatePostflopSpot(): Spot {
   const label = randOf(nodeLabels(node))
   const cards = dealHandForLabel(label, board)
   const strat = strategyFor(node, label)!
-  const correct: Action = strat.primary.startsWith('bet') ? 'bet' : 'check'
+  const correct = strat.primary as Action
   const handState: HandState = {
     heroCards: cards,
     heroLabel: label,
@@ -266,7 +268,7 @@ function generatePostflopSpot(): Spot {
     cards,
     label,
     correct,
-    actions: ['check', 'bet'],
+    actions: node.actions as Action[],
     category: classifyHand(label),
     board,
     node,
@@ -294,7 +296,7 @@ function advanceToTurn(state: HandState, heroAction: Action): Spot | null {
   const turnCard = parseCards(node.board.slice(6))[0]
   const board = [...state.board, turnCard]
   const strat = strategyFor(node, state.heroLabel)!
-  const actionVerb = heroAction === 'bet' ? 'BTN bets 1.8bb, BB calls' : 'BTN checks back'
+  const actionVerb = heroAction === 'check' ? 'BTN checks back' : 'BTN bets 1.8bb, BB calls'
   const newState: HandState = {
     ...state,
     history: [...state.history, 'BB checks', actionVerb, `Turn: ${node.board.slice(6)}`],
@@ -307,8 +309,8 @@ function advanceToTurn(state: HandState, heroAction: Action): Spot | null {
     heroPos: node.hero,
     cards: state.heroCards,
     label: state.heroLabel,
-    correct: strat.primary.startsWith('bet') ? 'bet' : 'check',
-    actions: ['check', 'bet'],
+    correct: strat.primary as Action,
+    actions: node.actions as Action[],
     category: classifyHand(state.heroLabel),
     board,
     node,
@@ -325,7 +327,7 @@ function advanceToRiver(state: HandState, heroAction: Action): Spot | null {
   const riverCard = parseCards(node.board.slice(8))[0]
   const board = [...state.board, riverCard]
   const strat = strategyFor(node, state.heroLabel)!
-  const actionVerb = heroAction === 'bet' ? 'BTN bets, BB calls' : 'BTN checks back'
+  const actionVerb = heroAction === 'check' ? 'BTN checks back' : 'BTN bets, BB calls'
   const newState: HandState = {
     ...state,
     history: [...state.history, 'BB checks', actionVerb, `River: ${node.board.slice(8)}`],
@@ -337,8 +339,8 @@ function advanceToRiver(state: HandState, heroAction: Action): Spot | null {
     heroPos: node.hero,
     cards: state.heroCards,
     label: state.heroLabel,
-    correct: strat.primary.startsWith('bet') ? 'bet' : 'check',
-    actions: ['check', 'bet'],
+    correct: strat.primary as Action,
+    actions: node.actions as Action[],
     category: classifyHand(state.heroLabel),
     board,
     node,
@@ -356,7 +358,7 @@ function continueHand(state: HandState): Spot {
   const turnCard = parseCards(node.board.slice(6))[0]
   const board = [...state.board, turnCard]
   const strat = strategyFor(node, state.heroLabel) ?? strategyFor(node, randOf(nodeLabels(node)))!
-  const correct: Action = strat.primary.startsWith('bet') ? 'bet' : 'check'
+  const correct = strat.primary as Action
   const newState: HandState = { ...state, street: 'turn', board }
   return {
     mode: 'postflop',
@@ -364,7 +366,7 @@ function continueHand(state: HandState): Spot {
     cards: state.heroCards,
     label: state.heroLabel,
     correct,
-    actions: ['check', 'bet'],
+    actions: node.actions as Action[],
     category: classifyHand(state.heroLabel),
     board,
     node,
@@ -421,8 +423,10 @@ export function judge(spot: Spot, chosen: Action, level: Level = 'intermediate')
   if (chosen === spot.correct) {
     quality = 'correct'
   } else if (spot.mode === 'postflop' && spot.freqs) {
-    // postflop is a 2-action node: check=freqs[0], bet=freqs[1]
-    const chosenFreq = chosen === 'check' ? spot.freqs[0] : spot.freqs[1]
+    // postflop nodes carry N actions (check / bet⅓ / bet¾); score by the
+    // chosen action's own frequency so a defensible second size is acceptable.
+    const idx = spot.actions.indexOf(chosen)
+    const chosenFreq = idx >= 0 ? (spot.freqs[idx] ?? 0) : 0
     quality = chosenFreq >= ACCEPTABLE_FREQ ? 'acceptable' : 'wrong'
   } else {
     quality = 'wrong'
@@ -527,7 +531,8 @@ function explainPostflopBeginner(spot: Spot, chosen: Action): string {
   const board = spot.board!
   const desc = describeHand(spot.cards, board)
   const right = chosen === spot.correct
-  const verdict = right ? 'Correct.' : `The better play is usually to ${spot.correct === 'bet' ? 'bet' : 'check'}.`
+  const betWord = spot.correct === 'bet75' ? 'bet bigger (¾ pot)' : spot.correct === 'bet33' ? 'bet small (⅓ pot)' : 'bet'
+  const verdict = right ? 'Correct.' : `The better play is usually to ${spot.correct === 'check' ? 'check' : betWord}.`
   const reason: Record<typeof desc.tier, string> = {
     monster: `You have ${desc.text}, a huge hand. Bet for [value] to build the pot.`,
     strong: `You have ${desc.text}. Bet for [value] to get called by worse hands.`,
@@ -607,20 +612,34 @@ function boardTexture(board: Card[], street: 'flop' | 'turn' | 'river'): string 
   return 'On a neutral flop the raiser keeps a small range edge and mixes a small c-bet with checks.'
 }
 
+// Phrasings for the postflop actions (check / bet⅓ / bet¾, plus legacy bet).
+const POST_PHRASE: Partial<Record<Action, string>> = {
+  check: 'check back',
+  bet: 'bet',
+  bet33: 'bet small (⅓)',
+  bet75: 'bet big (¾)',
+}
+const POST_MIX: Partial<Record<Action, string>> = { check: 'check', bet: 'bet', bet33: 'bet ⅓', bet75: 'bet ¾' }
+
 function explainPostflop(spot: Spot, chosen: Action): string {
-  const checkPct = Math.round((spot.freqs?.[0] ?? 0) * 100)
-  const betPct = 100 - checkPct
   const board = spot.board!
   const street = spot.node?.street ?? 'flop'
   const desc = describeHand(spot.cards, board)
-  const mixed = checkPct > 15 && checkPct < 85
-  const chosenFreq = chosen === 'check' ? checkPct : betPct
+  const freqs = spot.freqs ?? []
+  const pct = (a: Action) => {
+    const i = spot.actions.indexOf(a)
+    return i >= 0 ? Math.round((freqs[i] ?? 0) * 100) : 0
+  }
+  const chosenPct = pct(chosen)
+  const correctPct = pct(spot.correct)
+  const topFreq = Math.max(...spot.actions.map((a) => pct(a)))
+  const phrase = (a: Action) => POST_PHRASE[a] ?? 'play this'
   const verdict =
     chosen === spot.correct
-      ? `Correct: GTO ${spot.correct === 'bet' ? 'bets' : 'checks'} ${spot.label} most often here.`
-      : chosenFreq >= ACCEPTABLE_FREQ * 100
-        ? `Fine: ${chosen === 'bet' ? 'betting' : 'checking'} is played ${chosenFreq}% here, so it's a defensible mixed choice.`
-        : `Not the top play: the solver ${spot.correct === 'bet' ? 'bets' : 'checks back'} ${spot.label} more often.`
+      ? `Correct: ${phrase(spot.correct)} is the solver's top choice (${correctPct}%).`
+      : chosenPct >= ACCEPTABLE_FREQ * 100
+        ? `Fine: ${phrase(chosen)} is played ${chosenPct}% here — a defensible mixed choice.`
+        : `Not the top play: the solver prefers to ${phrase(spot.correct)} (${correctPct}%).`
   const streetNote = street === 'river' ? ' on the river' : street === 'turn' ? ' on the turn' : ' on this flop'
   const reason: Record<typeof desc.tier, string> = {
     monster: `You have ${desc.text}${streetNote}, a near-lock that wants to build the pot.`,
@@ -630,8 +649,16 @@ function explainPostflop(spot: Spot, chosen: Action): string {
     weak: `You have ${desc.text}${streetNote}, a marginal made hand with modest showdown value.`,
     air: `You have ${desc.text}${streetNote}, with little showdown value, so it works as a check or a bluff.`,
   }
-  const freq = `Solver mix: bet ${betPct}% / check ${checkPct}%.${mixed ? ' Genuinely mixed: both are fine, lean to the majority.' : ''}`
-  return `${verdict} ${reason[desc.tier]} ${boardTexture(board, street)} ${freq}`
+  // a sizing note only when the correct play is a specific bet size
+  const sizeNote =
+    spot.correct === 'bet33'
+      ? ' The small size lets the button bet a wide range thinly and cheaply.'
+      : spot.correct === 'bet75'
+        ? ' The bigger size is for polarised spots — strong value plus the bluffs that want fold equity.'
+        : ''
+  const mix = spot.actions.map((a) => `${POST_MIX[a] ?? a} ${pct(a)}%`).join(' / ')
+  const mixed = topFreq < 85 ? ' Genuinely mixed — lean to the majority.' : ''
+  return `${verdict} ${reason[desc.tier]}${sizeNote} ${boardTexture(board, street)} Solver mix: ${mix}.${mixed}`
 }
 
 function explainRfi(spot: Spot, chosen: Action): string {

@@ -80,6 +80,54 @@ BTN c-bet node (root = OOP check/bet → `CHECK` child = IP facing a check).
   against GTO Wizard's free tier and gating the dataset on agreement.
 - **Turn / river decisions** multiply the tree; defer until the flop loop proves out.
 
+## Expanding the corpus: ~30 boards + bet-sizing (the v2 batch)
+
+The app is already wired for a **bet-sizing decision** (Check / Bet ⅓ / Bet ¾) and
+a ~30-board, texture-balanced set — the data layer is backward compatible, so the
+new sizes light up automatically once a 3-action `street-nodes.json` is dropped in.
+Producing that data is the only remaining step, and it must run on a **real machine**
+(see the environment note below).
+
+Pipeline (all three scripts are committed and validated against an existing dump):
+
+```bash
+# 1. Solve. Writes to a STAGING file — never clobbers live src/data.
+#    Resumable (.accum-flopturn.json); disk-safe (solves → extracts → deletes each
+#    150 MB dump before the next board). ~30 boards ≈ one overnight batch on 8 cores.
+node solver-spike/solve-boards.mjs            # → solver-spike/.street-nodes.staging.json
+
+# 2. Heuristic spot-check before trusting the batch: dry/high-card flops c-bet at
+#    high frequency and lean SMALL (⅓); the big (¾) size stays a minority; AA bets
+#    high; every node's frequencies sum to ~1.
+node solver-spike/validate.mjs
+
+# 3. Promote staging → src/data/street-nodes.json, then re-add river continuation
+#    from the turn-rooted dumps (transform-rivers.mjs).
+node solver-spike/finalize.mjs
+```
+
+Key facts baked into the scripts:
+
+- **Two flop bet sizes** are configured (`set_bet_sizes ip,flop,bet,33` **and** `…,75`).
+  The aggregator emits size-tagged actions `check / bet33 / bet75`. The solver's
+  **all-in** line (amount ≥ 25bb) is *excluded* and its tiny frequency folded into the
+  largest sizing bucket, so the app never shows a jam mislabelled as "¾".
+- `set_dump_rounds 2` → **flop + turn** come from the same batch (turn nodes naturally
+  emit `check / bet33`). **River** needs the separate turn-rooted re-solves; new boards
+  get flop+turn only and the app's `hasRiver()` gate hides the river-continue button
+  where data is absent. River continuation stays on the original boards.
+- Validate against the same heuristics (and optionally GTO Wizard's free tier) before
+  the full run, exactly as for the original spike.
+
+### ⚠️ Run the solver on your own machine
+
+`console_solver` **cannot run inside the Claude Code agent environment** — every
+invocation wedges in an uninterruptible (`UE`) state at 0% CPU with no output and
+can't be killed until reboot. All app wiring, tests, and the pipeline scripts above
+are finished and committed; the only thing left is to execute the three commands on
+your real desktop. After `finalize.mjs`, run `npm test` and `npm run build` to confirm
+the new 3-action nodes pass the data-integrity test, then commit `src/data/street-nodes.json`.
+
 ## Status
 
 🟢 **Spike proven with real solver data.** Toolchain builds, one
