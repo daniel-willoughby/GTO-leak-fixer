@@ -123,9 +123,14 @@ function modeStats(rows: DecisionRecord[]): ModeStats {
   }
 }
 
-/** A top leak, plus how to drill it (null when no targeted drill fits). */
+/** A top leak, plus how to fix it: a targeted drill, a matching lesson, and
+ *  whether it's closing (recent error rate vs earlier). */
 export interface TopLeak extends LeakStat {
   drill?: FocusRequest
+  /** Id of a lesson that teaches this leak, when one fits. */
+  lessonId?: string
+  /** Direction of the error rate over time. */
+  trend?: 'improving' | 'flat' | 'worse'
 }
 
 export interface LeakSummary {
@@ -145,6 +150,28 @@ const catDrill = (cat: string, mode: DrillMode): FocusRequest => ({ mode, cats: 
 const posDrill = (pos: string): FocusRequest | undefined =>
   RFI_SET.has(pos) ? { mode: 'rfi', lockPos: pos as RfiPosition, label: `${pos} opens` } : undefined
 
+/** A position leak maps to the lesson that teaches that seat. */
+const POS_LESSON: Record<string, string> = {
+  BTN: 'rfi-btn',
+  CO: 'rfi-co',
+  UTG: 'rfi-utg',
+  SB: 'rfi-sb',
+  BB: 'vsrfi-bb',
+}
+
+/** Is this leak closing? Compare the error rate of the recent half to the early half. */
+function leakTrend(rows: DecisionRecord[]): TopLeak['trend'] {
+  if (rows.length < 8) return undefined
+  const sorted = [...rows].sort((a, b) => a.ts - b.ts)
+  const half = Math.floor(sorted.length / 2)
+  const er = (arr: DecisionRecord[]) => (arr.length ? arr.filter((d) => !d.isCorrect).length / arr.length : 0)
+  const early = er(sorted.slice(0, half))
+  const recent = er(sorted.slice(half))
+  if (recent <= early - 0.12) return 'improving'
+  if (recent >= early + 0.12) return 'worse'
+  return 'flat'
+}
+
 export async function getLeakSummary(): Promise<LeakSummary> {
   const all = await db.decisions.toArray()
   const pre = all.filter((d) => (d.mode ?? 'rfi') !== 'postflop')
@@ -156,9 +183,26 @@ export async function getLeakSummary(): Promise<LeakSummary> {
   const postStats = modeStats(post)
 
   const topLeaks: TopLeak[] = [
-    ...preStats.byCategory.map((s) => ({ ...s, key: `${s.key} (preflop)`, drill: catDrill(s.key, 'rfi') })),
-    ...preStats.byContext.map((s) => ({ ...s, key: `${s.key} (preflop)`, drill: posDrill(s.key) })),
-    ...postStats.byCategory.map((s) => ({ ...s, key: `${s.key} (postflop)`, drill: catDrill(s.key, 'postflop') })),
+    ...preStats.byCategory.map((s) => ({
+      ...s,
+      key: `${s.key} (preflop)`,
+      drill: catDrill(s.key, 'rfi'),
+      trend: leakTrend(pre.filter((d) => d.category === s.key)),
+    })),
+    ...preStats.byContext.map((s) => ({
+      ...s,
+      key: `${s.key} (preflop)`,
+      drill: posDrill(s.key),
+      lessonId: POS_LESSON[s.key],
+      trend: leakTrend(pre.filter((d) => (d.context ?? d.position) === s.key)),
+    })),
+    ...postStats.byCategory.map((s) => ({
+      ...s,
+      key: `${s.key} (postflop)`,
+      drill: catDrill(s.key, 'postflop'),
+      lessonId: 'postflop',
+      trend: leakTrend(post.filter((d) => d.category === s.key)),
+    })),
   ]
     .filter((s) => s.attempts >= 4 && s.errorRate > 0)
     .sort((a, b) => b.errorRate - a.errorRate || b.attempts - a.attempts)

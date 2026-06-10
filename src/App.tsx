@@ -32,6 +32,7 @@ export default function App() {
   const [progress, setProgress] = useState(0)
   const [muted, setMutedState] = useState(isMuted())
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null)
+  const [openLessonId, setOpenLessonId] = useState<string | null>(null)
   const [difficulty, setDifficulty] = useState<Difficulty>(
     () => (localStorage.getItem('lt-difficulty') as Difficulty) || 'all',
   )
@@ -62,6 +63,11 @@ export default function App() {
     // new object identity each time so the DrillScreen effect always re-fires
     setFocusRequest({ ...req })
     setTab('drill')
+  }
+
+  function openLesson(lessonId: string) {
+    setOpenLessonId(lessonId)
+    setTab('lessons')
   }
 
   return (
@@ -135,8 +141,14 @@ export default function App() {
             difficulty={difficulty}
           />
         )}
-        {tab === 'lessons' && <LessonsScreen onProgress={() => setProgress((p) => p + 1)} />}
-        {tab === 'leaks' && <LeaksScreen version={progress} onDrillLeaks={drillLeaks} />}
+        {tab === 'lessons' && (
+          <LessonsScreen
+            onProgress={() => setProgress((p) => p + 1)}
+            openLessonId={openLessonId}
+            onOpened={() => setOpenLessonId(null)}
+          />
+        )}
+        {tab === 'leaks' && <LeaksScreen version={progress} onDrillLeaks={drillLeaks} onOpenLesson={openLesson} />}
         {tab === 'import' && <ImportScreen onDrillLeaks={drillLeaks} />}
         {tab === 'learn' && <LearnScreen />}
       </main>

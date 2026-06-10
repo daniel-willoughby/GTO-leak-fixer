@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, ArrowRight, ArrowLeft, Sparkles, GraduationCap, BookOpen, Trophy } from 'lucide-react'
 import { CURRICULUM, lessonById, type Lesson } from '../data/curriculum'
 import { lessonProgress, curriculumComplete } from '../lib/level'
@@ -7,6 +7,9 @@ import DrillScreen from './DrillScreen'
 
 interface Props {
   onProgress: () => void
+  /** When set (e.g. from a leak's "Learn" button), jump straight into this lesson. */
+  openLessonId?: string | null
+  onOpened?: () => void
 }
 
 type View = 'list' | 'intro' | 'drill'
@@ -22,11 +25,21 @@ function teaser(concept: string): string {
   return end === -1 ? plain : plain.slice(0, end + 1)
 }
 
-export default function LessonsScreen({ onProgress }: Props) {
+export default function LessonsScreen({ onProgress, openLessonId, onOpened }: Props) {
   const [view, setView] = useState<View>('list')
   const [activeId, setActiveId] = useState<string | null>(null)
   const [, setTick] = useState(0) // bump to re-read localStorage progress after a lesson
   const refresh = () => setTick((t) => t + 1)
+
+  // jump straight into a lesson requested from elsewhere (e.g. a leak's "Learn")
+  useEffect(() => {
+    if (openLessonId && lessonById(openLessonId)) {
+      setActiveId(openLessonId)
+      setView('intro')
+      onOpened?.()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openLessonId])
 
   const active = activeId ? lessonById(activeId) : null
 

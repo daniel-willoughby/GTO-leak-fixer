@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Target, RotateCcw, Layers, Spade, TrendingUp, TrendingDown, LineChart, Zap } from 'lucide-react'
+import { Target, RotateCcw, Layers, Spade, TrendingUp, TrendingDown, LineChart, Zap, GraduationCap, Minus } from 'lucide-react'
 import {
   getLeakSummary,
   progressTrend,
@@ -8,12 +8,60 @@ import {
   type LeakSummary,
   type ModeStats,
   type ProgressTrend,
+  type TopLeak,
 } from '../lib/db'
+import { lessonById } from '../data/curriculum'
 import type { FocusRequest } from '../lib/spot'
 
 interface Props {
   version: number // bump to force refresh
   onDrillLeaks: (req: FocusRequest) => void
+  onOpenLesson: (lessonId: string) => void
+}
+
+function TrendBadge({ trend }: { trend: TopLeak['trend'] }) {
+  if (!trend) return null
+  const map = {
+    improving: { icon: TrendingUp, cls: 'text-sage-dark bg-sage/12 border-sage/30', label: 'improving' },
+    worse: { icon: TrendingDown, cls: 'text-clay bg-clay/10 border-clay/30', label: 'getting worse' },
+    flat: { icon: Minus, cls: 'text-ink3 bg-ink/[0.05] border-line', label: 'steady' },
+  } as const
+  const { icon: Icon, cls, label } = map[trend]
+  return (
+    <span className={`flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${cls}`}>
+      <Icon size={11} /> {label}
+    </span>
+  )
+}
+
+function FixActions({
+  leak,
+  onDrillLeaks,
+  onOpenLesson,
+}: {
+  leak: TopLeak
+  onDrillLeaks: (req: FocusRequest) => void
+  onOpenLesson: (lessonId: string) => void
+}) {
+  const lesson = leak.lessonId ? lessonById(leak.lessonId) : undefined
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      {lesson && (
+        <button
+          onClick={() => onOpenLesson(lesson.id)}
+          className="btn btn-secondary px-3 py-2 text-sm flex items-center gap-1.5"
+          title={lesson.title}
+        >
+          <GraduationCap size={14} /> Learn
+        </button>
+      )}
+      {leak.drill && (
+        <button onClick={() => onDrillLeaks(leak.drill!)} className="btn btn-primary px-3 py-2 text-sm flex items-center gap-1.5">
+          <Zap size={14} /> Drill
+        </button>
+      )}
+    </div>
+  )
 }
 
 function ProgressChart({ trend }: { trend: ProgressTrend }) {
@@ -107,7 +155,7 @@ function ModeSection({
   )
 }
 
-export default function LeaksScreen({ version, onDrillLeaks }: Props) {
+export default function LeaksScreen({ version, onDrillLeaks, onOpenLesson }: Props) {
   const [sum, setSum] = useState<LeakSummary | null>(null)
   const [trend, setTrend] = useState<ProgressTrend | null>(null)
 
@@ -150,34 +198,49 @@ export default function LeaksScreen({ version, onDrillLeaks }: Props) {
       {trend && <ProgressChart trend={trend} />}
 
       <section>
-        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <Target size={20} className="text-clay" /> Your top leaks
+        <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
+          <Target size={20} className="text-clay" /> Your fix plan
         </h2>
         {sum.topLeaks.length === 0 ? (
           <p className="text-ink2 text-sm">
             No clear leaks yet. Keep playing (need 4+ hands per group to flag one). Nice and tight!
           </p>
         ) : (
-          <div className="flex flex-col gap-3">
-            {sum.topLeaks.map((l) => (
-              <div key={l.key} className="rounded-xl bg-clay/10 border border-clay/30 p-3 flex items-center gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-clay truncate">{l.key}</div>
-                  <div className="text-sm text-ink2">
-                    Wrong {Math.round(l.errorRate * 100)}% of the time ({l.errors} of {l.attempts}).
+          <>
+            <p className="mb-3 text-sm text-ink2">Work these in order — drill the spot, then learn the why.</p>
+            <div className="flex flex-col gap-3">
+              {sum.topLeaks.map((l, i) => (
+                <div
+                  key={l.key}
+                  className={`rounded-xl border p-3.5 ${
+                    i === 0 ? 'bg-clay/10 border-clay/30' : 'bg-paper2 border-line'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                        i === 0 ? 'bg-clay text-white' : 'bg-ink/[0.06] text-ink2'
+                      }`}
+                    >
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`truncate font-semibold ${i === 0 ? 'text-clay' : 'text-ink'}`}>{l.key}</span>
+                        <TrendBadge trend={l.trend} />
+                      </div>
+                      <div className="text-sm text-ink2">
+                        Wrong {Math.round(l.errorRate * 100)}% of the time ({l.errors} of {l.attempts}).
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex justify-end">
+                    <FixActions leak={l} onDrillLeaks={onDrillLeaks} onOpenLesson={onOpenLesson} />
                   </div>
                 </div>
-                {l.drill && (
-                  <button
-                    onClick={() => onDrillLeaks(l.drill!)}
-                    className="btn btn-primary shrink-0 px-3 py-2 text-sm flex items-center gap-1.5"
-                  >
-                    <Zap size={14} /> Drill
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </section>
 
