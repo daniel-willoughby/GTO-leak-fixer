@@ -14,6 +14,7 @@ import {
   Sparkles,
   CalendarCheck,
   Trophy,
+  ChevronDown,
 } from 'lucide-react'
 import {
   ACTION_LABEL,
@@ -112,15 +113,9 @@ const ACTION_STYLE: Record<Action, string> = {
 
 const KEY_HINT: Record<string, string> = { fold: 'F', call: 'C', raise: 'R', '3bet': 'T', check: 'K', bet: 'B', bet33: 'B', bet75: 'V', squeeze: 'S', 'cold-4bet': '4' }
 
-// Drill modes are grouped under three headers. Preflop holds the open/defend
-// situations; Postflop is single c-bet decisions; Continuation plays a whole
-// hand street by street.
-type Category = 'preflop' | 'postflop' | 'continuation'
-const CATEGORIES: { id: Category; label: string }[] = [
-  { id: 'preflop', label: 'Preflop' },
-  { id: 'postflop', label: 'Postflop' },
-  { id: 'continuation', label: 'Continuation' },
-]
+// Two drill sections: Preflop (open / defend situations) and Continuation (play
+// a whole hand street by street). Postflop decisions live inside Continuation.
+type Category = 'preflop' | 'continuation'
 const PREFLOP_MODES: { id: DrillMode; label: string }[] = [
   { id: 'rfi', label: 'Open' },
   { id: 'vsRfi', label: 'vs Raise' },
@@ -184,6 +179,8 @@ export default function DrillScreen({
   const [fullHand, setFullHand] = useState(false)
   // remembers the last preflop sub-mode so the Preflop tab restores it
   const lastPreflopMode = useRef<DrillMode>('rfi')
+  // the preflop sub-menu only shows while open; it collapses after a pick
+  const [preflopMenuOpen, setPreflopMenuOpen] = useState(false)
   const [spot, setSpot] = useState<Spot>(() => generateSpot(lesson ? lesson.mode : 'rfi', scopeOpts))
   const [result, setResult] = useState<Judgement | null>(null)
   const [streak, setStreak] = useState(0)
@@ -304,7 +301,8 @@ export default function DrillScreen({
     }
   }
 
-  const category: Category = fullHand ? 'continuation' : mode === 'postflop' ? 'postflop' : 'preflop'
+  const category: Category = fullHand ? 'continuation' : 'preflop'
+  const preflopLabel = PREFLOP_MODES.find((m) => m.id === mode)?.label ?? 'Preflop'
 
   function applyMode(m: DrillMode, fh: boolean) {
     if (reviewMode || lesson) return
@@ -314,12 +312,6 @@ export default function DrillScreen({
     setFullHand(fh)
     setStreak(0)
     dealNormal(m, fh)
-  }
-
-  function selectCategory(cat: Category) {
-    if (cat === 'preflop') applyMode(lastPreflopMode.current, false)
-    else if (cat === 'postflop') applyMode('postflop', false)
-    else applyMode('postflop', true)
   }
 
   const focusActive = focusOn || !!focusPos
@@ -562,27 +554,46 @@ export default function DrillScreen({
         </div>
       ) : (
         <div className="flex w-full flex-col gap-1.5">
-          {/* category headers */}
           <div className="flex gap-1 p-1 rounded-2xl bg-ink/[0.06] border border-line text-sm w-full">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => selectCategory(c.id)}
-                className={`flex-1 px-1.5 py-2 rounded-xl font-semibold transition text-xs ${
-                  category === c.id ? 'bg-sage text-white shadow-[0_4px_12px_-4px_rgba(67,84,72,0.6)]' : 'text-ink2 hover:text-ink'
-                }`}
-              >
-                {c.label}
-              </button>
-            ))}
+            {/* Preflop — a dropdown that shows the active situation, collapses after a pick */}
+            <button
+              onClick={() => {
+                if (category === 'preflop') setPreflopMenuOpen((o) => !o)
+                else {
+                  applyMode(lastPreflopMode.current, false)
+                  setPreflopMenuOpen(false)
+                }
+              }}
+              className={`flex flex-1 items-center justify-center gap-1 px-1.5 py-2 rounded-xl font-semibold transition text-xs ${
+                category === 'preflop' ? 'bg-sage text-white shadow-[0_4px_12px_-4px_rgba(67,84,72,0.6)]' : 'text-ink2 hover:text-ink'
+              }`}
+            >
+              {category === 'preflop' ? preflopLabel : 'Preflop'}
+              <ChevronDown size={12} className={`transition-transform ${preflopMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {/* Continuation — play a whole hand */}
+            <button
+              onClick={() => {
+                setPreflopMenuOpen(false)
+                applyMode('postflop', true)
+              }}
+              className={`flex-1 px-1.5 py-2 rounded-xl font-semibold transition text-xs ${
+                category === 'continuation' ? 'bg-sage text-white shadow-[0_4px_12px_-4px_rgba(67,84,72,0.6)]' : 'text-ink2 hover:text-ink'
+              }`}
+            >
+              Continuation
+            </button>
           </div>
-          {/* preflop situations */}
-          {category === 'preflop' && (
+          {/* preflop situations — only while the menu is open, collapses on select */}
+          {category === 'preflop' && preflopMenuOpen && (
             <div className="flex w-full gap-1 px-0.5">
               {PREFLOP_MODES.map((m) => (
                 <button
                   key={m.id}
-                  onClick={() => applyMode(m.id, false)}
+                  onClick={() => {
+                    applyMode(m.id, false)
+                    setPreflopMenuOpen(false)
+                  }}
                   className={`flex-1 rounded-lg border px-1.5 py-1.5 text-xs font-semibold transition ${
                     mode === m.id ? 'bg-sage/15 border-sage/40 text-sage-dark' : 'bg-paper2 border-line text-ink2 hover:text-ink'
                   }`}
@@ -591,13 +602,6 @@ export default function DrillScreen({
                 </button>
               ))}
             </div>
-          )}
-          {/* one-line descriptor for the postflop modes */}
-          {category === 'postflop' && (
-            <p className="px-1 text-xs text-ink3">One c-bet decision per hand — BTN vs BB on the flop.</p>
-          )}
-          {category === 'continuation' && (
-            <p className="px-1 text-xs text-ink3">Play a whole hand — open the button, then flop, turn, river.</p>
           )}
         </div>
       )}
