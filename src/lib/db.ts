@@ -219,7 +219,9 @@ export async function getLeakSummary(): Promise<LeakSummary> {
 }
 
 export async function resetProgress(): Promise<void> {
+  // a full reset: the decision log AND the queued-mistake review pile
   await db.decisions.clear()
+  await db.mistakes.clear()
 }
 
 // ---- cloud-sync export / import --------------------------------------------

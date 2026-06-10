@@ -122,3 +122,18 @@ export function expandRange(tokens: string[]): Set<string> {
 }
 
 export const cardStr = (c: Card): string => `${c.rank}${c.suit}`
+
+const SUIT_GLYPH: Record<string, string> = { s: '♠', h: '♥', d: '♦', c: '♣' }
+const BOARD_CODE = /^([2-9TJQKA][shdc]){3,5}$/
+
+/**
+ * Pretty-print a raw board code for display, separating the flop from later
+ * streets: "Qs8s4s2c" → "Q♠ 8♠ 4♠ · 2♣". Returns non-board strings unchanged
+ * (the leak tracker mixes board keys with positions and hand types).
+ */
+export function formatBoardCode(code: string): string {
+  if (!BOARD_CODE.test(code)) return code
+  const cards = code.match(/../g)!.map((c) => `${c[0]}${SUIT_GLYPH[c[1]]}`)
+  const flop = cards.slice(0, 3).join(' ')
+  return cards.length === 3 ? flop : `${flop} · ${cards.slice(3).join(' ')}`
+}

@@ -37,6 +37,7 @@ import {
   type HandCategory,
   type Judgement,
   type Spot,
+  type VillainStyle,
 } from '../lib/spot'
 import type { Level } from '../lib/level'
 import { lessonProgress, recordLessonCorrect } from '../lib/level'
@@ -63,7 +64,8 @@ import RangeGrid, { type CellKind } from './RangeGrid'
 
 /** Chips in front of each seat for the current spot (blinds, opens, calls, 3-bets). */
 function chipsFor(spot: Spot): Chip[] {
-  if (spot.mode === 'postflop') return []
+  if (spot.mode === 'postflop')
+    return spot.facingBet ? [{ pos: 'BB', amount: spot.facingBet.amountBb, tone: 'bet' }] : []
   if (spot.mode === 'multiway') {
     const m = multiwayOf(spot)
     if (!m) return []
@@ -181,6 +183,9 @@ export default function DrillScreen({
   const lastPreflopMode = useRef<DrillMode>('rfi')
   // the preflop sub-menu only shows while open; it collapses after a pick
   const [preflopMenuOpen, setPreflopMenuOpen] = useState(false)
+  // continuation opponent: solver-perfect or a loose fish (sub-menu like preflop's)
+  const [villainStyle, setVillainStyle] = useState<VillainStyle>('gto')
+  const [contMenuOpen, setContMenuOpen] = useState(false)
   const [spot, setSpot] = useState<Spot>(() => generateSpot(lesson ? lesson.mode : 'rfi', scopeOpts))
   const [result, setResult] = useState<Judgement | null>(null)
   const [streak, setStreak] = useState(0)
@@ -349,7 +354,7 @@ export default function DrillScreen({
     // continuation: preflop open → flop, then flop/turn → next street
     const continuation =
       spot.mode === 'rfi'
-        ? advanceToFlop(spot.label, spot.cards)
+        ? advanceToFlop(spot.label, spot.cards, villainStyle)
         : spot.handState
           ? buildContinuationSpot(spot.handState, result.chosen)
           : null
@@ -393,11 +398,8 @@ export default function DrillScreen({
       if (spot.mode === 'rfi' && action === 'raise') {
         // continuation: opened the button → deal the flop next
         setCanContinue(canStartFlop(spot.label, spot.cards))
-      } else if (
-        spot.mode === 'postflop' &&
-        action !== 'bet75' && // continuation data follows the check / ⅓ line only
-        (spot.handState?.street === 'flop' || spot.handState?.street === 'turn')
-      ) {
+      } else if (spot.mode === 'postflop' && (spot.handState?.street === 'flop' || spot.handState?.street === 'turn')) {
+        // play the hand on regardless of whether the decision was correct
         setCanContinue(!!buildContinuationSpot(spot.handState, action))
       }
     }
@@ -507,7 +509,7 @@ export default function DrillScreen({
     <div className="flex flex-col items-center gap-3 px-4 pb-28 lg:pb-12 pt-4 max-w-xl lg:max-w-5xl mx-auto">
       {/* daily challenge celebration — transient, only on completion / milestone */}
       {!lesson && dailyFlash && (
-        <div className="flex w-full animate-pop items-center gap-3 rounded-2xl border border-sage/40 bg-sage/10 px-4 py-3">
+        <div className="flex w-full lg:max-w-2xl lg:mx-auto animate-pop items-center gap-3 rounded-2xl border border-sage/40 bg-sage/10 px-4 py-3">
           {dailyFlash.kind === 'milestone' ? (
             <Trophy size={22} className="shrink-0 text-clay" />
           ) : (
@@ -547,7 +549,7 @@ export default function DrillScreen({
           </div>
         </div>
       ) : reviewMode ? (
-        <div className="flex items-center justify-between w-full rounded-2xl bg-sage/12 border border-sage/30 px-3 py-2">
+        <div className="flex items-center justify-between w-full lg:max-w-2xl lg:mx-auto rounded-2xl bg-sage/12 border border-sage/30 px-3 py-2">
           <span className="flex items-center gap-2 text-sage-dark font-semibold text-sm">
             <Repeat2 size={16} /> Reviewing mistakes · {reviewQueue.length} left
           </span>
@@ -556,7 +558,7 @@ export default function DrillScreen({
           </button>
         </div>
       ) : (
-        <div className="flex w-full flex-col gap-1.5">
+        <div className="flex w-full flex-col gap-1.5 lg:max-w-2xl lg:mx-auto">
           <div className="flex gap-1 p-1 rounded-2xl bg-ink/[0.06] border border-line text-sm w-full">
             {/* Preflop — a dropdown that shows the active situation, collapses after a pick */}
             <button
@@ -574,17 +576,22 @@ export default function DrillScreen({
               {category === 'preflop' ? preflopLabel : 'Preflop'}
               <ChevronDown size={12} className={`transition-transform ${preflopMenuOpen ? 'rotate-180' : ''}`} />
             </button>
-            {/* Continuation — play a whole hand */}
+            {/* Continuation — play a whole hand; dropdown picks the opponent */}
             <button
               onClick={() => {
                 setPreflopMenuOpen(false)
-                applyMode('postflop', true)
+                if (category === 'continuation') setContMenuOpen((o) => !o)
+                else {
+                  applyMode('postflop', true)
+                  setContMenuOpen(false)
+                }
               }}
-              className={`flex-1 px-1.5 py-2 rounded-xl font-semibold transition text-xs ${
+              className={`flex flex-1 items-center justify-center gap-1 px-1.5 py-2 rounded-xl font-semibold transition text-xs ${
                 category === 'continuation' ? 'bg-sage text-white shadow-[0_4px_12px_-4px_rgba(67,84,72,0.6)]' : 'text-ink2 hover:text-ink'
               }`}
             >
-              Continuation
+              {category === 'continuation' ? `Continuation · ${villainStyle === 'fish' ? 'vs Fish' : 'vs GTO'}` : 'Continuation'}
+              <ChevronDown size={12} className={`transition-transform ${contMenuOpen ? 'rotate-180' : ''}`} />
             </button>
           </div>
           {/* preflop situations — only while the menu is open, collapses on select */}
@@ -606,12 +613,41 @@ export default function DrillScreen({
               ))}
             </div>
           )}
+          {/* continuation opponent — collapses on select */}
+          {category === 'continuation' && contMenuOpen && (
+            <div className="flex w-full gap-1 px-0.5">
+              {(
+                [
+                  { id: 'gto', label: 'vs GTO', note: 'solver-perfect opponent' },
+                  { id: 'fish', label: 'vs Fish', note: 'loose player — exploit them' },
+                ] as { id: VillainStyle; label: string; note: string }[]
+              ).map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => {
+                    setContMenuOpen(false)
+                    if (v.id !== villainStyle) {
+                      setVillainStyle(v.id)
+                      setStreak(0)
+                      dealNormal('postflop', true)
+                    }
+                  }}
+                  className={`flex-1 rounded-lg border px-1.5 py-1.5 text-xs font-semibold transition ${
+                    villainStyle === v.id ? 'bg-sage/15 border-sage/40 text-sage-dark' : 'bg-paper2 border-line text-ink2 hover:text-ink'
+                  }`}
+                >
+                  {v.label}
+                  <span className="block text-[10px] font-normal text-ink3">{v.note}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {/* focus + review controls */}
       {!reviewMode && !lesson && (
-        <div className="flex items-center justify-between w-full gap-2">
+        <div className="flex items-center justify-between w-full lg:max-w-2xl lg:mx-auto gap-2">
           <button
             onClick={toggleFocus}
             className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border transition ${
@@ -681,7 +717,11 @@ export default function DrillScreen({
         chips={chipsFor(spot)}
         pot={spot.mode === 'postflop' ? (street === 'river' ? 15 : street === 'turn' ? 9 : 5.5) : undefined}
         board={spot.board}
-        villain={spot.mode === 'postflop' ? { pos: 'BB', note: 'checks' } : undefined}
+        villain={
+          spot.mode === 'postflop'
+            ? { pos: 'BB', note: spot.facingBet ? `bets ${spot.facingBet.amountBb}bb` : 'checks' }
+            : undefined
+        }
       />
         </div>
 
@@ -739,21 +779,24 @@ export default function DrillScreen({
               <span className="text-ink">{result.explanation}</span>
             )}
           </div>
-          <div className="w-full">
-            <p className="text-xs text-ink2 mb-2 text-center">
-              {gridLabel}:&nbsp;
-              {spot.mode === 'postflop' ? (
-                <span className="text-sage-dark font-medium">sage fill = bet frequency</span>
-              ) : (
-                <span className="text-sage-dark font-medium">
-                  sage = {spot.mode === 'rfi' ? 'raise' : spot.mode === 'vsRfi' ? '3bet' : 'raise'}
-                </span>
-              )}
-              {spot.mode === 'vsRfi' && <span className="text-dblue font-medium">, blue = call</span>}
-              , ring = your hand
-            </p>
-            <RangeGrid cell={cellFor(spot)} freq={freqFor(spot)} highlight={spot.label} />
-          </div>
+          {/* range grid — hidden for facing-bet spots (exploit reads, not a solver range) */}
+          {!spot.facingBet && (
+            <div className="w-full">
+              <p className="text-xs text-ink2 mb-2 text-center">
+                {gridLabel}:&nbsp;
+                {spot.mode === 'postflop' ? (
+                  <span className="text-sage-dark font-medium">sage fill = bet frequency</span>
+                ) : (
+                  <span className="text-sage-dark font-medium">
+                    sage = {spot.mode === 'rfi' ? 'raise' : spot.mode === 'vsRfi' ? '3bet' : 'raise'}
+                  </span>
+                )}
+                {spot.mode === 'vsRfi' && <span className="text-dblue font-medium">, blue = call</span>}
+                , ring = your hand
+              </p>
+              <RangeGrid cell={cellFor(spot)} freq={freqFor(spot)} highlight={spot.label} />
+            </div>
+          )}
         </div>
       )}
 

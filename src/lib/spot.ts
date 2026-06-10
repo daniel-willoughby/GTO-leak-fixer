@@ -19,7 +19,7 @@ import {
   turnNodesForFlop,
   type StreetNode,
 } from '../data/postflop'
-import { describeHand } from './flopEval'
+import { describeHand, type Tier } from './flopEval'
 import type { Level } from './level'
 
 export type Action = 'fold' | 'raise' | 'call' | '3bet' | 'check' | 'bet' | 'bet33' | 'bet75' | 'squeeze' | 'cold-4bet'
@@ -56,7 +56,14 @@ export interface Spot {
   freqs?: number[]
   // multi-street continuation
   handState?: HandState
+  /** Set when the villain has bet into hero (fish donk) — fold/call/raise spot. */
+  facingBet?: { amountBb: number }
+  /** Second-best answers for heuristic (facing-bet) spots. */
+  acceptable?: Action[]
 }
+
+/** Who the continuation opponent is: solver-perfect, or a loose live-game fish. */
+export type VillainStyle = 'gto' | 'fish'
 
 /** Tracks a running postflop hand across streets so the user can continue. */
 export interface HandState {
@@ -69,6 +76,10 @@ export interface HandState {
   board: Card[]
   /** Action hero took on flop */
   heroFlopAction?: Action
+  /** Continuation opponent style (defaults to gto). */
+  villain?: VillainStyle
+  /** Amount the villain bet into hero on the current street, when they did. */
+  facedBet?: number
 }
 
 const ALL_LABELS: string[] = Array.from(new Set(gridLabels().flat()))
@@ -295,12 +306,55 @@ function generatePostflopSpot(): Spot {
   }
 }
 
+// ---- the fish: a loose live-game villain for Continuation -------------------
+
+/** How often the fish leads (donk-bets) into hero, per street. */
+const FISH_DONK: Record<HandState['street'], number> = { flop: 0.3, turn: 0.35, river: 0.4 }
+/** Fish lead size in bb (~half pot at our fixed pot sizes). */
+const FISH_BET: Record<HandState['street'], number> = { flop: 2.7, turn: 4.5, river: 7.5 }
+
+/**
+ * Exploit grading vs a fish who bets far too often and rarely folds: raise big
+ * hands for value, bluff-catch pairs, take the price with draws, never bluff.
+ */
+export function gradeVsDonk(tier: Tier, street: HandState['street']): { correct: Action; acceptable: Action[] } {
+  if (tier === 'monster' || tier === 'strong') return { correct: 'raise', acceptable: ['call'] }
+  if (tier === 'top') return { correct: 'call', acceptable: ['raise'] }
+  if (tier === 'weak') return { correct: 'call', acceptable: ['fold'] }
+  if (tier === 'draw')
+    return street === 'river' ? { correct: 'fold', acceptable: [] } : { correct: 'call', acceptable: [] }
+  return { correct: 'fold', acceptable: [] } // air
+}
+
+/** Build a "BB leads into you" spot for the given street node. */
+function makeFacingBetSpot(node: StreetNode, board: Card[], state: HandState): Spot {
+  const amountBb = FISH_BET[state.street]
+  const facedState: HandState = { ...state, facedBet: amountBb }
+  const { correct, acceptable } = gradeVsDonk(describeHand(state.heroCards, board).tier, state.street)
+  return {
+    mode: 'postflop',
+    heroPos: node.hero,
+    cards: state.heroCards,
+    label: state.heroLabel,
+    correct,
+    acceptable,
+    actions: ['fold', 'call', 'raise'],
+    category: classifyHand(state.heroLabel),
+    board,
+    node,
+    facingBet: { amountBb },
+    handState: facedState,
+  }
+}
+
+const fishDonks = (state: HandState): boolean => state.villain === 'fish' && Math.random() < FISH_DONK[state.street]
+
 /**
  * Continuation play: hero opened the button preflop and BB called — deal the
  * flop using the hero's existing hole cards, on a board that doesn't collide
  * with them. Returns null if the hand isn't in the BTN c-bet range (no data).
  */
-export function advanceToFlop(heroLabel: string, heroCards: [Card, Card]): Spot | null {
+export function advanceToFlop(heroLabel: string, heroCards: [Card, Card], villain: VillainStyle = 'gto'): Spot | null {
   const used = new Set(heroCards.map((c) => c.rank + c.suit))
   const candidates = FLOP_NODES.filter(
     (n) => !!strategyFor(n, heroLabel) && boardCards(n).every((c) => !used.has(c.rank + c.suit)),
@@ -316,7 +370,9 @@ export function advanceToFlop(heroLabel: string, heroCards: [Card, Card]): Spot 
     history: [...node.history, `Flop: ${node.board.match(/../g)!.join(' ')}`],
     street: 'flop',
     board,
+    villain,
   }
+  if (fishDonks(handState)) return makeFacingBetSpot(node, board, handState)
   return {
     mode: 'postflop',
     heroPos: node.hero,
@@ -342,9 +398,25 @@ const boardStr = (cards: Card[]): string => cards.map((c) => c.rank + c.suit).jo
 
 /** After answering a flop or turn decision, advance to the next street. */
 export function buildContinuationSpot(state: HandState, heroAction: Action): Spot | null {
+  if (heroAction === 'fold') return null // hero folded to a lead — hand over
   if (state.street === 'flop') return advanceToTurn(state, heroAction)
   if (state.street === 'turn') return advanceToRiver(state, heroAction)
   return null
+}
+
+/** History lines for how the street just played out (villain line + hero line). */
+function streetResolution(state: HandState, heroAction: Action): string[] {
+  if (state.facedBet) {
+    const lead = `BB bets ${state.facedBet}bb`
+    return heroAction === 'raise' ? [lead, 'BTN raises, BB calls'] : [lead, 'BTN calls']
+  }
+  const verb =
+    heroAction === 'check'
+      ? 'BTN checks back'
+      : heroAction === 'bet75'
+        ? 'BTN bets big, BB calls'
+        : 'BTN bets, BB calls'
+  return ['BB checks', verb]
 }
 
 function advanceToTurn(state: HandState, heroAction: Action): Spot | null {
@@ -357,14 +429,15 @@ function advanceToTurn(state: HandState, heroAction: Action): Spot | null {
   const turnCard = parseCards(node.board.slice(6))[0]
   const board = [...state.board, turnCard]
   const strat = strategyFor(node, state.heroLabel)!
-  const actionVerb = heroAction === 'check' ? 'BTN checks back' : 'BTN bets 1.8bb, BB calls'
   const newState: HandState = {
     ...state,
-    history: [...state.history, 'BB checks', actionVerb, `Turn: ${node.board.slice(6)}`],
+    history: [...state.history, ...streetResolution(state, heroAction), `Turn: ${node.board.slice(6)}`],
     street: 'turn',
     board,
     heroFlopAction: heroAction,
+    facedBet: undefined,
   }
+  if (fishDonks(newState)) return makeFacingBetSpot(node, board, newState)
   return {
     mode: 'postflop',
     heroPos: node.hero,
@@ -388,13 +461,14 @@ function advanceToRiver(state: HandState, heroAction: Action): Spot | null {
   const riverCard = parseCards(node.board.slice(8))[0]
   const board = [...state.board, riverCard]
   const strat = strategyFor(node, state.heroLabel)!
-  const actionVerb = heroAction === 'check' ? 'BTN checks back' : 'BTN bets, BB calls'
   const newState: HandState = {
     ...state,
-    history: [...state.history, 'BB checks', actionVerb, `River: ${node.board.slice(8)}`],
+    history: [...state.history, ...streetResolution(state, heroAction), `River: ${node.board.slice(8)}`],
     street: 'river',
     board,
+    facedBet: undefined,
   }
+  if (fishDonks(newState)) return makeFacingBetSpot(node, board, newState)
   return {
     mode: 'postflop',
     heroPos: node.hero,
@@ -483,6 +557,9 @@ export function judge(spot: Spot, chosen: Action, level: Level = 'intermediate')
   let quality: Quality
   if (chosen === spot.correct) {
     quality = 'correct'
+  } else if (spot.facingBet) {
+    // heuristic exploit spot (vs fish) — graded by tier, not solver frequencies
+    quality = spot.acceptable?.includes(chosen) ? 'acceptable' : 'wrong'
   } else if (spot.mode === 'postflop' && spot.freqs) {
     // postflop nodes carry N actions (check / bet⅓ / bet¾); score by the
     // chosen action's own frequency so a defensible second size is acceptable.
@@ -502,6 +579,7 @@ export function judge(spot: Spot, chosen: Action, level: Level = 'intermediate')
 }
 
 function explain(spot: Spot, chosen: Action, level: Level): string {
+  if (spot.facingBet) return explainFacingBet(spot, chosen, level)
   if (level === 'beginner') {
     if (spot.mode === 'rfi') return explainRfiBeginner(spot, chosen)
     if (spot.mode === 'vsRfi') return explainVsRfiBeginner(spot, chosen)
@@ -514,12 +592,45 @@ function explain(spot: Spot, chosen: Action, level: Level): string {
   return explainPostflop(spot, chosen)
 }
 
+/** Exploit coaching for a fish lead: value-raise big, bluff-catch pairs, never bluff. */
+function explainFacingBet(spot: Spot, chosen: Action, level: Level): string {
+  const desc = describeHand(spot.cards, spot.board!)
+  const right = chosen === spot.correct
+  const ok = spot.acceptable?.includes(chosen)
+  const verdict = right
+    ? 'Correct.'
+    : ok
+      ? `Reasonable — but ${ACTION_LABEL[spot.correct].toLowerCase()} is better here.`
+      : `The better play is to ${ACTION_LABEL[spot.correct].toLowerCase()}.`
+  const why: Record<Action, string> = {
+    raise: `You hold ${desc.text}. A loose player bets far too many weak hands — raise for value and let them pay you off; slow-playing only lets worse hands off cheap.`,
+    call: `You hold ${desc.text}. It beats much of a loose bettor's wild range, so don't fold — but raising folds out their bluffs and only gets called by better. Call and let them keep barreling.`,
+    fold: `You hold ${desc.text}. Even a loose bettor has you beat here often enough, and bluff-raising a player who never folds just burns money. Let it go.`,
+  } as Record<Action, string>
+  const body = why[spot.correct] ?? `You hold ${desc.text}.`
+  if (level === 'beginner') {
+    const simple: Partial<Record<Action, string>> = {
+      raise: `You have ${desc.text} — a big hand. This player bets too often with weak cards, so raise and make them pay.`,
+      fold: `You have ${desc.text}. That's not enough to continue against a bet, and bluffing a player who never folds doesn't work. Fold.`,
+      call: `You have ${desc.text} — good enough to [call] a loose player's bet, but not big enough to raise. Calling keeps their weaker hands in.`,
+    }
+    return `${verdict} ${simple[spot.correct] ?? body}`
+  }
+  return `${verdict} ${body}`
+}
+
 // ---------- beginner copy (plain language, [term] glossary markers) ----------
 
 /** Prompt shown above the action buttons, phrased for the chosen level. */
 export function promptFor(spot: Spot, level: Level): string {
   const street = spot.handState?.street
   const mwDesc = multiwayOf(spot)?.description ?? 'What do you do?'
+  if (spot.facingBet) {
+    const where = street === 'river' ? ' on the river' : street === 'turn' ? ' on the turn' : ''
+    return level === 'beginner'
+      ? `They bet ${spot.facingBet.amountBb}bb into you${where}. Fold, call, or raise?`
+      : `BB leads ${spot.facingBet.amountBb}bb${where}. Fold, call, or raise?`
+  }
   if (level === 'beginner') {
     if (spot.mode === 'rfi') return 'Everyone folded to you. Raise this hand, or fold?'
     if (spot.mode === 'vsRfi') return `The ${POSITION_LABEL[spot.raiserPos!]} raised. Fold, call, or 3-bet?`
@@ -542,6 +653,8 @@ export function promptFor(spot: Spot, level: Level): string {
 
 /** One-line "what to think about" nudge (beginner pre-answer hint). */
 export function hintFor(spot: Spot): string {
+  if (spot.facingBet)
+    return 'They bet into you. Raise big hands for [value], [call] with pairs and [draw]s, fold air — and never [bluff] a player who refuses to fold.'
   if (spot.mode === 'rfi')
     return 'Is this hand strong enough to [open] from this seat? Later [position] lets you play more hands.'
   if (spot.mode === 'vsRfi')

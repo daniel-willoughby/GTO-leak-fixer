@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Zen · Focus — LeakTutor refinement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --paper:#f5f2ea; --paper2:#fcfaf4; --ink:#221f19; --ink2:#6b675c; --ink3:#9a968a;
+    --line:#e6e0d3; --line2:#d8d0bf; --sage:#5b7461; --sage-d:#435448; --sage-l:#6f8a76;
+    --clay:#b16a52; --gold:#b08a44; --amber:#c08a3c; --red:#b23a29; --blue:#2f5aa0; --club:#3f6b4d; --spade:#23201b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  .serif{font-family:'Fraunces',Georgia,serif;}
+  .tnum{font-variant-numeric:tabular-nums;}
+  body{font-family:'Inter',system-ui,sans-serif;color:var(--ink);}
+
+  .stage{min-height:100vh;display:grid;place-items:center;padding:46px 16px;
+    background:radial-gradient(120% 90% at 50% -10%, #ded2bb, transparent 60%), #cdbfa4;}
+  .tag{position:fixed;top:16px;left:18px;font-size:11px;color:#6b5d44;}
+  .tag b{font-weight:600;color:#4f4636;}
+  .phone{width:393px;height:840px;border-radius:52px;background:#0b0b0c;padding:12px;
+    box-shadow:0 2px 4px rgba(0,0,0,.4), 0 40px 80px -20px rgba(40,30,15,.55), inset 0 0 0 1.5px #2b2b2e;}
+  .screen{position:relative;width:100%;height:100%;border-radius:41px;overflow:hidden;
+    background:radial-gradient(120% 55% at 50% -8%, #fffdf8, rgba(255,253,248,0) 52%), var(--paper);}
+  .island{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:104px;height:30px;background:#0b0b0c;border-radius:16px;z-index:40;}
+  .sbar{position:relative;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:14px 30px 0;font-size:12px;font-weight:600;}
+  .sbar .dots{color:var(--ink2);}
+
+  .app{position:relative;z-index:5;height:100%;overflow:auto;padding:6px 22px 110px;}
+  .app::-webkit-scrollbar{display:none;}
+
+  header{display:flex;align-items:center;justify-content:space-between;padding:12px 2px 14px;}
+  header .brand{font-family:'Fraunces';font-weight:600;font-size:19px;}
+  header .brand i{font-style:normal;color:var(--sage);}
+  header svg{color:var(--ink3);}
+
+  .eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink3);}
+
+  /* compact hand strip */
+  .hand{display:flex;align-items:center;gap:16px;padding:14px 16px;border:1px solid var(--line);border-radius:18px;background:var(--paper2);
+    box-shadow:0 1px 0 rgba(34,31,25,.03), 0 12px 26px -18px rgba(34,31,25,.25);}
+  .hand .grp{display:flex;flex-direction:column;gap:7px;}
+  .hand .grp .lab{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);}
+  .hand .cards{display:flex;gap:5px;}
+  .hand .sep{width:1px;align-self:stretch;background:var(--line2);margin:2px 0;}
+  .pc{position:relative;width:34px;height:48px;border-radius:6px;background:linear-gradient(160deg,#fffefb,#f6f1e6);
+    border:1px solid var(--line);box-shadow:0 4px 9px -5px rgba(34,31,25,.3);}
+  .pc.you{width:40px;height:56px;}
+  .pc .ix{position:absolute;top:3px;left:5px;display:flex;flex-direction:column;align-items:center;line-height:1;}
+  .pc .ix .r{font:600 12px Fraunces;} .pc.you .ix .r{font-size:14px;}
+  .pc .ix .s{font-size:7px;} .pc.you .ix .s{font-size:8px;}
+  .pc .big{position:absolute;inset:0;display:grid;place-items:center;font-size:15px;opacity:.9;}
+  .pc.you .big{font-size:19px;}
+  .sp{color:var(--spade);} .he{color:var(--red);} .di{color:var(--blue);} .cl{color:var(--club);}
+  .hand .made{margin-left:auto;text-align:right;}
+  .hand .made .h{font-family:'Fraunces';font-size:15px;font-weight:500;line-height:1.1;}
+  .hand .made .s{font-size:11px;color:var(--ink2);margin-top:2px;}
+
+  /* verdict */
+  .verdict{display:flex;align-items:center;gap:13px;margin:22px 2px 16px;}
+  .verdict .mark{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;flex:none;
+    background:rgba(91,116,97,.13);color:var(--sage);}
+  .verdict .vt{font-family:'Fraunces';font-size:22px;font-weight:600;line-height:1;}
+  .verdict .vs{font-size:13px;color:var(--ink2);margin-top:4px;}
+
+  /* solver frequency bar */
+  .freq{margin:6px 0 2px;}
+  .freq .cap{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+  .freq .cap .l{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);}
+  .freq .cap .r{font-size:11px;color:var(--ink2);}
+  .freq .track{display:flex;height:46px;border-radius:13px;overflow:hidden;border:1px solid var(--line2);
+    box-shadow:inset 0 1px 2px rgba(34,31,25,.05);}
+  .freq .seg{display:flex;flex-direction:column;justify-content:center;padding:0 14px;}
+  .freq .seg .n{font:700 16px Inter;font-variant-numeric:tabular-nums;line-height:1;}
+  .freq .seg .k{font-size:10.5px;margin-top:3px;opacity:.85;}
+  .freq .seg.bet{flex:0 0 78%;background:linear-gradient(180deg,#62795f,#516850);color:#fff;}
+  .freq .seg.check{flex:1;background:var(--paper2);color:var(--ink2);align-items:flex-start;}
+  .freq .you{display:flex;align-items:center;gap:6px;margin-top:9px;font-size:12px;color:var(--sage-d);}
+  .freq .you svg{flex:none;}
+  .freq .you b{font-weight:600;}
+
+  /* explanation */
+  .why{margin:20px 0 0;}
+  .why .lab{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);margin-bottom:9px;}
+  .why p{font-size:14.5px;line-height:1.62;color:var(--ink);}
+  .why p mark{background:linear-gradient(transparent 58%, rgba(91,116,97,.26) 58%);color:inherit;padding:0 1px;font-weight:500;}
+  .tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px;}
+  .tags span{font-size:11.5px;color:var(--sage-d);background:rgba(91,116,97,.10);border:1px solid rgba(91,116,97,.22);
+    border-radius:20px;padding:4px 11px;}
+
+  /* sticky next */
+  .dock{position:absolute;bottom:0;left:0;right:0;z-index:8;padding:14px 22px calc(20px);
+    background:linear-gradient(to top, var(--paper) 60%, rgba(245,242,234,0));}
+  .next{width:100%;border:0;border-radius:16px;padding:17px;font:600 17px Inter;color:#fff;cursor:pointer;
+    background:linear-gradient(180deg,#62795f,#516850);box-shadow:0 14px 28px -12px rgba(67,84,72,.8);
+    display:flex;align-items:center;justify-content:center;gap:9px;}
+  .next .serif{font-family:'Fraunces';font-weight:500;}
+
+  nav{position:absolute;bottom:0;left:0;right:0;z-index:6;display:none;}
+</style>
+</head>
+<body>
+  <div class="tag">Refinement <b>03 — Zen · Focus</b> · calm, content-first system · shown in the feedback state</div>
+  <div class="stage">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="screen">
+        <div class="sbar"><span>14:21</span><span class="dots">􀙇 68%</span></div>
+        <div class="app">
+          <header>
+            <div class="brand">Leak<i>·</i>Tutor</div>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="9" cy="8" r="2.4" fill="#f5f2ea"/><circle cx="15" cy="16" r="2.4" fill="#f5f2ea"/></svg>
+          </header>
+
+          <div class="eyebrow" style="margin:0 2px 12px">Postflop · Button vs Big Blind · flop</div>
+
+          <div class="hand">
+            <div class="grp">
+              <span class="lab">Board</span>
+              <span class="cards">
+                <span class="pc"><span class="ix sp"><span class="r">A</span><span class="s">♠</span></span><span class="big sp">♠</span></span>
+                <span class="pc"><span class="ix cl"><span class="r">8</span><span class="s">♣</span></span><span class="big cl">♣</span></span>
+                <span class="pc"><span class="ix he"><span class="r">3</span><span class="s">♥</span></span><span class="big he">♥</span></span>
+              </span>
+            </div>
+            <div class="sep"></div>
+            <div class="grp">
+              <span class="lab">You</span>
+              <span class="cards">
+                <span class="pc you"><span class="ix di"><span class="r">A</span><span class="s">♦</span></span><span class="big di">♦</span></span>
+                <span class="pc you"><span class="ix cl"><span class="r">Q</span><span class="s">♣</span></span><span class="big cl">♣</span></span>
+              </span>
+            </div>
+            <div class="made"><div class="h serif">Top pair</div><div class="s">good kicker</div></div>
+          </div>
+
+          <div class="verdict">
+            <div class="mark">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </div>
+            <div>
+              <div class="vt serif">Correct</div>
+              <div class="vs">You bet ⅓ — the solver’s top choice here.</div>
+            </div>
+          </div>
+
+          <div class="freq">
+            <div class="cap"><span class="l">Solver strategy</span><span class="r">on this exact node</span></div>
+            <div class="track">
+              <div class="seg bet"><span class="n tnum">78%</span><span class="k">bet ⅓ pot</span></div>
+              <div class="seg check"><span class="n tnum">22%</span><span class="k">check</span></div>
+            </div>
+            <div class="you">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              <span>You chose <b>bet</b> — with the majority.</span>
+            </div>
+          </div>
+
+          <div class="why">
+            <div class="lab">Why</div>
+            <p>You have <b>top pair</b>, a solid one-pair hand with real showdown value. <mark>This dry, ace-high flop favours the button</mark>, so the textbook line is a small c-bet of about a third of the pot, made at a high frequency for thin value and equity denial.</p>
+            <div class="tags"><span>range advantage</span><span>thin value</span><span>equity denial</span><span>small sizing</span></div>
+          </div>
+        </div>
+
+        <div class="dock">
+          <button class="next"><span class="serif">Next hand</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </div>
+        <nav></nav>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

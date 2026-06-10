@@ -11,6 +11,7 @@ import {
   type TopLeak,
 } from '../lib/db'
 import { lessonById } from '../data/curriculum'
+import { formatBoardCode } from '../lib/cards'
 import type { FocusRequest } from '../lib/spot'
 
 interface Props {
@@ -102,7 +103,7 @@ function Bar({ stat }: { stat: LeakStat }) {
   const pct = Math.round(stat.errorRate * 100)
   return (
     <div className="flex items-center gap-3 text-sm">
-      <span className="w-36 sm:w-40 truncate text-ink">{stat.key}</span>
+      <span className="w-36 sm:w-40 truncate text-ink">{formatBoardCode(stat.key)}</span>
       <div className="flex-1 h-2 rounded-full bg-[#e9e3d6] overflow-hidden">
         <div
           className={pct > 33 ? 'h-full bg-clay' : pct > 15 ? 'h-full bg-[#c79a4a]' : 'h-full bg-sage'}
@@ -128,6 +129,11 @@ function ModeSection({
   stats: ModeStats
 }) {
   if (stats.total === 0) return null
+  // keep the report readable: prefer rows with a real sample, cap the list
+  const trim = (rows: LeakStat[]) => {
+    const sampled = rows.filter((s) => s.attempts >= 2)
+    return (sampled.length ? sampled : rows).slice(0, 8)
+  }
   return (
     <section className="panel p-4">
       <div className="flex items-center justify-between mb-3">
@@ -141,13 +147,13 @@ function ModeSection({
       </div>
       <p className="text-xs uppercase tracking-wide text-ink3 mb-2">By {contextLabel}</p>
       <div className="flex flex-col gap-2 mb-4">
-        {stats.byContext.map((s) => (
+        {trim(stats.byContext).map((s) => (
           <Bar key={s.key} stat={s} />
         ))}
       </div>
       <p className="text-xs uppercase tracking-wide text-ink3 mb-2">By hand type</p>
       <div className="flex flex-col gap-2">
-        {stats.byCategory.map((s) => (
+        {trim(stats.byCategory).map((s) => (
           <Bar key={s.key} stat={s} />
         ))}
       </div>

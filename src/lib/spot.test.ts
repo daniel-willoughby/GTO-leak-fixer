@@ -1,7 +1,16 @@
 import { describe, it, expect } from 'vitest'
-import { judge, classifyHand, generateSpot, spotFromSeed, type Spot } from './spot'
-import { parseCards } from './cards'
-import { ALL_NODES } from '../data/postflop'
+import {
+  judge,
+  classifyHand,
+  generateSpot,
+  spotFromSeed,
+  gradeVsDonk,
+  buildContinuationSpot,
+  type Spot,
+  type HandState,
+} from './spot'
+import { parseCards, formatBoardCode } from './cards'
+import { ALL_NODES, FLOP_NODES } from '../data/postflop'
 
 describe('classifyHand', () => {
   it('classifies hand categories', () => {
@@ -109,5 +118,62 @@ describe('postflop data integrity', () => {
   it('uses only known action tags', () => {
     const ok = new Set(['check', 'bet33', 'bet75'])
     for (const n of ALL_NODES) for (const a of n.actions) expect(ok.has(a), `${n.board}: ${a}`).toBe(true)
+  })
+})
+
+describe('vs fish: facing a donk bet', () => {
+  it('grades by hand strength: raise big, bluff-catch pairs, never bluff', () => {
+    expect(gradeVsDonk('monster', 'flop').correct).toBe('raise')
+    expect(gradeVsDonk('strong', 'turn').correct).toBe('raise')
+    expect(gradeVsDonk('top', 'flop')).toEqual({ correct: 'call', acceptable: ['raise'] })
+    expect(gradeVsDonk('weak', 'turn')).toEqual({ correct: 'call', acceptable: ['fold'] })
+    expect(gradeVsDonk('draw', 'flop').correct).toBe('call')
+    expect(gradeVsDonk('draw', 'river').correct).toBe('fold') // busted draw
+    expect(gradeVsDonk('air', 'flop').correct).toBe('fold')
+  })
+
+  it('judge scores facing-bet spots via correct/acceptable, not frequencies', () => {
+    const spot = {
+      mode: 'postflop',
+      heroPos: 'BTN',
+      cards: parseCards('AhKh'),
+      label: 'AKs',
+      correct: 'call',
+      acceptable: ['raise'],
+      actions: ['fold', 'call', 'raise'],
+      category: 'Suited ace',
+      board: parseCards('Ad8c3h'),
+      facingBet: { amountBb: 2.7 },
+    } as unknown as Spot
+    expect(judge(spot, 'call').quality).toBe('correct')
+    expect(judge(spot, 'raise').quality).toBe('acceptable')
+    const folded = judge(spot, 'fold')
+    expect(folded.quality).toBe('wrong')
+    expect(folded.explanation.length).toBeGreaterThan(20)
+  })
+
+  it('folding to a lead ends the hand (no continuation)', () => {
+    const node = FLOP_NODES[0]
+    const state: HandState = {
+      heroCards: parseCards('AhKh') as [never, never],
+      heroLabel: 'AKs',
+      flopNode: node,
+      history: [],
+      street: 'flop',
+      board: parseCards(node.board),
+      villain: 'fish',
+      facedBet: 2.7,
+    } as unknown as HandState
+    expect(buildContinuationSpot(state, 'fold')).toBeNull()
+  })
+})
+
+describe('formatBoardCode', () => {
+  it('pretty-prints board codes and leaves other keys alone', () => {
+    expect(formatBoardCode('Qs8s4s')).toBe('Q♠ 8♠ 4♠')
+    expect(formatBoardCode('Qs8s4s2c')).toBe('Q♠ 8♠ 4♠ · 2♣')
+    expect(formatBoardCode('Qs8s4s2c7h')).toBe('Q♠ 8♠ 4♠ · 2♣ 7♥')
+    expect(formatBoardCode('BTN')).toBe('BTN')
+    expect(formatBoardCode('Suited ace')).toBe('Suited ace')
   })
 })
