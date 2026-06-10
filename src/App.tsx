@@ -1,14 +1,18 @@
-import { useState } from 'react'
-import { Spade, Target, GraduationCap, BookOpen, FileText, Volume2, VolumeX, SlidersHorizontal, type LucideIcon } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Spade, Target, GraduationCap, BookOpen, FileText, Volume2, VolumeX, SlidersHorizontal, Cloud, type LucideIcon } from 'lucide-react'
 import DrillScreen from './components/DrillScreen'
 import LessonsScreen from './components/LessonsScreen'
 import OnboardingScreen from './components/OnboardingScreen'
 import LeaksScreen from './components/LeaksScreen'
 import LearnScreen from './components/LearnScreen'
 import ImportScreen from './components/ImportScreen'
+import AccountModal from './components/AccountModal'
 import PwaUpdater from './components/PwaUpdater'
 import { isMuted, setMuted } from './lib/sound'
 import { getLevel, setLevel, type Level } from './lib/level'
+import { supabaseConfigured } from './lib/supabase'
+import { useAuth } from './lib/useAuth'
+import { syncNow, pushLocal } from './lib/sync'
 import type { Difficulty, FocusRequest } from './lib/spot'
 
 type Tab = 'drill' | 'lessons' | 'leaks' | 'import' | 'learn'
@@ -38,6 +42,43 @@ export default function App() {
   )
   const [level, setLevelState] = useState<Level | null>(() => getLevel())
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // cloud sync (optional — only when Supabase is configured)
+  const { user } = useAuth()
+  const [accountOpen, setAccountOpen] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [lastSynced, setLastSynced] = useState<number | null>(null)
+  const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  async function handleSyncNow() {
+    if (!user) return
+    setSyncing(true)
+    try {
+      await syncNow(user.id)
+      setLastSynced(Date.now())
+      setProgress((p) => p + 1) // refresh screens that read merged data
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  // pull + merge on sign-in
+  useEffect(() => {
+    if (user) handleSyncNow()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
+
+  // debounced background push after activity
+  useEffect(() => {
+    if (!user) return
+    if (pushTimer.current) clearTimeout(pushTimer.current)
+    pushTimer.current = setTimeout(() => {
+      pushLocal(user.id).then(() => setLastSynced(Date.now()))
+    }, 4000)
+    return () => {
+      if (pushTimer.current) clearTimeout(pushTimer.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progress, user?.id])
 
   function toggleMute() {
     const v = !muted
@@ -77,6 +118,16 @@ export default function App() {
           Leak<span className="text-sage">·</span>Tutor
         </h1>
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
+          {supabaseConfigured && (
+            <button
+              onClick={() => setAccountOpen(true)}
+              aria-label="Account"
+              className={`relative p-2 rounded-lg transition ${user ? 'text-sage' : 'text-ink2 hover:text-ink hover:bg-ink/5'}`}
+            >
+              <Cloud size={18} />
+              {user && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-sage" />}
+            </button>
+          )}
           <button
             onClick={() => setSettingsOpen((o) => !o)}
             aria-label="Settings"
@@ -172,6 +223,15 @@ export default function App() {
           )
         })}
       </nav>
+
+      {accountOpen && (
+        <AccountModal
+          onClose={() => setAccountOpen(false)}
+          onSyncNow={handleSyncNow}
+          syncing={syncing}
+          lastSynced={lastSynced}
+        />
+      )}
 
       <PwaUpdater />
     </div>

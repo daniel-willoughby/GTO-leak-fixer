@@ -222,6 +222,24 @@ export async function resetProgress(): Promise<void> {
   await db.decisions.clear()
 }
 
+// ---- cloud-sync export / import --------------------------------------------
+
+export async function exportDecisions(): Promise<DecisionRecord[]> {
+  return db.decisions.toArray()
+}
+export async function exportMistakes(): Promise<MistakeRecord[]> {
+  return db.mistakes.toArray()
+}
+/** Replace the local decision log (ids are device-local, so they're dropped). */
+export async function replaceDecisions(rows: DecisionRecord[]): Promise<void> {
+  await db.decisions.clear()
+  await db.decisions.bulkAdd(rows.map((r) => ({ ...r, id: undefined })))
+}
+export async function replaceMistakes(rows: MistakeRecord[]): Promise<void> {
+  await db.mistakes.clear()
+  await db.mistakes.bulkPut(rows)
+}
+
 /** Hand categories the player misplays most (for adaptive 'focus' drilling). */
 export async function weakCategories(): Promise<HandCategory[]> {
   const all = await db.decisions.toArray()
