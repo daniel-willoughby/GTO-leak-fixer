@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   CheckCircle2,
   XCircle,
@@ -110,11 +110,19 @@ const ACTION_STYLE: Record<Action, string> = {
 
 const KEY_HINT: Record<string, string> = { fold: 'F', call: 'C', raise: 'R', '3bet': 'T', check: 'K', bet: 'B', bet33: 'B', bet75: 'V', squeeze: 'S', 'cold-4bet': '4' }
 
-const MODES: { id: DrillMode; label: string }[] = [
+// Drill modes are grouped under three headers. Preflop holds the open/defend
+// situations; Postflop is single c-bet decisions; Continuation plays a whole
+// hand street by street.
+type Category = 'preflop' | 'postflop' | 'continuation'
+const CATEGORIES: { id: Category; label: string }[] = [
+  { id: 'preflop', label: 'Preflop' },
+  { id: 'postflop', label: 'Postflop' },
+  { id: 'continuation', label: 'Continuation' },
+]
+const PREFLOP_MODES: { id: DrillMode; label: string }[] = [
   { id: 'rfi', label: 'Open' },
   { id: 'vsRfi', label: 'vs Raise' },
   { id: 'multiway', label: 'Multiway' },
-  { id: 'postflop', label: 'Postflop' },
 ]
 
 function cellFor(spot: Spot): (label: string) => CellKind {
@@ -169,6 +177,11 @@ export default function DrillScreen({
     ? { lockPos: lesson.scope.lockPos, lockMatchup: lesson.scope.lockMatchup }
     : {}
   const [mode, setMode] = useState<DrillMode>(() => (lesson ? lesson.mode : 'rfi'))
+  // postflop has two flavours: single c-bet decisions (false) vs play-the-whole-
+  // hand continuation (true). Only meaningful when mode === 'postflop'.
+  const [fullHand, setFullHand] = useState(false)
+  // remembers the last preflop sub-mode so the Preflop tab restores it
+  const lastPreflopMode = useRef<DrillMode>('rfi')
   const [spot, setSpot] = useState<Spot>(() => generateSpot(lesson ? lesson.mode : 'rfi', scopeOpts))
   const [result, setResult] = useState<Judgement | null>(null)
   const [streak, setStreak] = useState(0)
@@ -282,11 +295,22 @@ export default function DrillScreen({
     }
   }
 
-  function switchMode(m: DrillMode) {
-    if (m === mode || reviewMode || lesson) return
+  const category: Category = mode === 'postflop' ? (fullHand ? 'continuation' : 'postflop') : 'preflop'
+
+  function applyMode(m: DrillMode, fh: boolean) {
+    if (reviewMode || lesson) return
+    if (m === mode && fh === fullHand) return
+    if (m !== 'postflop') lastPreflopMode.current = m
     setMode(m)
+    setFullHand(fh)
     setStreak(0)
     dealNormal(m)
+  }
+
+  function selectCategory(cat: Category) {
+    if (cat === 'preflop') applyMode(lastPreflopMode.current, false)
+    else if (cat === 'postflop') applyMode('postflop', false)
+    else applyMode('postflop', true)
   }
 
   const focusActive = focusOn || !!focusPos
@@ -357,6 +381,7 @@ export default function DrillScreen({
     }
     if (
       !lesson &&
+      fullHand && // only the Continuation mode plays through the streets
       spot.mode === 'postflop' &&
       !reviewMode &&
       action !== 'bet75' && // continuation data follows the check / ⅓ line only
@@ -518,18 +543,44 @@ export default function DrillScreen({
           </button>
         </div>
       ) : (
-        <div className="flex gap-1 p-1 rounded-2xl bg-ink/[0.06] border border-line text-sm w-full">
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => switchMode(m.id)}
-              className={`flex-1 px-1.5 py-2 rounded-xl font-semibold transition text-xs ${
-                mode === m.id ? 'bg-sage text-white shadow-[0_4px_12px_-4px_rgba(67,84,72,0.6)]' : 'text-ink2 hover:text-ink'
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
+        <div className="flex w-full flex-col gap-1.5">
+          {/* category headers */}
+          <div className="flex gap-1 p-1 rounded-2xl bg-ink/[0.06] border border-line text-sm w-full">
+            {CATEGORIES.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => selectCategory(c.id)}
+                className={`flex-1 px-1.5 py-2 rounded-xl font-semibold transition text-xs ${
+                  category === c.id ? 'bg-sage text-white shadow-[0_4px_12px_-4px_rgba(67,84,72,0.6)]' : 'text-ink2 hover:text-ink'
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+          {/* preflop situations */}
+          {category === 'preflop' && (
+            <div className="flex w-full gap-1 px-0.5">
+              {PREFLOP_MODES.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => applyMode(m.id, false)}
+                  className={`flex-1 rounded-lg border px-1.5 py-1.5 text-xs font-semibold transition ${
+                    mode === m.id ? 'bg-sage/15 border-sage/40 text-sage-dark' : 'bg-paper2 border-line text-ink2 hover:text-ink'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* one-line descriptor for the postflop modes */}
+          {category === 'postflop' && (
+            <p className="px-1 text-xs text-ink3">One c-bet decision per hand — BTN vs BB on the flop.</p>
+          )}
+          {category === 'continuation' && (
+            <p className="px-1 text-xs text-ink3">Play the whole hand — flop, turn, then river.</p>
+          )}
         </div>
       )}
 

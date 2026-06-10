@@ -29,7 +29,11 @@ function profile(f) {
   return { mean, bet, bigShare }
 }
 
-const flags = []
+// Structural problems must block the pipeline; heuristic oddities are advisory
+// only (poker is texture-dependent — e.g. big sizes legitimately dominate on
+// monotone boards — so they must never break the validate → finalize chain).
+const errors = []
+const warnings = []
 console.log('board     hi  tex      bet%  small/big  | AA   TPTK(A-x)  air(KQ)')
 for (const f of flops) {
   const b = f.board
@@ -44,23 +48,30 @@ for (const f of flops) {
     `${b.padEnd(9)} ${RANK[high(b)]}   ${tex.padEnd(7)} ${pct(bet)}%  ${(bigShare * 100).toFixed(0).padStart(3)}% big | ` +
       `${sig('AA')}  ${sig('AKs')}      ${sig('KQs')}`,
   )
-  // heuristic flags (loose — catch gross errors, not fine GTO disagreement)
-  if (f.actions.length !== (f.betSizes.length + 1)) flags.push(`${b}: actions/betSizes mismatch`)
+  // structural (fatal): data must be well-formed
+  if (f.actions.length !== f.betSizes.length + 1) errors.push(`${b}: actions/betSizes mismatch`)
   for (const [lab, r] of Object.entries(f.strategy)) {
     const sum = r.reduce((a, x) => a + x, 0)
-    if (Math.abs(sum - 1) > 0.02) flags.push(`${b}/${lab}: freqs sum ${sum.toFixed(3)}`)
+    if (Math.abs(sum - 1) > 0.02) errors.push(`${b}/${lab}: freqs sum ${sum.toFixed(3)}`)
   }
+  // heuristic (advisory): catch gross strategy oddities, but never block
   const fAA = f.strategy['AA']
-  if (fAA && 1 - fAA[0] < 0.5) flags.push(`${b}: AA bets only ${((1 - fAA[0]) * 100).toFixed(0)}% (expected high)`)
-  if (tex === 'high' && bet < 0.45) flags.push(`${b}: dry/high board bets only ${(bet * 100).toFixed(0)}% (expected ~range-bet)`)
-  if (bigShare > 0.6) flags.push(`${b}: big size is ${(bigShare * 100).toFixed(0)}% of bets (expected minority on the flop)`)
+  if (fAA && 1 - fAA[0] < 0.5) warnings.push(`${b}: AA bets only ${((1 - fAA[0]) * 100).toFixed(0)}% (expected high)`)
+  if (tex === 'high' && bet < 0.45) warnings.push(`${b}: dry/high board bets only ${(bet * 100).toFixed(0)}% (expected ~range-bet)`)
+  // big size legitimately dominates on monotone boards (sizing up to charge flush
+  // draws), so only flag a big-size majority on non-monotone textures.
+  if (tex !== 'mono' && bigShare > 0.6)
+    warnings.push(`${b}: big size is ${(bigShare * 100).toFixed(0)}% of bets (expected minority on non-monotone flops)`)
 }
 
 console.log(`\n${flops.length} flop nodes checked.`)
-if (flags.length) {
-  console.log(`\n⚠  ${flags.length} flag(s):`)
-  for (const f of flags.slice(0, 40)) console.log('  - ' + f)
-  process.exit(2)
-} else {
-  console.log('✓ no heuristic violations — looks sane.')
+if (warnings.length) {
+  console.log(`\nℹ  ${warnings.length} advisory note(s) (non-blocking):`)
+  for (const f of warnings.slice(0, 40)) console.log('  - ' + f)
 }
+if (errors.length) {
+  console.log(`\n✗  ${errors.length} structural error(s) — blocking:`)
+  for (const f of errors.slice(0, 40)) console.log('  - ' + f)
+  process.exit(2)
+}
+console.log('✓ structural checks pass.')
