@@ -467,52 +467,23 @@ export default function DrillScreen({
 
   return (
     <div className="flex flex-col items-center gap-3 px-4 pb-28 lg:pb-12 pt-4 max-w-xl lg:max-w-5xl mx-auto">
-      {/* daily challenge: progress + streak (free play only) */}
-      {!lesson && daily && (
-        dailyFlash ? (
-          <div className="flex w-full animate-pop items-center gap-3 rounded-2xl border border-sage/40 bg-sage/10 px-4 py-3">
-            {dailyFlash.kind === 'milestone' ? (
-              <Trophy size={22} className="shrink-0 text-clay" />
-            ) : (
-              <Sparkles size={22} className="shrink-0 text-sage" />
-            )}
-            <span className="text-sm text-ink">
-              <span className="serif font-semibold">
-                {dailyFlash.kind === 'milestone'
-                  ? `${dailyFlash.streak}-day streak!`
-                  : 'Daily challenge complete.'}
-              </span>{' '}
-              {dailyFlash.kind === 'milestone'
-                ? 'Big milestone — keep the run alive tomorrow.'
-                : `Nice. Come back tomorrow to keep your ${dailyFlash.streak}-day streak going.`}
-            </span>
-          </div>
-        ) : (
-          <div className="flex w-full items-center gap-3 rounded-2xl border border-line bg-paper2 px-3 py-2">
-            <CalendarCheck size={16} className={isDailyDone(daily) ? 'text-sage' : 'text-ink3'} />
-            <div className="min-w-0 flex-1">
-              <div className="mb-1 flex items-center justify-between text-xs text-ink2">
-                <span className="font-semibold uppercase tracking-wide text-ink3">
-                  {isDailyDone(daily) ? 'Daily done' : 'Daily challenge'}
-                </span>
-                <span className="tabular-nums">
-                  {Math.min(daily.count, daily.goal)}/{daily.goal}
-                </span>
-              </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink/[0.07]">
-                <div
-                  className="h-full rounded-full bg-sage transition-all"
-                  style={{ width: `${Math.min(100, (daily.count / daily.goal) * 100)}%` }}
-                />
-              </div>
-            </div>
-            {liveStreak(daily) > 0 && (
-              <span className="flex shrink-0 items-center gap-1 rounded-full border border-clay/40 bg-clay/10 px-2.5 py-1 text-xs font-bold text-clay">
-                <Flame size={13} /> {liveStreak(daily)}
-              </span>
-            )}
-          </div>
-        )
+      {/* daily challenge celebration — transient, only on completion / milestone */}
+      {!lesson && dailyFlash && (
+        <div className="flex w-full animate-pop items-center gap-3 rounded-2xl border border-sage/40 bg-sage/10 px-4 py-3">
+          {dailyFlash.kind === 'milestone' ? (
+            <Trophy size={22} className="shrink-0 text-clay" />
+          ) : (
+            <Sparkles size={22} className="shrink-0 text-sage" />
+          )}
+          <span className="text-sm text-ink">
+            <span className="serif font-semibold">
+              {dailyFlash.kind === 'milestone' ? `${dailyFlash.streak}-day streak!` : 'Daily challenge complete.'}
+            </span>{' '}
+            {dailyFlash.kind === 'milestone'
+              ? 'Big milestone — keep the run alive tomorrow.'
+              : `Nice. Come back tomorrow to keep your ${dailyFlash.streak}-day streak going.`}
+          </span>
+        </div>
       )}
 
       {/* lesson header OR mode toggle OR review header */}
@@ -574,14 +545,35 @@ export default function DrillScreen({
             <Zap size={13} /> {focusActive ? (focusLabel ?? 'Focusing leaks') : 'Focus my leaks'}
             {focusActive && <X size={12} className="opacity-70" />}
           </button>
-          {mistakeBadge > 0 && (
-            <button
-              onClick={startReview}
-              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border border-clay/40 bg-clay/10 text-clay hover:bg-clay/20 transition"
-            >
-              <Repeat2 size={13} /> Review {mistakeBadge}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {/* compact daily challenge: progress + streak */}
+            {daily && (
+              <span
+                title={isDailyDone(daily) ? 'Daily goal complete' : `Daily challenge: ${Math.min(daily.count, daily.goal)} of ${daily.goal}`}
+                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold ${
+                  isDailyDone(daily) ? 'bg-sage/15 border-sage/40 text-sage-dark' : 'bg-paper2 border-line text-ink2'
+                }`}
+              >
+                <CalendarCheck size={13} className={isDailyDone(daily) ? 'text-sage' : 'text-ink3'} />
+                <span className="tabular-nums">
+                  {Math.min(daily.count, daily.goal)}/{daily.goal}
+                </span>
+                {liveStreak(daily) > 0 && (
+                  <span className="flex items-center gap-0.5 text-clay">
+                    <Flame size={12} /> {liveStreak(daily)}
+                  </span>
+                )}
+              </span>
+            )}
+            {mistakeBadge > 0 && (
+              <button
+                onClick={startReview}
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border border-clay/40 bg-clay/10 text-clay hover:bg-clay/20 transition"
+              >
+                <Repeat2 size={13} /> Review {mistakeBadge}
+              </button>
+            )}
+          </div>
         </div>
       )}
 

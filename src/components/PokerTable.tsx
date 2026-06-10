@@ -141,11 +141,11 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
                 </div>
               ))}
             </div>
-          ) : (
+          ) : raiserPos ? (
             <span className="text-white/55 text-[10px] font-semibold tracking-[0.22em] serif italic">
-              {raiserPos ? 'facing a raise' : "it's on you"}
+              facing a raise
             </span>
-          )}
+          ) : null}
         </div>
       </div>
 
