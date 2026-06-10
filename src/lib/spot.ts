@@ -101,6 +101,8 @@ export interface FocusRequest {
   cats?: HandCategory[]
   /** Pin RFI spots to one position (drills a leaky seat). */
   lockPos?: RfiPosition
+  /** Launch Continuation (full-hand) play instead of a single-spot drill. */
+  fullHand?: boolean
   /** Short human label for the focus banner, e.g. "UTG opens" or "Suited aces". */
   label?: string
 }

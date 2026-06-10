@@ -1,10 +1,43 @@
 import { useState } from 'react'
-import { FileText, Zap, AlertCircle } from 'lucide-react'
-import { parseHandHistory, type ImportReport, type LeakBar } from '../lib/hhParser'
+import { FileText, Zap, AlertCircle, Spade } from 'lucide-react'
+import { parseHandHistory, type ImportReport, type LeakBar, type PostflopStat } from '../lib/hhParser'
 import type { FocusRequest } from '../lib/spot'
 
 interface Props {
   onDrillLeaks: (req: FocusRequest) => void
+}
+
+type Verdict = { tone: 'good' | 'warn'; text: string }
+
+function cbetVerdict(freq: number): Verdict {
+  const p = Math.round(freq * 100)
+  if (freq < 0.45) return { tone: 'warn', text: `Passive — you c-bet only ${p}%. As the raiser you can bet more flops.` }
+  if (freq > 0.85) return { tone: 'warn', text: `Very high — c-betting ${p}%. Mix in more checks, especially on wet boards.` }
+  return { tone: 'good', text: `Healthy c-bet frequency (${p}%).` }
+}
+function foldVerdict(freq: number): Verdict {
+  const p = Math.round(freq * 100)
+  if (freq > 0.6) return { tone: 'warn', text: `Over-folding — you fold ${p}% to flop c-bets. Defend a bit more.` }
+  if (freq < 0.25) return { tone: 'warn', text: `Too sticky — folding only ${p}%. You can let more hands go.` }
+  return { tone: 'good', text: `Reasonable defense (${p}% folds).` }
+}
+
+function Tendency({ label, stat, verdict }: { label: string; stat: PostflopStat; verdict: Verdict }) {
+  const pct = Math.round(stat.freq * 100)
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-ink">{label}</span>
+        <span className="font-semibold text-ink tabular-nums">
+          {pct}% <span className="text-xs font-normal text-ink3">· {stat.spots} spots</span>
+        </span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-[#e9e3d6]">
+        <div className={verdict.tone === 'good' ? 'h-full bg-sage' : 'h-full bg-clay'} style={{ width: `${pct}%` }} />
+      </div>
+      <p className={`text-xs ${verdict.tone === 'good' ? 'text-sage-dark' : 'text-clay'}`}>{verdict.text}</p>
+    </div>
+  )
 }
 
 const SAMPLE = `PokerStars Hand #1: Hold'em No Limit ($0.05/$0.10) - 2024/01/01 12:00:00 ET
@@ -60,6 +93,97 @@ P4: folds
 P5: folds
 P6: folds
 Hero: folds
+
+PokerStars Hand #4: Hold'em No Limit ($0.05/$0.10) - 2024/01/01 12:03:00 ET
+Table 'Sample' 6-max Seat #1 is the button
+Seat 1: Hero ($10 in chips)
+Seat 2: P2 ($10 in chips)
+Seat 3: P3 ($10 in chips)
+Seat 4: P4 ($10 in chips)
+Seat 5: P5 ($10 in chips)
+Seat 6: P6 ($10 in chips)
+P2: posts small blind $0.05
+P3: posts big blind $0.10
+*** HOLE CARDS ***
+Dealt to Hero [Ah Kd]
+P4: folds
+P5: folds
+P6: folds
+Hero: raises $0.20 to $0.30
+P2: folds
+P3: calls $0.20
+*** FLOP *** [Qs 7h 2c]
+P3: checks
+Hero: bets $0.15
+P3: folds
+
+PokerStars Hand #5: Hold'em No Limit ($0.05/$0.10) - 2024/01/01 12:04:00 ET
+Table 'Sample' 6-max Seat #1 is the button
+Seat 1: Hero ($10 in chips)
+Seat 2: P2 ($10 in chips)
+Seat 3: P3 ($10 in chips)
+Seat 4: P4 ($10 in chips)
+Seat 5: P5 ($10 in chips)
+Seat 6: P6 ($10 in chips)
+P2: posts small blind $0.05
+P3: posts big blind $0.10
+*** HOLE CARDS ***
+Dealt to Hero [Js Td]
+P4: folds
+P5: folds
+P6: folds
+Hero: raises $0.20 to $0.30
+P2: folds
+P3: calls $0.20
+*** FLOP *** [9h 6d 2s]
+P3: checks
+Hero: bets $0.15
+P3: calls $0.15
+
+PokerStars Hand #6: Hold'em No Limit ($0.05/$0.10) - 2024/01/01 12:05:00 ET
+Table 'Sample' 6-max Seat #1 is the button
+Seat 1: Hero ($10 in chips)
+Seat 2: P2 ($10 in chips)
+Seat 3: P3 ($10 in chips)
+Seat 4: P4 ($10 in chips)
+Seat 5: P5 ($10 in chips)
+Seat 6: P6 ($10 in chips)
+P2: posts small blind $0.05
+P3: posts big blind $0.10
+*** HOLE CARDS ***
+Dealt to Hero [Tc 9c]
+P4: folds
+P5: folds
+P6: folds
+Hero: raises $0.20 to $0.30
+P2: folds
+P3: calls $0.20
+*** FLOP *** [Ad 7s 4h]
+P3: checks
+Hero: bets $0.15
+P3: folds
+
+PokerStars Hand #7: Hold'em No Limit ($0.05/$0.10) - 2024/01/01 12:06:00 ET
+Table 'Sample' 6-max Seat #1 is the button
+Seat 1: Hero ($10 in chips)
+Seat 2: P2 ($10 in chips)
+Seat 3: P3 ($10 in chips)
+Seat 4: P4 ($10 in chips)
+Seat 5: P5 ($10 in chips)
+Seat 6: P6 ($10 in chips)
+P2: posts small blind $0.05
+P3: posts big blind $0.10
+*** HOLE CARDS ***
+Dealt to Hero [5h 5d]
+P4: folds
+P5: folds
+P6: folds
+Hero: raises $0.20 to $0.30
+P2: folds
+P3: calls $0.20
+*** FLOP *** [Ks Qd Jc]
+P3: checks
+Hero: checks
 `
 
 function Bar({ stat }: { stat: LeakBar }) {
@@ -148,6 +272,32 @@ export default function ImportScreen({ onDrillLeaks }: Props) {
                 <section className="panel p-4">
                   <p className="text-xs uppercase tracking-wide text-ink3 mb-2">By hand type</p>
                   <div className="flex flex-col gap-2">{report.byCategory.map((s) => <Bar key={s.key} stat={s} />)}</div>
+                </section>
+              )}
+
+              {(report.cbet || report.foldToCbet) && (
+                <section className="panel p-4">
+                  <p className="text-xs uppercase tracking-wide text-ink3 mb-3 flex items-center gap-1.5">
+                    <Spade size={13} className="text-sage" /> Postflop · heads-up flops
+                  </p>
+                  <div className="flex flex-col gap-3.5">
+                    {report.cbet && (
+                      <Tendency label="Flop c-bet (as the raiser)" stat={report.cbet} verdict={cbetVerdict(report.cbet.freq)} />
+                    )}
+                    {report.foldToCbet && (
+                      <Tendency
+                        label="Fold to flop c-bet (as the caller)"
+                        stat={report.foldToCbet}
+                        verdict={foldVerdict(report.foldToCbet.freq)}
+                      />
+                    )}
+                  </div>
+                  <button
+                    onClick={() => onDrillLeaks({ fullHand: true, label: 'C-bet practice' })}
+                    className="btn btn-secondary mt-3.5 flex w-full items-center justify-center gap-2 py-3 text-sm"
+                  >
+                    <Spade size={15} /> Practise c-bets in Continuation
+                  </button>
                 </section>
               )}
 

@@ -31,6 +31,13 @@ export interface LeakBar {
   errorRate: number
 }
 
+/** A heads-up flop tendency: how often hero did the thing, out of N spots. */
+export interface PostflopStat {
+  spots: number
+  hits: number
+  freq: number
+}
+
 export interface ImportReport {
   handsFound: number
   graded: number
@@ -42,6 +49,52 @@ export interface ImportReport {
   byPosition: LeakBar[]
   byCategory: LeakBar[]
   weakCategories: HandCategory[]
+  /** Flop c-bet frequency as the heads-up preflop raiser. */
+  cbet?: PostflopStat
+  /** Fold-to-flop-c-bet frequency as the heads-up preflop caller. */
+  foldToCbet?: PostflopStat
+}
+
+interface Acc {
+  spots: number
+  hits: number
+}
+
+/** Parse the flop of a heads-up pot and tally hero's c-bet / fold-to-c-bet. */
+function parseFlop(lines: string[], heroName: string, heroIsAggressor: boolean, cbet: Acc, faceCbet: Acc) {
+  const flopIdx = lines.findIndex((l) => /^\*\*\* FLOP \*\*\*/i.test(l))
+  if (flopIdx < 0) return
+  let fend = lines.findIndex((l, i) => i > flopIdx && /^\*\*\* /.test(l))
+  if (fend < 0) fend = lines.length
+  const actors: { name: string; act: string }[] = []
+  for (let i = flopIdx + 1; i < fend; i++) {
+    const m = lines[i].match(/^(.+?): (folds|checks|calls|raises|bets)/)
+    if (m) actors.push({ name: m[1], act: m[2] })
+  }
+  const names = new Set(actors.map((a) => a.name))
+  if (names.size !== 2 || !names.has(heroName)) return // heads-up with hero only
+  if (heroIsAggressor) {
+    // c-bet decision = hero's first flop action, as long as no one bet into them
+    const idxH = actors.findIndex((a) => a.name === heroName)
+    if (idxH < 0) return
+    if (actors.slice(0, idxH).some((a) => a.act === 'bets' || a.act === 'raises')) return // hero faced a donk
+    const act = actors[idxH].act
+    if (act === 'bets') {
+      cbet.spots++
+      cbet.hits++
+    } else if (act === 'checks') {
+      cbet.spots++
+    }
+  } else {
+    // fold-to-c-bet = hero's first action AFTER the villain's flop bet (handles the
+    // common OOP line: hero checks, villain bets, hero then folds/calls/raises)
+    const villBetIdx = actors.findIndex((a) => a.name !== heroName && a.act === 'bets')
+    if (villBetIdx < 0) return
+    const resp = actors.slice(villBetIdx + 1).find((a) => a.name === heroName)
+    if (!resp) return
+    faceCbet.spots++
+    if (resp.act === 'folds') faceCbet.hits++
+  }
 }
 
 interface SeatInfo {
@@ -75,6 +128,8 @@ export function parseHandHistory(text: string): ImportReport {
   const decisions: GradedDecision[] = []
   const reasons: Record<string, number> = {}
   const bump = (r: string) => (reasons[r] = (reasons[r] ?? 0) + 1)
+  const cbetAcc: Acc = { spots: 0, hits: 0 }
+  const faceCbetAcc: Acc = { spots: 0, hits: 0 }
 
   hands.forEach((hand, idx) => {
     const lines = hand.split('\n').map((l) => l.trim())
@@ -158,6 +213,8 @@ export function parseHandHistory(text: string): ImportReport {
         correctAction: correct,
         isCorrect: heroAction === correct,
       })
+      // hero opened → if it goes heads-up to a flop, hero is the c-bettor
+      if (heroAction === 'raise') parseFlop(lines, heroName, true, cbetAcc, faceCbetAcc)
       return
     }
 
@@ -180,6 +237,8 @@ export function parseHandHistory(text: string): ImportReport {
         correctAction: correct,
         isCorrect: heroAction === correct,
       })
+      // hero called the open → villain is the c-bettor; track hero's response
+      if (heroAction === 'call') parseFlop(lines, heroName, false, cbetAcc, faceCbetAcc)
       return
     }
 
@@ -189,6 +248,9 @@ export function parseHandHistory(text: string): ImportReport {
   const correct = decisions.filter((d) => d.isCorrect).length
   const byCategory = aggregate(decisions, (d) => d.category)
   const weakCategories = byCategory.filter((b) => b.errors > 0).map((b) => b.key as HandCategory)
+
+  const stat = (a: Acc): PostflopStat | undefined =>
+    a.spots >= 4 ? { spots: a.spots, hits: a.hits, freq: a.hits / a.spots } : undefined
 
   return {
     handsFound: hands.length,
@@ -201,5 +263,7 @@ export function parseHandHistory(text: string): ImportReport {
     byPosition: aggregate(decisions, (d) => d.heroPos),
     byCategory,
     weakCategories,
+    cbet: stat(cbetAcc),
+    foldToCbet: stat(faceCbetAcc),
   }
 }

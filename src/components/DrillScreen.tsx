@@ -231,22 +231,25 @@ export default function DrillScreen({
   // targeted-drill request from the Leaks report or import
   useEffect(() => {
     if (!requestFocus) return
+    const fh = !!requestFocus.fullHand
     const cats = requestFocus.cats?.length ? new Set(requestFocus.cats) : new Set<HandCategory>()
-    const nextMode = requestFocus.mode ?? (requestFocus.lockPos ? 'rfi' : mode === 'postflop' ? 'rfi' : mode)
     const lockPos = requestFocus.lockPos ?? null
+    const nextMode = fh ? 'postflop' : (requestFocus.mode ?? (lockPos ? 'rfi' : mode === 'postflop' ? 'rfi' : mode))
     setFocusCats(cats)
     setFocusOn(cats.size > 0)
     setFocusPos(lockPos)
     setFocusLabel(requestFocus.label ?? null)
     setMode(nextMode)
-    setFullHand(false) // a targeted leak drill leaves continuation play
+    setFullHand(fh)
     setStreak(0)
     setSpot(
-      generateSpot(nextMode, {
-        focus: cats.size > 0 ? cats : undefined,
-        lockPos: lockPos ?? undefined,
-        difficulty,
-      }),
+      fh
+        ? generateSpot('rfi', { lockPos: 'BTN', difficulty }) // Continuation starts preflop on the button
+        : generateSpot(nextMode, {
+            focus: cats.size > 0 ? cats : undefined,
+            lockPos: lockPos ?? undefined,
+            difficulty,
+          }),
     )
     setResult(null)
     setCanContinue(false)
