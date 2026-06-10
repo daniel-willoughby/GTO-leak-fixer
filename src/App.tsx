@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Spade, Target, GraduationCap, FileText, Volume2, VolumeX, SlidersHorizontal, type LucideIcon } from 'lucide-react'
+import { Spade, Target, GraduationCap, BookOpen, FileText, Volume2, VolumeX, SlidersHorizontal, type LucideIcon } from 'lucide-react'
 import DrillScreen from './components/DrillScreen'
-import BeginnerPath from './components/BeginnerPath'
+import LessonsScreen from './components/LessonsScreen'
 import OnboardingScreen from './components/OnboardingScreen'
 import LeaksScreen from './components/LeaksScreen'
 import LearnScreen from './components/LearnScreen'
@@ -11,13 +11,14 @@ import { isMuted, setMuted } from './lib/sound'
 import { getLevel, setLevel, type Level } from './lib/level'
 import type { Difficulty, FocusRequest } from './lib/spot'
 
-type Tab = 'drill' | 'leaks' | 'import' | 'learn'
+type Tab = 'drill' | 'lessons' | 'leaks' | 'import' | 'learn'
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'drill', label: 'Drill', icon: Spade },
+  { id: 'lessons', label: 'Lessons', icon: GraduationCap },
   { id: 'leaks', label: 'Leaks', icon: Target },
   { id: 'import', label: 'Import', icon: FileText },
-  { id: 'learn', label: 'Learn', icon: GraduationCap },
+  { id: 'learn', label: 'Glossary', icon: BookOpen },
 ]
 
 const DIFFICULTIES: { id: Difficulty; label: string; note: string }[] = [
@@ -125,18 +126,16 @@ export default function App() {
       </header>
 
       <main className="flex-1 overflow-y-auto">
-        {tab === 'drill' &&
-          (level === 'beginner' ? (
-            <BeginnerPath onProgress={() => setProgress((p) => p + 1)} />
-          ) : (
-            <DrillScreen
-              level="intermediate"
-              onProgress={() => setProgress((p) => p + 1)}
-              requestFocus={focusRequest}
-              onFocusConsumed={() => setFocusRequest(null)}
-              difficulty={difficulty}
-            />
-          ))}
+        {tab === 'drill' && (
+          <DrillScreen
+            level={level}
+            onProgress={() => setProgress((p) => p + 1)}
+            requestFocus={focusRequest}
+            onFocusConsumed={() => setFocusRequest(null)}
+            difficulty={difficulty}
+          />
+        )}
+        {tab === 'lessons' && <LessonsScreen onProgress={() => setProgress((p) => p + 1)} />}
         {tab === 'leaks' && <LeaksScreen version={progress} onDrillLeaks={drillLeaks} />}
         {tab === 'import' && <ImportScreen onDrillLeaks={drillLeaks} />}
         {tab === 'learn' && <LearnScreen />}

@@ -12,9 +12,9 @@ const CHOICES: { level: Level; icon: LucideIcon; tag: string; title: string; poi
     tag: 'Beginner',
     title: 'New to poker theory',
     points: [
-      'A guided path, one concept at a time',
-      'Every term explained as you go',
-      'Start with the two key preflop decisions',
+      'Plain-English explanations on every hand',
+      'Hints whenever you want them',
+      'A Lessons tab that teaches the fundamentals',
     ],
   },
   {
@@ -23,8 +23,8 @@ const CHOICES: { level: Level; icon: LucideIcon; tag: string; title: string; poi
     tag: 'Intermediate',
     title: 'I know the basics',
     points: [
-      'Free play across all four modes',
-      'Solver frequencies and mixed strategies',
+      'Straight into free play and full-hand continuation',
+      'Solver frequencies, mixed strategies, bet-sizing',
       'Drill leaks, review mistakes, track progress',
     ],
   },

@@ -16,6 +16,8 @@ export interface LessonScope {
 export interface Lesson {
   id: string
   title: string
+  /** Section this lesson belongs to on the Lessons tab. */
+  group: string
   /** One-line subtitle on the path card. */
   blurb: string
   icon: LucideIcon
@@ -32,6 +34,7 @@ export interface Lesson {
 export const CURRICULUM: Lesson[] = [
   {
     id: 'rfi-btn',
+    group: 'Opening hands',
     title: 'Should you even play this hand?',
     blurb: 'The raise-or-fold rule',
     icon: Hand,
@@ -43,6 +46,7 @@ export const CURRICULUM: Lesson[] = [
   },
   {
     id: 'rfi-co',
+    group: 'Opening hands',
     title: 'Position is power',
     blurb: 'Why late seats play more hands',
     icon: Compass,
@@ -54,6 +58,7 @@ export const CURRICULUM: Lesson[] = [
   },
   {
     id: 'rfi-utg',
+    group: 'Opening hands',
     title: 'Tight from up front',
     blurb: 'Respecting early position',
     icon: ShieldAlert,
@@ -65,6 +70,7 @@ export const CURRICULUM: Lesson[] = [
   },
   {
     id: 'rfi-sb',
+    group: 'Opening hands',
     title: 'Stealing from the small blind',
     blurb: 'Wide raises, one player left',
     icon: Crosshair,
@@ -76,6 +82,7 @@ export const CURRICULUM: Lesson[] = [
   },
   {
     id: 'vsrfi-bb',
+    group: 'Facing a raise',
     title: 'Someone raised before you',
     blurb: 'Fold, call, or 3-bet',
     icon: Swords,
@@ -87,6 +94,7 @@ export const CURRICULUM: Lesson[] = [
   },
   {
     id: 'vsrfi-3bet',
+    group: 'Facing a raise',
     title: '3-betting for value',
     blurb: 'When to re-raise',
     icon: TrendingUp,
@@ -98,23 +106,23 @@ export const CURRICULUM: Lesson[] = [
   },
   {
     id: 'multiway',
+    group: 'Beyond the basics',
     title: 'Playing a multiway pot',
     blurb: 'Squeezing over a raise and a call',
     icon: Layers,
     mode: 'multiway',
     goal: 6,
-    unlocksLabel: 'Unlocks Multiway mode',
     concept:
       'Sometimes a player raises and another [call]s before it reaches you. With a strong hand you can [squeeze]: a big re-raise over both of them to win the dead money and play heads-up. Multiway pots are dangerous, so continue only with hands that hold up against several opponents.',
   },
   {
     id: 'postflop',
+    group: 'Beyond the basics',
     title: 'Betting after the flop',
     blurb: 'C-bet or check',
     icon: Spade,
     mode: 'postflop',
     goal: 6,
-    unlocksLabel: 'Unlocks Postflop mode',
     concept:
       'After the flop you decide whether to [c-bet] (continuation bet) or [check]. Bet your strong hands for [value] and your [draw]s as a [semi-bluff]. Check the hands that are not strong enough to bet but still want to see another card cheaply.',
   },
