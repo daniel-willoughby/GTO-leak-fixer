@@ -17,7 +17,9 @@ import {
 } from 'lucide-react'
 import {
   ACTION_LABEL,
+  advanceToFlop,
   buildContinuationSpot,
+  canStartFlop,
   generateSpot,
   judge,
   multiwayOf,
@@ -221,7 +223,11 @@ export default function DrillScreen({
   // re-deal when difficulty changes (unless mid-feedback, reviewing, or in a lesson)
   useEffect(() => {
     if (!reviewMode && !result && !lesson)
-      setSpot(generateSpot(mode, { focus: focusOn ? focusCats : undefined, lockPos: focusPos ?? undefined, difficulty }))
+      setSpot(
+        fullHand
+          ? generateSpot('rfi', { lockPos: 'BTN', difficulty })
+          : generateSpot(mode, { focus: focusOn ? focusCats : undefined, lockPos: focusPos ?? undefined, difficulty }),
+      )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [difficulty])
 
@@ -236,6 +242,7 @@ export default function DrillScreen({
     setFocusPos(lockPos)
     setFocusLabel(requestFocus.label ?? null)
     setMode(nextMode)
+    setFullHand(false) // a targeted leak drill leaves continuation play
     setStreak(0)
     setSpot(
       generateSpot(nextMode, {
@@ -251,16 +258,18 @@ export default function DrillScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestFocus])
 
-  function dealNormal(m: DrillMode = mode) {
-    setSpot(
-      lesson
-        ? generateSpot(lesson.mode, scopeOpts)
+  function dealNormal(m: DrillMode = mode, fh: boolean = fullHand) {
+    const fresh = lesson
+      ? generateSpot(lesson.mode, scopeOpts)
+      : fh
+        ? // continuation: every hand starts preflop, on the button
+          generateSpot('rfi', { lockPos: 'BTN', difficulty })
         : generateSpot(m, {
             focus: focusOn ? focusCats : undefined,
             lockPos: focusPos ?? undefined,
             difficulty,
-          }),
-    )
+          })
+    setSpot(fresh)
     setResult(null)
     setCanContinue(false)
     setShowHint(false)
@@ -295,7 +304,7 @@ export default function DrillScreen({
     }
   }
 
-  const category: Category = mode === 'postflop' ? (fullHand ? 'continuation' : 'postflop') : 'preflop'
+  const category: Category = fullHand ? 'continuation' : mode === 'postflop' ? 'postflop' : 'preflop'
 
   function applyMode(m: DrillMode, fh: boolean) {
     if (reviewMode || lesson) return
@@ -304,7 +313,7 @@ export default function DrillScreen({
     setMode(m)
     setFullHand(fh)
     setStreak(0)
-    dealNormal(m)
+    dealNormal(m, fh)
   }
 
   function selectCategory(cat: Category) {
@@ -341,8 +350,14 @@ export default function DrillScreen({
   }
 
   function continueHand() {
-    if (!spot.handState || !result) return
-    const continuation = buildContinuationSpot(spot.handState, result.chosen)
+    if (!result) return
+    // continuation: preflop open → flop, then flop/turn → next street
+    const continuation =
+      spot.mode === 'rfi'
+        ? advanceToFlop(spot.label, spot.cards)
+        : spot.handState
+          ? buildContinuationSpot(spot.handState, result.chosen)
+          : null
     if (!continuation) return next()
     setSpot(continuation)
     setResult(null)
@@ -379,15 +394,17 @@ export default function DrillScreen({
       setLessonCorrect(st.correct)
       if (st.done) setLessonDone(true)
     }
-    if (
-      !lesson &&
-      fullHand && // only the Continuation mode plays through the streets
-      spot.mode === 'postflop' &&
-      !reviewMode &&
-      action !== 'bet75' && // continuation data follows the check / ⅓ line only
-      (spot.handState?.street === 'flop' || spot.handState?.street === 'turn')
-    ) {
-      setCanContinue(!!buildContinuationSpot(spot.handState, action))
+    if (!lesson && fullHand && !reviewMode) {
+      if (spot.mode === 'rfi' && action === 'raise') {
+        // continuation: opened the button → deal the flop next
+        setCanContinue(canStartFlop(spot.label, spot.cards))
+      } else if (
+        spot.mode === 'postflop' &&
+        action !== 'bet75' && // continuation data follows the check / ⅓ line only
+        (spot.handState?.street === 'flop' || spot.handState?.street === 'turn')
+      ) {
+        setCanContinue(!!buildContinuationSpot(spot.handState, action))
+      }
     }
 
     const key = seedKey(seedOf(spot))
@@ -471,7 +488,8 @@ export default function DrillScreen({
           onClick={continueHand}
           className="btn btn-secondary pointer-events-auto flex-1 max-w-[11rem] py-4 text-base flex items-center justify-center gap-2"
         >
-          <FastForward size={16} /> {spot.handState?.street === 'turn' ? 'River' : 'Turn'}
+          <FastForward size={16} />{' '}
+          {spot.mode === 'rfi' ? 'Flop' : spot.handState?.street === 'turn' ? 'River' : 'Turn'}
         </button>
       )}
       <button
@@ -579,7 +597,7 @@ export default function DrillScreen({
             <p className="px-1 text-xs text-ink3">One c-bet decision per hand — BTN vs BB on the flop.</p>
           )}
           {category === 'continuation' && (
-            <p className="px-1 text-xs text-ink3">Play the whole hand — flop, turn, then river.</p>
+            <p className="px-1 text-xs text-ink3">Play a whole hand — open the button, then flop, turn, river.</p>
           )}
         </div>
       )}

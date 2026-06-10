@@ -293,6 +293,49 @@ function generatePostflopSpot(): Spot {
   }
 }
 
+/**
+ * Continuation play: hero opened the button preflop and BB called — deal the
+ * flop using the hero's existing hole cards, on a board that doesn't collide
+ * with them. Returns null if the hand isn't in the BTN c-bet range (no data).
+ */
+export function advanceToFlop(heroLabel: string, heroCards: [Card, Card]): Spot | null {
+  const used = new Set(heroCards.map((c) => c.rank + c.suit))
+  const candidates = FLOP_NODES.filter(
+    (n) => !!strategyFor(n, heroLabel) && boardCards(n).every((c) => !used.has(c.rank + c.suit)),
+  )
+  if (!candidates.length) return null
+  const node = randOf(candidates)
+  const board = boardCards(node)
+  const strat = strategyFor(node, heroLabel)!
+  const handState: HandState = {
+    heroCards,
+    heroLabel,
+    flopNode: node,
+    history: [...node.history, `Flop: ${node.board.match(/../g)!.join(' ')}`],
+    street: 'flop',
+    board,
+  }
+  return {
+    mode: 'postflop',
+    heroPos: node.hero,
+    cards: heroCards,
+    label: heroLabel,
+    correct: strat.primary as Action,
+    actions: node.actions as Action[],
+    category: classifyHand(heroLabel),
+    board,
+    node,
+    freqs: strat.freqs,
+    handState,
+  }
+}
+
+/** Whether a continuation hand can proceed from preflop to the flop. */
+export function canStartFlop(heroLabel: string, heroCards: [Card, Card]): boolean {
+  const used = new Set(heroCards.map((c) => c.rank + c.suit))
+  return FLOP_NODES.some((n) => !!strategyFor(n, heroLabel) && boardCards(n).every((c) => !used.has(c.rank + c.suit)))
+}
+
 const boardStr = (cards: Card[]): string => cards.map((c) => c.rank + c.suit).join('')
 
 /** After answering a flop or turn decision, advance to the next street. */
