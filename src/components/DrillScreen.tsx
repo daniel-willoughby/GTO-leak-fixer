@@ -590,7 +590,7 @@ export default function DrillScreen({
                 category === 'continuation' ? 'bg-sage text-white shadow-[0_4px_12px_-4px_rgba(67,84,72,0.6)]' : 'text-ink2 hover:text-ink'
               }`}
             >
-              {category === 'continuation' ? `Continuation · ${villainStyle === 'fish' ? 'vs Fish' : 'vs GTO'}` : 'Continuation'}
+              {category === 'continuation' ? `Freeplay · ${villainStyle === 'fish' ? 'vs Fish' : 'vs GTO'}` : 'Freeplay'}
               <ChevronDown size={12} className={`transition-transform ${contMenuOpen ? 'rotate-180' : ''}`} />
             </button>
           </div>

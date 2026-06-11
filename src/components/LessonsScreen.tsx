@@ -151,7 +151,7 @@ export default function LessonsScreen({ onProgress, openLessonId, onOpened }: Pr
           <Trophy className="mx-auto mb-2 text-clay" size={24} />
           <p className="serif text-lg text-ink">You've covered every lesson</p>
           <p className="mt-1 text-sm text-ink2">
-            Now put it into practice in the Drill tab — and play full hands in Continuation.
+            Now put it into practice in the Drill tab — and play full hands in Freeplay.
           </p>
         </div>
       ) : (

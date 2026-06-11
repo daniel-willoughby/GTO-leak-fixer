@@ -296,7 +296,7 @@ export default function ImportScreen({ onDrillLeaks }: Props) {
                     onClick={() => onDrillLeaks({ fullHand: true, label: 'C-bet practice' })}
                     className="btn btn-secondary mt-3.5 flex w-full items-center justify-center gap-2 py-3 text-sm"
                   >
-                    <Spade size={15} /> Practise c-bets in Continuation
+                    <Spade size={15} /> Practise c-bets in Freeplay
                   </button>
                 </section>
               )}
