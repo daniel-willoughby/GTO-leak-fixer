@@ -1,0 +1,61 @@
+// All-seats Freeplay nodes — the rich variety extracted from the solver:
+// IP c-bets, OOP donks, and OOP facing-a-c-bet (fold/call/raise) across the
+// UTG/HJ/CO/BTN-vs-BB matchups. Empty until solve-allseats + finalize-allseats run;
+// the app falls back to its current Freeplay until then.
+import raw from './freeplay-nodes.json'
+import type { RfiPosition } from './ranges'
+
+export interface FreeplayNode {
+  spot: string // e.g. 'CO_vs_BB_SRP'
+  board: string // 6-char flop or 8-char turn
+  street: 'flop' | 'turn'
+  kind: 'cbet' | 'donk' | 'face_cbet'
+  hero: 'IP' | 'OOP'
+  facing: 'check' | 'bet'
+  history: string[]
+  betSizes: number[]
+  actions: string[]
+  strategy: Record<string, number[]>
+}
+
+export const FREEPLAY_NODES = raw as unknown as FreeplayNode[]
+export const FREEPLAY_READY = FREEPLAY_NODES.length > 0
+
+/** The opener seat for a matchup id ('CO_vs_BB_SRP' → 'CO'). */
+export const openerOf = (spot: string): RfiPosition => spot.split('_')[0] as RfiPosition
+
+/** Hero's seat at the table: the opener when in position, the BB when out. */
+export const heroSeatOf = (n: FreeplayNode) => (n.hero === 'IP' ? openerOf(n.spot) : 'BB')
+
+/** Representative size (bb) the villain has bet when hero is facing a bet. */
+export const facedBetBb = (street: 'flop' | 'turn') => (street === 'turn' ? 3 : 1.8)
+
+/** A label's strategy at a node, with its argmax (the GTO "correct" action). */
+export function freeplayStrategy(n: FreeplayNode, label: string): { freqs: number[]; primary: string } | null {
+  const freqs = n.strategy[label]
+  if (!freqs) return null
+  let bi = 0
+  for (let i = 1; i < freqs.length; i++) if (freqs[i] > freqs[bi]) bi = i
+  return { freqs, primary: n.actions[bi] }
+}
+
+/** All 169 hand labels present in a node (for dealing a random hero hand). */
+export const nodeLabels = (n: FreeplayNode): string[] => Object.keys(n.strategy)
+
+/**
+ * Pick a random node, balanced across kinds so the user keeps meeting variety
+ * (raw counts are dominated by turn c-bets). Returns null when no data yet.
+ */
+export function randomFreeplayNode(): FreeplayNode | null {
+  if (!FREEPLAY_READY) return null
+  // 40% face-a-bet (the headline "react to a bet" spots), 30% c-bet, 20% donk, 10% other
+  const want = Math.random()
+  const pools: FreeplayNode[][] = [
+    FREEPLAY_NODES.filter((n) => n.kind === 'face_cbet'),
+    FREEPLAY_NODES.filter((n) => n.kind === 'cbet'),
+    FREEPLAY_NODES.filter((n) => n.kind === 'donk'),
+  ]
+  const pick = want < 0.45 ? pools[0] : want < 0.78 ? pools[1] : pools[2]
+  const pool = pick.length ? pick : FREEPLAY_NODES
+  return pool[Math.floor(Math.random() * pool.length)]
+}

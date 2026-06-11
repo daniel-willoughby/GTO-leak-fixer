@@ -6,6 +6,7 @@ import {
   spotFromSeed,
   gradeVsDonk,
   buildContinuationSpot,
+  generateFreeplaySpot,
   type Spot,
   type HandState,
 } from './spot'
@@ -175,5 +176,32 @@ describe('formatBoardCode', () => {
     expect(formatBoardCode('Qs8s4s2c7h')).toBe('Q♠ 8♠ 4♠ · 2♣ 7♥')
     expect(formatBoardCode('BTN')).toBe('BTN')
     expect(formatBoardCode('Suited ace')).toBe('Suited ace')
+  })
+})
+
+describe('all-seats Freeplay', () => {
+  it('generateFreeplaySpot returns null until the dataset is installed', () => {
+    expect(generateFreeplaySpot()).toBeNull()
+  })
+
+  it('judges a GTO facing-bet spot by solver frequency (not the fish heuristic)', () => {
+    const spot = {
+      mode: 'postflop',
+      heroPos: 'BB',
+      cards: parseCards('AhKh'),
+      label: 'AKs',
+      correct: 'raise',
+      actions: ['fold', 'call', 'raise'],
+      category: 'Suited ace',
+      board: parseCards('Ad8c3h'),
+      freqs: [0.1, 0.3, 0.6],
+      freeplay: true,
+      facingBet: { amountBb: 1.8 },
+      street: 'flop',
+    } as unknown as Spot
+    expect(judge(spot, 'raise').quality).toBe('correct')
+    expect(judge(spot, 'call').quality).toBe('acceptable') // 0.30 ≥ threshold
+    expect(judge(spot, 'fold').quality).toBe('wrong') // 0.10 < threshold
+    expect(judge(spot, 'raise').explanation).toMatch(/GTO plays/)
   })
 })

@@ -20,6 +20,7 @@ import {
   type StreetNode,
 } from '../data/postflop'
 import { describeHand, type Tier } from './flopEval'
+import { randomFreeplayNode, freeplayStrategy, heroSeatOf, nodeLabels as fpLabels, facedBetBb } from '../data/freeplay'
 import type { Level } from './level'
 
 export type Action = 'fold' | 'raise' | 'call' | '3bet' | 'check' | 'bet' | 'bet33' | 'bet75' | 'squeeze' | 'cold-4bet'
@@ -60,6 +61,11 @@ export interface Spot {
   facingBet?: { amountBb: number }
   /** Second-best answers for heuristic (facing-bet) spots. */
   acceptable?: Action[]
+  // all-seats Freeplay (single solver-true spots, any seat / node type)
+  freeplay?: boolean
+  /** Street + betting line for rendering when there's no continuation handState. */
+  street?: 'flop' | 'turn' | 'river'
+  history?: string[]
 }
 
 /** Who the continuation opponent is: solver-perfect, or a loose live-game fish. */
@@ -396,6 +402,37 @@ export function canStartFlop(heroLabel: string, heroCards: [Card, Card]): boolea
 
 const boardStr = (cards: Card[]): string => cards.map((c) => c.rank + c.suit).join('')
 
+/**
+ * All-seats Freeplay: one solver-true spot from a random seat / node type
+ * (IP c-bet, OOP donk, or OOP facing a c-bet). Returns null until the all-seats
+ * dataset is solved + installed, so callers fall back to current behaviour.
+ */
+export function generateFreeplaySpot(): Spot | null {
+  const node = randomFreeplayNode()
+  if (!node) return null
+  const board = node.board.match(/../g)!.map((c) => parseCards(c)[0])
+  const label = randOf(fpLabels(node))
+  const cards = dealHandForLabel(label, board)
+  const strat = freeplayStrategy(node, label)
+  if (!strat) return null
+  const facing = node.kind === 'face_cbet'
+  return {
+    mode: 'postflop',
+    heroPos: heroSeatOf(node) as Position,
+    cards,
+    label,
+    correct: strat.primary as Action,
+    actions: node.actions as Action[],
+    category: classifyHand(label),
+    board,
+    freqs: strat.freqs,
+    freeplay: true,
+    street: node.street,
+    history: node.history,
+    facingBet: facing ? { amountBb: facedBetBb(node.street) } : undefined,
+  }
+}
+
 /** After answering a flop or turn decision, advance to the next street. */
 export function buildContinuationSpot(state: HandState, heroAction: Action): Spot | null {
   if (heroAction === 'fold') return null // hero folded to a lead — hand over
@@ -557,15 +594,15 @@ export function judge(spot: Spot, chosen: Action, level: Level = 'intermediate')
   let quality: Quality
   if (chosen === spot.correct) {
     quality = 'correct'
-  } else if (spot.facingBet) {
-    // heuristic exploit spot (vs fish) — graded by tier, not solver frequencies
-    quality = spot.acceptable?.includes(chosen) ? 'acceptable' : 'wrong'
-  } else if (spot.mode === 'postflop' && spot.freqs) {
-    // postflop nodes carry N actions (check / bet⅓ / bet¾); score by the
-    // chosen action's own frequency so a defensible second size is acceptable.
+  } else if (spot.freqs) {
+    // solver frequencies (postflop sizes, or a GTO fold/call/raise spot): score
+    // by the chosen action's own frequency so a defensible mix is acceptable.
     const idx = spot.actions.indexOf(chosen)
     const chosenFreq = idx >= 0 ? (spot.freqs[idx] ?? 0) : 0
     quality = chosenFreq >= ACCEPTABLE_FREQ ? 'acceptable' : 'wrong'
+  } else if (spot.facingBet) {
+    // heuristic exploit spot (vs fish) — graded by tier, not solver frequencies
+    quality = spot.acceptable?.includes(chosen) ? 'acceptable' : 'wrong'
   } else {
     quality = 'wrong'
   }
@@ -578,7 +615,30 @@ export function judge(spot: Spot, chosen: Action, level: Level = 'intermediate')
   }
 }
 
+const FP_VERB: Partial<Record<Action, string>> = {
+  fold: 'fold',
+  call: 'call',
+  raise: 'raise',
+  check: 'check',
+  bet33: 'bet small (⅓)',
+  bet75: 'bet big (¾)',
+}
+
+/** GTO explanation for an all-seats Freeplay spot — reports the solver's mix. */
+function explainFreeplay(spot: Spot, chosen: Action): string {
+  const desc = describeHand(spot.cards, spot.board!)
+  const right = chosen === spot.correct
+  const mix = spot.actions
+    .map((a, i) => ({ a, p: spot.freqs?.[i] ?? 0 }))
+    .filter((x) => x.p >= 0.05)
+    .map((x) => `${FP_VERB[x.a] ?? x.a} ${Math.round(x.p * 100)}%`)
+    .join(' · ')
+  const verdict = right ? 'Correct.' : `Solver leans to ${FP_VERB[spot.correct] ?? 'this'}.`
+  return `${verdict} With ${desc.text}, GTO plays ${mix}.`
+}
+
 function explain(spot: Spot, chosen: Action, level: Level): string {
+  if (spot.freeplay) return explainFreeplay(spot, chosen)
   if (spot.facingBet) return explainFacingBet(spot, chosen, level)
   if (level === 'beginner') {
     if (spot.mode === 'rfi') return explainRfiBeginner(spot, chosen)
@@ -626,10 +686,16 @@ export function promptFor(spot: Spot, level: Level): string {
   const street = spot.handState?.street
   const mwDesc = multiwayOf(spot)?.description ?? 'What do you do?'
   if (spot.facingBet) {
-    const where = street === 'river' ? ' on the river' : street === 'turn' ? ' on the turn' : ''
+    const st = spot.street ?? street
+    const where = st === 'river' ? ' on the river' : st === 'turn' ? ' on the turn' : ''
     return level === 'beginner'
       ? `They bet ${spot.facingBet.amountBb}bb into you${where}. Fold, call, or raise?`
-      : `BB leads ${spot.facingBet.amountBb}bb${where}. Fold, call, or raise?`
+      : `Facing a ${spot.facingBet.amountBb}bb bet${where}. Fold, call, or raise?`
+  }
+  if (spot.freeplay) {
+    const st = spot.street ?? 'flop'
+    if (spot.heroPos === 'BB') return `You're out of position on the ${st}, first to act. Bet or check?`
+    return `BB checks to you on the ${st}. Bet, or check back?`
   }
   if (level === 'beginner') {
     if (spot.mode === 'rfi') return 'Everyone folded to you. Raise this hand, or fold?'
