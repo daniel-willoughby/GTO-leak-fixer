@@ -75,15 +75,23 @@ function solveOne(m, board, keepDump) {
   const outPath = join(INSTALL, outName)
   writeFileSync(inPath, buildInput(m, board, outName))
   const logName = `as_${m.id}_${board}.log`
-  console.log(`=== solving ${m.id} ${board} (${THREADS} threads) ===`)
+  console.log(`=== solving ${m.id} ${board} (${THREADS} threads, sizes=${SIZES}, stack=${STACK}) ===`)
   const t0 = Date.now()
   try {
     execSync(`./console_solver -i ${inName} > ${logName} 2>&1`, { cwd: INSTALL, stdio: 'ignore' })
   } catch (e) {
-    console.error(`solve failed for ${m.id} ${board} (exit ${e.status}). Log tail:`)
+    const oom = e.status === 137
+    console.error(`solve failed for ${m.id} ${board} (exit ${e.status}${oom ? ' = out of memory' : ''}). Log tail:`)
     try {
       console.error(execSync(`tail -5 "${join(INSTALL, logName)}"`).toString())
     } catch {}
+    if (oom) {
+      console.error(
+        `\n✗ OOM at sizes=${SIZES}, stack=${STACK}. This will fail every board — stopping.\n` +
+          `  Re-run lighter:  node solver-spike/solve-allseats.mjs${SIZES === 'rich' ? ' --sizes=mid' : SIZES === 'mid' ? '' : ' --stack=50'}`,
+      )
+      process.exit(2)
+    }
     return null
   }
   if (!existsSync(outPath)) {
