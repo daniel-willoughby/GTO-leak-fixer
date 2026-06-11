@@ -25,29 +25,36 @@ const arg = (k, d) => {
   return m ? m.split('=')[1] : d
 }
 const THREADS = Number(arg('threads', '4')) // medium power by default
+const STACK = arg('stack', '97.5') // shallower stack → much smaller tree
+// How many bet sizes per street (memory grows fast with street count of 2 sizes):
+//   lite (default) = 2 on flop only        → fits 16 GB comfortably, full variety
+//   mid            = 2 on flop + turn       → bigger; needs ~more RAM or a shallow stack
+//   rich           = 2 on flop+turn+river   → OOMs at 100 bb on 16 GB (use --stack=50)
+const SIZES = arg('sizes', 'lite')
+const TWO = { lite: ['flop'], mid: ['flop', 'turn'], rich: ['flop', 'turn', 'river'] }[SIZES] ?? ['flop']
 const TEST = process.argv.includes('--test')
 
 function buildInput(m, board, outName) {
   const cb = boardTokens(board).join(',')
-  // two sizes (33% / 75%) for the bettor on every street, both players
   const sizes = ['flop', 'turn', 'river']
-    .flatMap((s) => [
-      `set_bet_sizes oop,${s},bet,33,75`,
-      `set_bet_sizes oop,${s},raise,75`,
-      `set_bet_sizes oop,${s},allin`,
-      `set_bet_sizes ip,${s},bet,33,75`,
-      `set_bet_sizes ip,${s},raise,75`,
-      `set_bet_sizes ip,${s},allin`,
-    ])
+    .flatMap((s) => {
+      const bet = TWO.includes(s) ? '33,75' : '33' // two sizes only where affordable
+      return [
+        `set_bet_sizes oop,${s},bet,${bet}`,
+        `set_bet_sizes oop,${s},raise,75`,
+        `set_bet_sizes oop,${s},allin`,
+        `set_bet_sizes ip,${s},bet,${bet}`,
+        `set_bet_sizes ip,${s},raise,75`,
+        `set_bet_sizes ip,${s},allin`,
+      ]
+    })
     .join('\n')
-  // the BB may donk-lead on the river too
   return `set_pot 5.5
-set_effective_stack 97.5
+set_effective_stack ${STACK}
 set_board ${cb}
 set_range_ip ${m.ip}
 set_range_oop ${m.oop}
 ${sizes}
-set_bet_sizes oop,river,donk,33,75
 set_allin_threshold 0.67
 build_tree
 set_thread_num ${THREADS}
