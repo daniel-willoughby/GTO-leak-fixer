@@ -1,5 +1,5 @@
 // Lightweight made-hand / draw classifier for explaining postflop decisions.
-// Not a full evaluator with kickers — just enough to phrase a useful "why",
+// Not a full evaluator with kickers, just enough to phrase a useful "why",
 // but it does recognise every 5-card category (flush, straight, full house,
 // quads, straight flush) so strong hands are never mislabelled as "air".
 
@@ -109,7 +109,7 @@ export function describeHand(hole: [Card, Card], board: Card[]): HandDesc {
   const cWith = catRank([...hole, ...board])
   const cBoard = catRank(board)
   // Only credit a made hand if hero's cards actually beat what's already on the
-  // board — otherwise hero is "playing the board" and it's not really their hand.
+  // board, otherwise hero is "playing the board" and it's not really their hand.
   const improves = cWith > cBoard
   const boardPaired = new Set(board.map((c) => c.rank)).size < board.length
 

@@ -1,4 +1,4 @@
-// Postflop nodes — real TexasSolver output, flop + turn streets.
+// Postflop nodes, real TexasSolver output, flop + turn streets.
 // See solver-spike/transform-multistreet.mjs for how these are produced.
 
 import { parseCards, type Card } from '../lib/cards'

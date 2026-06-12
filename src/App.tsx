@@ -42,7 +42,7 @@ export default function App() {
   )
   const [level, setLevelState] = useState<Level | null>(() => getLevel())
   const [settingsOpen, setSettingsOpen] = useState(false)
-  // cloud sync (optional — only when Supabase is configured)
+  // cloud sync (optional, only when Supabase is configured)
   const { user } = useAuth()
   const [accountOpen, setAccountOpen] = useState(false)
   const [syncing, setSyncing] = useState(false)

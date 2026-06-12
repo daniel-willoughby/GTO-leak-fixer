@@ -1,5 +1,5 @@
 // Experience level (beginner vs intermediate) + beginner curriculum progress.
-// Stored in localStorage like 'lt-difficulty' — small, structured, no Dexie
+// Stored in localStorage like 'lt-difficulty', small, structured, no Dexie
 // migration needed.
 
 import type { Lesson } from '../data/curriculum'

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, Search } from 'lucide-react'
 import RangeGrid from './RangeGrid'
-import { isRfiHand, POSITION_LABEL, RFI_POSITIONS, RFI_RANGES, type RfiPosition } from '../data/ranges'
+import { isRfiHand, rfiFreq, POSITION_LABEL, RFI_POSITIONS, RFI_RANGES, type RfiPosition } from '../data/ranges'
 import { GLOSSARY } from '../data/glossary'
 
 const LESSONS: { title: string; body: string }[] = [
@@ -64,7 +64,13 @@ export default function LearnScreen() {
         <p className="text-sm text-ink2 mb-3 text-center">
           {POSITION_LABEL[pos]}, opens ~<span className="text-sage-dark font-semibold">{RFI_RANGES[pos].pct}%</span> of hands
         </p>
-        <RangeGrid cell={(label) => (isRfiHand(pos, label) ? 'raise' : 'fold')} />
+        <RangeGrid
+          cell={(label) => (isRfiHand(pos, label) ? 'raise' : 'fold')}
+          freq={(label) => {
+            const f = rfiFreq(pos, label)
+            return f > 0 && f < 1 ? f : null
+          }}
+        />
       </section>
 
       <section className="panel p-4">

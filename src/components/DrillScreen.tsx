@@ -21,6 +21,7 @@ import {
   advanceToFlop,
   buildContinuationSpot,
   canStartFlop,
+  generateFreeplaySpot,
   generateSpot,
   judge,
   multiwayOf,
@@ -44,10 +45,11 @@ import { lessonProgress, recordLessonCorrect } from '../lib/level'
 import { getDaily, recordDailyCorrect, isDailyDone, liveStreak, type DailyState } from '../lib/daily'
 import type { Lesson } from '../data/curriculum'
 import GlossaryText from './GlossaryText'
-import { isRfiHand, type Position, type RfiPosition } from '../data/ranges'
+import { isRfiHand, rfiFreq, type Position, type RfiPosition } from '../data/ranges'
 import { MATCHUPS, respond } from '../data/vsRfi'
 import { respondMultiway } from '../data/multiway'
 import { strategyFor } from '../data/postflop'
+import { FREEPLAY_READY } from '../data/freeplay'
 import {
   dueMistakes,
   enqueueMistake,
@@ -65,7 +67,7 @@ import RangeGrid, { type CellKind } from './RangeGrid'
 /** Chips in front of each seat for the current spot (blinds, opens, calls, 3-bets). */
 function chipsFor(spot: Spot): Chip[] {
   if (spot.mode === 'postflop')
-    return spot.facingBet ? [{ pos: 'BB', amount: spot.facingBet.amountBb, tone: 'bet' }] : []
+    return spot.facingBet ? [{ pos: spot.villainPos ?? 'BB', amount: spot.facingBet.amountBb, tone: 'bet' }] : []
   if (spot.mode === 'multiway') {
     const m = multiwayOf(spot)
     if (!m) return []
@@ -92,7 +94,7 @@ interface Props {
   requestFocus?: FocusRequest | null
   onFocusConsumed?: () => void
   difficulty?: Difficulty
-  /** Experience level — drives prompt wording, hints, and explanation depth. */
+  /** Experience level, drives prompt wording, hints, and explanation depth. */
   level?: Level
   /** When set, run as a scoped beginner lesson instead of free play. */
   lesson?: Lesson | null
@@ -151,8 +153,17 @@ function cellFor(spot: Spot): (label: string) => CellKind {
   }
 }
 
-/** Per-hand bet frequency for the postflop strategy grid (B-style fill). */
+/** Per-hand bet/raise frequency for the strategy grid (B-style partial fill). */
 function freqFor(spot: Spot): ((label: string) => number | null) | undefined {
+  if (spot.mode === 'rfi') {
+    // only the curated edge-mix hands get a partial fill; pure raise/fold cells
+    // fall back to the solid `cellFor` colours.
+    const pos = spot.heroPos as RfiPosition
+    return (label) => {
+      const f = rfiFreq(pos, label)
+      return f > 0 && f < 1 ? f : null
+    }
+  }
   if (spot.mode !== 'postflop' || !spot.node) return undefined
   const node = spot.node
   return (label) => {
@@ -264,16 +275,20 @@ export default function DrillScreen({
   }, [requestFocus])
 
   function dealNormal(m: DrillMode = mode, fh: boolean = fullHand) {
+    // Freeplay vs GTO with real all-seats data: a varied solver-true spot from a
+    // random seat / node type. vs Fish (or no data) keeps the play-a-hand flow.
+    const fp = fh && villainStyle === 'gto' && FREEPLAY_READY ? generateFreeplaySpot() : null
     const fresh = lesson
       ? generateSpot(lesson.mode, scopeOpts)
-      : fh
-        ? // continuation: every hand starts preflop, on the button
-          generateSpot('rfi', { lockPos: 'BTN', difficulty })
-        : generateSpot(m, {
-            focus: focusOn ? focusCats : undefined,
-            lockPos: focusPos ?? undefined,
-            difficulty,
-          })
+      : fp
+        ? fp
+        : fh
+          ? generateSpot('rfi', { lockPos: 'BTN', difficulty }) // continuation starts preflop on the button
+          : generateSpot(m, {
+              focus: focusOn ? focusCats : undefined,
+              lockPos: focusPos ?? undefined,
+              difficulty,
+            })
     setSpot(fresh)
     setResult(null)
     setCanContinue(false)
@@ -455,9 +470,14 @@ export default function DrillScreen({
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const history = spot.handState?.history ?? []
-  const street = spot.handState?.street
+  const history = spot.handState?.history ?? spot.history ?? []
+  const street = spot.handState?.street ?? spot.street
   const prompt = promptFor(spot, level)
+  // matchup label for the table header (Freeplay can be any opener vs BB)
+  const postflopLabel =
+    spot.freeplay && spot.villainPos
+      ? `${spot.heroPos === 'BB' ? spot.villainPos : spot.heroPos} vs BB · ${street ?? 'flop'}`
+      : `BTN vs BB · ${street ?? 'flop'}`
 
   const multiwayActive = spot.mode === 'multiway' ? (multiwayOf(spot)?.activeBefore ?? []) : []
 
@@ -507,7 +527,7 @@ export default function DrillScreen({
 
   return (
     <div className="flex flex-col items-center gap-3 px-4 pb-28 lg:pb-12 pt-4 max-w-xl lg:max-w-5xl mx-auto">
-      {/* daily challenge celebration — transient, only on completion / milestone */}
+      {/* daily challenge celebration, transient, only on completion / milestone */}
       {!lesson && dailyFlash && (
         <div className="flex w-full lg:max-w-2xl lg:mx-auto animate-pop items-center gap-3 rounded-2xl border border-sage/40 bg-sage/10 px-4 py-3">
           {dailyFlash.kind === 'milestone' ? (
@@ -520,7 +540,7 @@ export default function DrillScreen({
               {dailyFlash.kind === 'milestone' ? `${dailyFlash.streak}-day streak!` : 'Daily challenge complete.'}
             </span>{' '}
             {dailyFlash.kind === 'milestone'
-              ? 'Big milestone — keep the run alive tomorrow.'
+              ? 'Big milestone, keep the run alive tomorrow.'
               : `Nice. Come back tomorrow to keep your ${dailyFlash.streak}-day streak going.`}
           </span>
         </div>
@@ -560,7 +580,7 @@ export default function DrillScreen({
       ) : (
         <div className="flex w-full flex-col gap-1.5 lg:max-w-2xl lg:mx-auto">
           <div className="flex gap-1 p-1 rounded-2xl bg-ink/[0.06] border border-line text-sm w-full">
-            {/* Preflop — a dropdown that shows the active situation, collapses after a pick */}
+            {/* Preflop, a dropdown that shows the active situation, collapses after a pick */}
             <button
               onClick={() => {
                 if (category === 'preflop') setPreflopMenuOpen((o) => !o)
@@ -576,7 +596,7 @@ export default function DrillScreen({
               {category === 'preflop' ? preflopLabel : 'Preflop'}
               <ChevronDown size={12} className={`transition-transform ${preflopMenuOpen ? 'rotate-180' : ''}`} />
             </button>
-            {/* Continuation — play a whole hand; dropdown picks the opponent */}
+            {/* Continuation, play a whole hand; dropdown picks the opponent */}
             <button
               onClick={() => {
                 setPreflopMenuOpen(false)
@@ -594,7 +614,7 @@ export default function DrillScreen({
               <ChevronDown size={12} className={`transition-transform ${contMenuOpen ? 'rotate-180' : ''}`} />
             </button>
           </div>
-          {/* preflop situations — only while the menu is open, collapses on select */}
+          {/* preflop situations, only while the menu is open, collapses on select */}
           {category === 'preflop' && preflopMenuOpen && (
             <div className="flex w-full gap-1 px-0.5">
               {PREFLOP_MODES.map((m) => (
@@ -613,13 +633,13 @@ export default function DrillScreen({
               ))}
             </div>
           )}
-          {/* continuation opponent — collapses on select */}
+          {/* continuation opponent, collapses on select */}
           {category === 'continuation' && contMenuOpen && (
             <div className="flex w-full gap-1 px-0.5">
               {(
                 [
                   { id: 'gto', label: 'vs GTO', note: 'solver-perfect opponent' },
-                  { id: 'fish', label: 'vs Fish', note: 'loose player — exploit them' },
+                  { id: 'fish', label: 'vs Fish', note: 'loose player, exploit them' },
                 ] as { id: VillainStyle; label: string; note: string }[]
               ).map((v) => (
                 <button
@@ -694,9 +714,7 @@ export default function DrillScreen({
         {/* table column */}
         <div className="w-full flex flex-col items-center gap-3">
       <div className="flex items-center justify-between w-full text-sm">
-        <span className="text-ink2">
-          {spot.mode === 'postflop' ? `BTN vs BB · ${street ?? 'flop'}` : '100bb · 6-max cash'}
-        </span>
+        <span className="text-ink2">{spot.mode === 'postflop' ? postflopLabel : '100bb · 6-max cash'}</span>
         <span
           className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 border transition ${
             streak >= 3 ? 'border-clay/40 bg-clay/10 text-clay' : 'border-line bg-paper2 text-ink2'
@@ -719,7 +737,14 @@ export default function DrillScreen({
         board={spot.board}
         villain={
           spot.mode === 'postflop'
-            ? { pos: 'BB', note: spot.facingBet ? `bets ${spot.facingBet.amountBb}bb` : 'checks' }
+            ? {
+                pos: spot.villainPos ?? 'BB',
+                note: spot.facingBet
+                  ? `bets ${spot.facingBet.amountBb}bb`
+                  : spot.freeplay && spot.heroPos === 'BB'
+                    ? 'to act'
+                    : 'checks',
+              }
             : undefined
         }
       />
@@ -760,7 +785,7 @@ export default function DrillScreen({
             <div className="flex w-full items-center gap-3 rounded-2xl border border-sage/40 bg-sage/10 p-4">
               <Sparkles size={22} className="shrink-0 text-sage" />
               <span className="text-sm text-ink">
-                <span className="serif font-semibold">Lesson complete.</span> Nicely done — tap Finish to head back to
+                <span className="serif font-semibold">Lesson complete.</span> Nicely done, tap Finish to head back to
                 your path.
               </span>
             </div>
@@ -779,8 +804,8 @@ export default function DrillScreen({
               <span className="text-ink">{result.explanation}</span>
             )}
           </div>
-          {/* range grid — hidden for facing-bet spots (exploit reads, not a solver range) */}
-          {!spot.facingBet && (
+          {/* range grid, needs a StreetNode; hidden for facing-bet + all-seats Freeplay spots */}
+          {!spot.facingBet && !spot.freeplay && (
             <div className="w-full">
               <p className="text-xs text-ink2 mb-2 text-center">
                 {gridLabel}:&nbsp;

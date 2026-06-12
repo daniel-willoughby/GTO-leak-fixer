@@ -23,7 +23,7 @@ const CHOICES: { level: Level; icon: LucideIcon; tag: string; title: string; poi
     tag: 'Intermediate',
     title: 'I know the basics',
     points: [
-      'Straight into free play — single spots or full hands',
+      'Straight into free play, single spots or full hands',
       'Solver frequencies, mixed strategies, bet-sizing',
       'Drill leaks, review mistakes, track progress',
     ],

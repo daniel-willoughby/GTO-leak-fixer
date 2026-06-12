@@ -26,7 +26,7 @@ interface Props {
 
 // Seat coordinates as % of the table container, seat 0 = hero (bottom). Seats
 // trace CLOCKWISE to match POSITION_ORDER, so the player to hero's left (next
-// clockwise position) sits on the left — e.g. the blinds sit left of the button.
+// clockwise position) sits on the left, e.g. the blinds sit left of the button.
 const SEATS = [
   { left: 50, top: 89 }, // hero (bottom)
   { left: 10, top: 68 }, // lower-left
@@ -107,7 +107,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
     const dy = 50 - coord.top
     const len = Math.hypot(dx, dy) || 1
     // Seats above centre have their pill pushed down by the cards above it, and
-    // the chip's inboard direction is straight down — so give top seats extra
+    // the chip's inboard direction is straight down, so give top seats extra
     // clearance proportional to how downward the chip travels (none at bottom).
     const inset = 15 + 7 * Math.max(0, dy / len)
     return { left: coord.left + (dx / len) * inset, top: coord.top + (dy / len) * inset }
@@ -175,7 +175,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
           >
             {pos}
           </div>
-          {/* the red seat pill + the chip already show the raise — no extra label needed */}
+          {/* the red seat pill + the chip already show the raise, no extra label needed */}
           {status === 'active' && villain && (
             <span className="text-[10px] text-white/80 font-semibold">{villain.note}</span>
           )}
@@ -185,7 +185,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
       {/* chips: posted blinds + the raiser's bet, in front of each player */}
       {bets.map((b) => {
         const seat = seats.find((s) => s.pos === b.pos)!
-        // the hero (bottom) shows big cards — park their own chip to the left
+        // the hero (bottom) shows big cards, park their own chip to the left
         // of those cards so it never sits on top of them or the next seat.
         const p = b.pos === heroPos ? { left: 34, top: 80 } : chipPos(seat.coord)
         return (

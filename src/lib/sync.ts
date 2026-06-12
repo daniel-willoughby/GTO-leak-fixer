@@ -144,7 +144,7 @@ export async function syncNow(userId: string): Promise<SyncSnapshot> {
   return merged
 }
 
-/** Push only — used for debounced background saves after local changes. */
+/** Push only, used for debounced background saves after local changes. */
 export async function pushLocal(userId: string): Promise<void> {
   await pushRemote(userId, await gatherLocal())
 }

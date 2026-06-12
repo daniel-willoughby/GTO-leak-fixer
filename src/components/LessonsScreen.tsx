@@ -72,7 +72,7 @@ export default function LessonsScreen({ onProgress, openLessonId, onOpened }: Pr
           </span>
           <div className="min-w-0">
             <h2 className="serif text-2xl leading-tight text-ink">Lessons</h2>
-            <p className="text-sm text-ink2">Learn the fundamentals — take them in any order.</p>
+            <p className="text-sm text-ink2">Learn the fundamentals, take them in any order.</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -151,7 +151,7 @@ export default function LessonsScreen({ onProgress, openLessonId, onOpened }: Pr
           <Trophy className="mx-auto mb-2 text-clay" size={24} />
           <p className="serif text-lg text-ink">You've covered every lesson</p>
           <p className="mt-1 text-sm text-ink2">
-            Now put it into practice in the Drill tab — and play full hands in Freeplay.
+            Now put it into practice in the Drill tab, and play full hands in Freeplay.
           </p>
         </div>
       ) : (

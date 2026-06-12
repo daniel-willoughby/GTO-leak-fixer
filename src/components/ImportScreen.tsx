@@ -11,14 +11,14 @@ type Verdict = { tone: 'good' | 'warn'; text: string }
 
 function cbetVerdict(freq: number): Verdict {
   const p = Math.round(freq * 100)
-  if (freq < 0.45) return { tone: 'warn', text: `Passive — you c-bet only ${p}%. As the raiser you can bet more flops.` }
-  if (freq > 0.85) return { tone: 'warn', text: `Very high — c-betting ${p}%. Mix in more checks, especially on wet boards.` }
+  if (freq < 0.45) return { tone: 'warn', text: `Passive, you c-bet only ${p}%. As the raiser you can bet more flops.` }
+  if (freq > 0.85) return { tone: 'warn', text: `Very high, c-betting ${p}%. Mix in more checks, especially on wet boards.` }
   return { tone: 'good', text: `Healthy c-bet frequency (${p}%).` }
 }
 function foldVerdict(freq: number): Verdict {
   const p = Math.round(freq * 100)
-  if (freq > 0.6) return { tone: 'warn', text: `Over-folding — you fold ${p}% to flop c-bets. Defend a bit more.` }
-  if (freq < 0.25) return { tone: 'warn', text: `Too sticky — folding only ${p}%. You can let more hands go.` }
+  if (freq > 0.6) return { tone: 'warn', text: `Over-folding, you fold ${p}% to flop c-bets. Defend a bit more.` }
+  if (freq < 0.25) return { tone: 'warn', text: `Too sticky, folding only ${p}%. You can let more hands go.` }
   return { tone: 'good', text: `Reasonable defense (${p}% folds).` }
 }
 

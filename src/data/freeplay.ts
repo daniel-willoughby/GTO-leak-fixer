@@ -1,4 +1,4 @@
-// All-seats Freeplay nodes — the rich variety extracted from the solver:
+// All-seats Freeplay nodes, the rich variety extracted from the solver:
 // IP c-bets, OOP donks, and OOP facing-a-c-bet (fold/call/raise) across the
 // UTG/HJ/CO/BTN-vs-BB matchups. Empty until solve-allseats + finalize-allseats run;
 // the app falls back to its current Freeplay until then.

@@ -213,7 +213,7 @@ export default function LeaksScreen({ version, onDrillLeaks, onOpenLesson }: Pro
           </p>
         ) : (
           <>
-            <p className="mb-3 text-sm text-ink2">Work these in order — drill the spot, then learn the why.</p>
+            <p className="mb-3 text-sm text-ink2">Work these in order, drill the spot, then learn the why.</p>
             <div className="flex flex-col gap-3">
               {sum.topLeaks.map((l, i) => (
                 <div

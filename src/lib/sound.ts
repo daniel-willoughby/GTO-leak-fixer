@@ -1,4 +1,4 @@
-// Tiny Web Audio sound engine — synthesised tones, no asset files, works offline.
+// Tiny Web Audio sound engine, synthesised tones, no asset files, works offline.
 
 let muted = localStorage.getItem('lt-muted') === '1'
 let ctx: AudioContext | null = null

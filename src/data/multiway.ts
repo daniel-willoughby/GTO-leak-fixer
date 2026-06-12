@@ -136,7 +136,7 @@ const RANGES: Record<string, { squeeze?: string[]; '3bet'?: string[]; call?: str
 export const MULTIWAY_MATCHUPS: MultiwayMatchup[] = MATCHUPS.map((m) => {
   const r = RANGES[m.id] ?? {}
   // `squeeze` holds the aggressive-raise hands, whether the matchup's raise is a
-  // squeeze or a cold 4-bet — respondMultiway returns whichever the spot uses.
+  // squeeze or a cold 4-bet, respondMultiway returns whichever the spot uses.
   return {
     ...m,
     squeeze: def([...(r.squeeze ?? []), ...(r['3bet'] ?? []), ...(r['cold-4bet'] ?? [])]),

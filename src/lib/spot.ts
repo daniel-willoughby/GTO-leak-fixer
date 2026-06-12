@@ -1,6 +1,7 @@
 import { dealHandForLabel, gridLabels, parseCards, type Card } from './cards'
 import {
   isRfiHand,
+  rfiFreq,
   POSITION_LABEL,
   RFI_POSITIONS,
   RFI_RANGES,
@@ -20,7 +21,7 @@ import {
   type StreetNode,
 } from '../data/postflop'
 import { describeHand, type Tier } from './flopEval'
-import { randomFreeplayNode, freeplayStrategy, heroSeatOf, nodeLabels as fpLabels, facedBetBb } from '../data/freeplay'
+import { randomFreeplayNode, freeplayStrategy, heroSeatOf, openerOf, nodeLabels as fpLabels, facedBetBb } from '../data/freeplay'
 import type { Level } from './level'
 
 export type Action = 'fold' | 'raise' | 'call' | '3bet' | 'check' | 'bet' | 'bet33' | 'bet75' | 'squeeze' | 'cold-4bet'
@@ -57,12 +58,14 @@ export interface Spot {
   freqs?: number[]
   // multi-street continuation
   handState?: HandState
-  /** Set when the villain has bet into hero (fish donk) — fold/call/raise spot. */
+  /** Set when the villain has bet into hero (fish donk), fold/call/raise spot. */
   facingBet?: { amountBb: number }
   /** Second-best answers for heuristic (facing-bet) spots. */
   acceptable?: Action[]
   // all-seats Freeplay (single solver-true spots, any seat / node type)
   freeplay?: boolean
+  /** The opponent's seat (for rendering chips / "BB vs CO" headers). */
+  villainPos?: Position
   /** Street + betting line for rendering when there's no continuation handState. */
   street?: 'flop' | 'turn' | 'river'
   history?: string[]
@@ -138,8 +141,10 @@ const MARGINALITY: Record<string, number> = (() => {
 
 function difficultyOK(spot: Spot, level: Difficulty): boolean {
   if (level === 'all') return true
-  if (spot.mode === 'postflop' && spot.freqs) {
-    const maxFreq = Math.max(spot.freqs[0], spot.freqs[1])
+  if (spot.freqs && (spot.mode === 'postflop' || spot.mode === 'rfi')) {
+    // mixed strategy (postflop sizes or a curated edge-mix open): easy mode
+    // wants near-pure spots, hard mode wants the genuine coin-flips.
+    const maxFreq = Math.max(...spot.freqs)
     return level === 'easy' ? maxFreq >= 0.78 : maxFreq <= 0.7
   }
   const m = MARGINALITY[spot.label] ?? 0
@@ -147,6 +152,23 @@ function difficultyOK(spot: Spot, level: Difficulty): boolean {
 }
 
 // ---------- generators -------------------------------------------------------
+
+/**
+ * RFI decision fields for a hand at a seat. Pure raises/folds are binary; a
+ * curated edge hand becomes a frequency-aware mixed spot (carries `freqs` as
+ * [fold, raise]) so `judge` accepts the minority action and the explanation
+ * frames it as a close, mixed open.
+ */
+function rfiFields(heroPos: RfiPosition, label: string): {
+  correct: Action
+  actions: Action[]
+  freqs?: number[]
+} {
+  const f = rfiFreq(heroPos, label)
+  const actions: Action[] = ['fold', 'raise']
+  if (f <= 0 || f >= 1) return { correct: f >= 1 ? 'raise' : 'fold', actions }
+  return { correct: f >= 0.5 ? 'raise' : 'fold', actions, freqs: [1 - f, f] }
+}
 
 export function generateSpot(mode: DrillMode, opts: GenOptions = {}): Spot {
   if (mode === 'postflop' && opts.state) return continueHand(opts.state)
@@ -170,8 +192,7 @@ function generateOne(mode: DrillMode, opts: GenOptions = {}): Spot {
   const cards = dealHandForLabel(label)
   if (mode === 'rfi') {
     const heroPos = opts.lockPos ?? randOf(RFI_POSITIONS)
-    const correct: Action = isRfiHand(heroPos, label) ? 'raise' : 'fold'
-    return { mode, heroPos, cards, label, correct, actions: ['fold', 'raise'], category: classifyHand(label) }
+    return { mode, heroPos, cards, label, ...rfiFields(heroPos, label), category: classifyHand(label) }
   }
   // vsRfi
   const m =
@@ -229,8 +250,7 @@ export function spotFromSeed(seed: SpotSeed): Spot | null {
       heroPos,
       cards,
       label,
-      correct: isRfiHand(heroPos, label) ? 'raise' : 'fold',
-      actions: ['fold', 'raise'],
+      ...rfiFields(heroPos, label),
       category: classifyHand(label),
     }
   }
@@ -356,7 +376,7 @@ function makeFacingBetSpot(node: StreetNode, board: Card[], state: HandState): S
 const fishDonks = (state: HandState): boolean => state.villain === 'fish' && Math.random() < FISH_DONK[state.street]
 
 /**
- * Continuation play: hero opened the button preflop and BB called — deal the
+ * Continuation play: hero opened the button preflop and BB called, deal the
  * flop using the hero's existing hole cards, on a board that doesn't collide
  * with them. Returns null if the hand isn't in the BTN c-bet range (no data).
  */
@@ -419,6 +439,7 @@ export function generateFreeplaySpot(): Spot | null {
   return {
     mode: 'postflop',
     heroPos: heroSeatOf(node) as Position,
+    villainPos: (node.hero === 'IP' ? 'BB' : openerOf(node.spot)) as Position,
     cards,
     label,
     correct: strat.primary as Action,
@@ -435,7 +456,7 @@ export function generateFreeplaySpot(): Spot | null {
 
 /** After answering a flop or turn decision, advance to the next street. */
 export function buildContinuationSpot(state: HandState, heroAction: Action): Spot | null {
-  if (heroAction === 'fold') return null // hero folded to a lead — hand over
+  if (heroAction === 'fold') return null // hero folded to a lead, hand over
   if (state.street === 'flop') return advanceToTurn(state, heroAction)
   if (state.street === 'turn') return advanceToRiver(state, heroAction)
   return null
@@ -564,7 +585,7 @@ function generateMultiwaySpot(): Spot {
   }
 }
 
-/** The multiway matchup a spot belongs to (by id — heroes are not unique). */
+/** The multiway matchup a spot belongs to (by id, heroes are not unique). */
 export const multiwayOf = (spot: Spot) => MULTIWAY_MATCHUPS.find((x) => x.id === spot.matchupId)
 
 const boardCards = (node: StreetNode): Card[] => {
@@ -601,7 +622,7 @@ export function judge(spot: Spot, chosen: Action, level: Level = 'intermediate')
     const chosenFreq = idx >= 0 ? (spot.freqs[idx] ?? 0) : 0
     quality = chosenFreq >= ACCEPTABLE_FREQ ? 'acceptable' : 'wrong'
   } else if (spot.facingBet) {
-    // heuristic exploit spot (vs fish) — graded by tier, not solver frequencies
+    // heuristic exploit spot (vs fish), graded by tier, not solver frequencies
     quality = spot.acceptable?.includes(chosen) ? 'acceptable' : 'wrong'
   } else {
     quality = 'wrong'
@@ -624,7 +645,7 @@ const FP_VERB: Partial<Record<Action, string>> = {
   bet75: 'bet big (¾)',
 }
 
-/** GTO explanation for an all-seats Freeplay spot — reports the solver's mix. */
+/** GTO explanation for an all-seats Freeplay spot, reports the solver's mix. */
 function explainFreeplay(spot: Spot, chosen: Action): string {
   const desc = describeHand(spot.cards, spot.board!)
   const right = chosen === spot.correct
@@ -660,19 +681,19 @@ function explainFacingBet(spot: Spot, chosen: Action, level: Level): string {
   const verdict = right
     ? 'Correct.'
     : ok
-      ? `Reasonable — but ${ACTION_LABEL[spot.correct].toLowerCase()} is better here.`
+      ? `Reasonable, but ${ACTION_LABEL[spot.correct].toLowerCase()} is better here.`
       : `The better play is to ${ACTION_LABEL[spot.correct].toLowerCase()}.`
   const why: Record<Action, string> = {
-    raise: `You hold ${desc.text}. A loose player bets far too many weak hands — raise for value and let them pay you off; slow-playing only lets worse hands off cheap.`,
-    call: `You hold ${desc.text}. It beats much of a loose bettor's wild range, so don't fold — but raising folds out their bluffs and only gets called by better. Call and let them keep barreling.`,
+    raise: `You hold ${desc.text}. A loose player bets far too many weak hands, raise for value and let them pay you off; slow-playing only lets worse hands off cheap.`,
+    call: `You hold ${desc.text}. It beats much of a loose bettor's wild range, so don't fold, but raising folds out their bluffs and only gets called by better. Call and let them keep barreling.`,
     fold: `You hold ${desc.text}. Even a loose bettor has you beat here often enough, and bluff-raising a player who never folds just burns money. Let it go.`,
   } as Record<Action, string>
   const body = why[spot.correct] ?? `You hold ${desc.text}.`
   if (level === 'beginner') {
     const simple: Partial<Record<Action, string>> = {
-      raise: `You have ${desc.text} — a big hand. This player bets too often with weak cards, so raise and make them pay.`,
+      raise: `You have ${desc.text}, a big hand. This player bets too often with weak cards, so raise and make them pay.`,
       fold: `You have ${desc.text}. That's not enough to continue against a bet, and bluffing a player who never folds doesn't work. Fold.`,
-      call: `You have ${desc.text} — good enough to [call] a loose player's bet, but not big enough to raise. Calling keeps their weaker hands in.`,
+      call: `You have ${desc.text}, good enough to [call] a loose player's bet, but not big enough to raise. Calling keeps their weaker hands in.`,
     }
     return `${verdict} ${simple[spot.correct] ?? body}`
   }
@@ -720,7 +741,7 @@ export function promptFor(spot: Spot, level: Level): string {
 /** One-line "what to think about" nudge (beginner pre-answer hint). */
 export function hintFor(spot: Spot): string {
   if (spot.facingBet)
-    return 'They bet into you. Raise big hands for [value], [call] with pairs and [draw]s, fold air — and never [bluff] a player who refuses to fold.'
+    return 'They bet into you. Raise big hands for [value], [call] with pairs and [draw]s, fold air, and never [bluff] a player who refuses to fold.'
   if (spot.mode === 'rfi')
     return 'Is this hand strong enough to [open] from this seat? Later [position] lets you play more hands.'
   if (spot.mode === 'vsRfi')
@@ -733,8 +754,13 @@ export function hintFor(spot: Spot): string {
 function explainRfiBeginner(spot: Spot, chosen: Action): string {
   const pos = spot.heroPos as RfiPosition
   const posName = POSITION_LABEL[pos]
-  const inRange = spot.correct === 'raise'
   const right = chosen === spot.correct
+  if (spot.freqs) {
+    const raisePct = Math.round((spot.freqs[1] ?? 0) * 100)
+    const verdict = right ? 'Good.' : 'Either play is fine here.'
+    return `${verdict} ${spot.label} is a borderline open from the ${posName}: the solver raises it about ${raisePct}% of the time and folds the rest. Hands right at the edge of a range get split like this on purpose to stay balanced, so both raising and folding are okay. Treat it as a coin-flip rather than a hand with one right answer.`
+  }
+  const inRange = spot.correct === 'raise'
   const verdict = right ? 'Correct.' : `The better play is to ${inRange ? 'raise' : 'fold'}.`
   const body = inRange
     ? `${spot.label} is strong enough to [open] from the ${posName}. Raising pressures the [blinds] and lets you play the pot with the lead.`
@@ -878,7 +904,7 @@ function explainPostflop(spot: Spot, chosen: Action): string {
     chosen === spot.correct
       ? `Correct: ${phrase(spot.correct)} is the solver's top choice (${correctPct}%).`
       : chosenPct >= ACCEPTABLE_FREQ * 100
-        ? `Fine: ${phrase(chosen)} is played ${chosenPct}% here — a defensible mixed choice.`
+        ? `Fine: ${phrase(chosen)} is played ${chosenPct}% here, a defensible mixed choice.`
         : `Not the top play: the solver prefers to ${phrase(spot.correct)} (${correctPct}%).`
   const streetNote = street === 'river' ? ' on the river' : street === 'turn' ? ' on the turn' : ' on this flop'
   const reason: Record<typeof desc.tier, string> = {
@@ -894,10 +920,10 @@ function explainPostflop(spot: Spot, chosen: Action): string {
     spot.correct === 'bet33'
       ? ' The small size lets the button bet a wide range thinly and cheaply.'
       : spot.correct === 'bet75'
-        ? ' The bigger size is for polarised spots — strong value plus the bluffs that want fold equity.'
+        ? ' The bigger size is for polarised spots, strong value plus the bluffs that want fold equity.'
         : ''
   const mix = spot.actions.map((a) => `${POST_MIX[a] ?? a} ${pct(a)}%`).join(' / ')
-  const mixed = topFreq < 85 ? ' Genuinely mixed — lean to the majority.' : ''
+  const mixed = topFreq < 85 ? ' Genuinely mixed, lean to the majority.' : ''
   return `${verdict} ${reason[desc.tier]}${sizeNote} ${boardTexture(board, street)} Solver mix: ${mix}.${mixed}`
 }
 
@@ -905,6 +931,15 @@ function explainRfi(spot: Spot, chosen: Action): string {
   const pos = spot.heroPos as RfiPosition
   const range = RFI_RANGES[pos]
   const posName = POSITION_LABEL[pos]
+  if (spot.freqs) {
+    const raisePct = Math.round((spot.freqs[1] ?? 0) * 100)
+    const right = chosen === spot.correct
+    const lean = spot.correct === 'raise' ? 'raise' : 'fold'
+    const verdict = right
+      ? `Fine, both are defensible, with a slight lean to ${lean}.`
+      : `Not a mistake: ${chosen === 'raise' ? 'raising' : 'folding'} is part of the mix here.`
+    return `${verdict} ${spot.label} sits right on the edge of the ${posName} range (~${range.pct}% overall): the solver opens it about ${raisePct}% of the time and folds the rest. Threshold hands like this are split on purpose so the opening range stays balanced and unexploitable, so the exact frequency matters more than which side you pick on any one deal. ${handCharacter(spot.label)} ${positionWhy(pos, spot.correct === 'raise')}`
+  }
   const inRange = spot.correct === 'raise'
   const verb = inRange ? 'opens' : 'folds'
   const right = chosen === spot.correct
