@@ -18,8 +18,11 @@ export default defineConfig(({ command }) => {
       VitePWA({
         registerType: 'prompt',
         includeAssets: ['favicon-32.png', 'apple-touch-icon.png'],
+        // The all-seats Freeplay dataset is large and fetched on demand, so keep
+        // it out of the precache manifest (avoids the workbox size limit).
+        workbox: { globIgnores: ['**/freeplay-nodes.json'] },
         manifest: {
-          name: 'Leak Tutor — GTO Poker',
+          name: 'Leak Tutor, GTO Poker',
           short_name: 'LeakTutor',
           description: 'Find your poker leaks and fix them with GTO-based drills.',
           theme_color: '#f5f2ea',

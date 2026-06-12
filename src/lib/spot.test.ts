@@ -1,4 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import {
   judge,
   classifyHand,
@@ -12,6 +14,14 @@ import {
 } from './spot'
 import { parseCards, formatBoardCode } from './cards'
 import { ALL_NODES, FLOP_NODES } from '../data/postflop'
+import { setFreeplayNodes, type FreeplayNode } from '../data/freeplay'
+
+// The app fetches public/freeplay-nodes.json at runtime; in tests we read it
+// from disk and inject it so generateFreeplaySpot has data to deal from.
+beforeAll(() => {
+  const path = fileURLToPath(new URL('../../public/freeplay-nodes.json', import.meta.url))
+  setFreeplayNodes(JSON.parse(readFileSync(path, 'utf8')) as FreeplayNode[])
+})
 
 describe('classifyHand', () => {
   it('classifies hand categories', () => {

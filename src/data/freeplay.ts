@@ -1,8 +1,12 @@
 // All-seats Freeplay nodes, the rich variety extracted from the solver:
 // IP c-bets, OOP donks, and OOP facing-a-c-bet (fold/call/raise) across the
-// UTG/HJ/CO/BTN-vs-BB matchups. Empty until solve-allseats + finalize-allseats run;
-// the app falls back to its current Freeplay until then.
-import raw from './freeplay-nodes.json'
+// UTG/HJ/CO/BTN-vs-BB matchups.
+//
+// The dataset (~5 MB) lives in public/freeplay-nodes.json and is fetched at
+// runtime rather than bundled — inlining it into the JS bundle is too big for
+// the build, and lazy-loading keeps the initial app download small. Until the
+// fetch resolves (or in tests, until setFreeplayNodes is called) the app falls
+// back to its other Freeplay generators.
 import type { RfiPosition } from './ranges'
 
 export interface FreeplayNode {
@@ -18,8 +22,33 @@ export interface FreeplayNode {
   strategy: Record<string, number[]>
 }
 
-export const FREEPLAY_NODES = raw as unknown as FreeplayNode[]
-export const FREEPLAY_READY = FREEPLAY_NODES.length > 0
+// Mutable: starts empty (dormant) and is filled by loadFreeplayNodes() at app
+// startup, or setFreeplayNodes() in tests. Consumers read these as live ES
+// bindings, so they see the data the moment it lands.
+export let FREEPLAY_NODES: FreeplayNode[] = []
+export let FREEPLAY_READY = false
+
+/** Install nodes directly (used by tests; the app uses loadFreeplayNodes). */
+export function setFreeplayNodes(nodes: FreeplayNode[]): void {
+  FREEPLAY_NODES = nodes
+  FREEPLAY_READY = nodes.length > 0
+}
+
+let loadPromise: Promise<void> | null = null
+
+/**
+ * Fetch the solved node dataset from public/ once. Idempotent; failures leave
+ * Freeplay dormant (the app falls back) rather than throwing.
+ */
+export function loadFreeplayNodes(): Promise<void> {
+  if (loadPromise) return loadPromise
+  const url = `${import.meta.env.BASE_URL}freeplay-nodes.json`
+  loadPromise = fetch(url)
+    .then((r) => (r.ok ? r.json() : []))
+    .then((data) => setFreeplayNodes(data as FreeplayNode[]))
+    .catch(() => setFreeplayNodes([]))
+  return loadPromise
+}
 
 /** The opener seat for a matchup id ('CO_vs_BB_SRP' → 'CO'). */
 export const openerOf = (spot: string): RfiPosition => spot.split('_')[0] as RfiPosition

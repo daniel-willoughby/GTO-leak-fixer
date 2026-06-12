@@ -29,3 +29,4 @@ dist-zen/
 # solver pipeline working artifacts (regenerated locally)
 solver-spike/.street-nodes.staging.json
 solver-spike/.accum-flopturn.json
+solver-spike/.accum-*.json

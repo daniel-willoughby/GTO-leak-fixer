@@ -1,5 +1,22 @@
-import { describe, it, expect } from 'vitest'
-import { openerOf, heroSeatOf, freeplayStrategy, randomFreeplayNode, FREEPLAY_READY, type FreeplayNode } from './freeplay'
+import { describe, it, expect, beforeAll } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import {
+  openerOf,
+  heroSeatOf,
+  freeplayStrategy,
+  randomFreeplayNode,
+  setFreeplayNodes,
+  FREEPLAY_READY,
+  type FreeplayNode,
+} from './freeplay'
+
+// The app fetches public/freeplay-nodes.json at runtime; in tests we read it
+// from disk and inject it so the data layer is populated.
+beforeAll(() => {
+  const path = fileURLToPath(new URL('../../public/freeplay-nodes.json', import.meta.url))
+  setFreeplayNodes(JSON.parse(readFileSync(path, 'utf8')) as FreeplayNode[])
+})
 
 const fakeNode = (over: Partial<FreeplayNode> = {}): FreeplayNode => ({
   spot: 'CO_vs_BB_SRP',
