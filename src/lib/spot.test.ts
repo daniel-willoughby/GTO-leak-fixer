@@ -210,8 +210,21 @@ describe('formatBoardCode', () => {
 })
 
 describe('all-seats Freeplay', () => {
-  it('generateFreeplaySpot returns null until the dataset is installed', () => {
-    expect(generateFreeplaySpot()).toBeNull()
+  it('deals a valid solver-true spot from the installed dataset', () => {
+    // dataset is bundled, so generateFreeplaySpot should produce real spots
+    for (let i = 0; i < 20; i++) {
+      const s = generateFreeplaySpot()
+      expect(s).not.toBeNull()
+      expect(s!.freeplay).toBe(true)
+      expect(s!.board!.length).toBeGreaterThanOrEqual(3)
+      // freqs line up with the offered actions and sum to ~1
+      expect(s!.freqs!.length).toBe(s!.actions.length)
+      const sum = s!.freqs!.reduce((a, b) => a + b, 0)
+      expect(Math.abs(sum - 1)).toBeLessThan(0.05)
+      // the marked-correct action is the argmax of the mix
+      const top = s!.actions[s!.freqs!.indexOf(Math.max(...s!.freqs!))]
+      expect(s!.correct).toBe(top)
+    }
   })
 
   it('judges a GTO facing-bet spot by solver frequency (not the fish heuristic)', () => {

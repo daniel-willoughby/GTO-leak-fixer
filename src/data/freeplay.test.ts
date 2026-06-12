@@ -28,8 +28,11 @@ describe('freeplay data layer', () => {
     expect(freeplayStrategy(fakeNode(), 'QQ')).toBeNull()
   })
 
-  it('is empty until the all-seats dataset is solved + installed', () => {
-    expect(FREEPLAY_READY).toBe(false)
-    expect(randomFreeplayNode()).toBeNull()
+  it('is populated now that the all-seats dataset is solved + installed', () => {
+    expect(FREEPLAY_READY).toBe(true)
+    const n = randomFreeplayNode()
+    expect(n).not.toBeNull()
+    expect(['cbet', 'donk', 'face_cbet']).toContain(n!.kind)
+    expect(n!.board).toMatch(/^[2-9TJQKA][cdhs]/)
   })
 })
