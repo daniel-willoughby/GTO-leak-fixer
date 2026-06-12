@@ -66,29 +66,18 @@ describe('judge (postflop frequency scoring)', () => {
 
 describe('rfi edge-mixing (frequency-aware opens)', () => {
   // K7o is a curated BTN mix hand (raised part of the time); folding is the
-  // majority play, raising is a defensible part of the mix.
-  const mixSpot = (chosen: 'fold' | 'raise') => {
-    let s: Spot | undefined
-    for (let i = 0; i < 200; i++) {
-      const g = generateSpot('rfi', { lockPos: 'BTN' })
-      if (g.label === 'K7o') { s = g; break }
-    }
-    if (!s) throw new Error('expected to deal the K7o mix spot')
-    return judge(s, chosen)
-  }
+  // majority play, raising is a defensible part of the mix. Build the spot
+  // deterministically from a seed so the test never depends on sampling.
+  const mix = spotFromSeed({ mode: 'rfi', heroPos: 'BTN', label: 'K7o' })!
 
   it('a mixed open carries freqs and grades both actions as not-wrong', () => {
-    expect(mixSpot('fold').isCorrect).toBe(true)
-    expect(mixSpot('raise').isCorrect).toBe(true) // minority action ≥ 30% → acceptable
+    expect(mix.freqs).toBeDefined()
+    expect(judge(mix, 'fold').isCorrect).toBe(true)
+    expect(judge(mix, 'raise').isCorrect).toBe(true) // minority action ≥ 30% → acceptable
   })
 
   it('pure hands stay binary (no freqs): folding a pure open is wrong', () => {
-    let pure: Spot | undefined
-    for (let i = 0; i < 200; i++) {
-      const g = generateSpot('rfi', { lockPos: 'BTN' })
-      if (g.label === 'AA') { pure = g; break }
-    }
-    if (!pure) throw new Error('expected to deal AA')
+    const pure = spotFromSeed({ mode: 'rfi', heroPos: 'BTN', label: 'AA' })!
     expect(pure.freqs).toBeUndefined()
     expect(judge(pure, 'fold').quality).toBe('wrong')
   })

@@ -88,3 +88,49 @@ export function randomFreeplayNode(): FreeplayNode | null {
   const pool = pick.length ? pick : FREEPLAY_NODES
   return pool[Math.floor(Math.random() * pool.length)]
 }
+
+/**
+ * Pick a random FLOP node (kind-balanced) to START a continuous hand: every
+ * Freeplay hand begins on the flop and can advance to the turn via
+ * turnContinuation, so play feels like a hand rather than disjoint spots.
+ */
+export function randomFreeplayFlopNode(): FreeplayNode | null {
+  if (!FREEPLAY_READY) return null
+  const flop = FREEPLAY_NODES.filter((n) => n.street === 'flop')
+  if (!flop.length) return null
+  const want = Math.random()
+  const pools = [
+    flop.filter((n) => n.kind === 'face_cbet'),
+    flop.filter((n) => n.kind === 'cbet'),
+    flop.filter((n) => n.kind === 'donk'),
+  ]
+  const pick = want < 0.4 ? pools[0] : want < 0.72 ? pools[1] : pools[2]
+  const pool = pick.length ? pick : flop
+  return pool[Math.floor(Math.random() * pool.length)]
+}
+
+/**
+ * The turn node continuing a flop spot: same matchup, same flop, same hero
+ * seat (IP keeps c-betting, OOP keeps facing a bet), a turn card that doesn't
+ * clash with the hero's hand, and the hero's label covered. Null if none.
+ */
+export function turnContinuation(
+  matchup: string,
+  flopBoard: string,
+  heroSeat: 'IP' | 'OOP',
+  label: string,
+  used: Set<string>,
+): FreeplayNode | null {
+  const wantKind = heroSeat === 'IP' ? 'cbet' : 'face_cbet'
+  const cands = FREEPLAY_NODES.filter(
+    (n) =>
+      n.street === 'turn' &&
+      n.spot === matchup &&
+      n.hero === heroSeat &&
+      n.kind === wantKind &&
+      n.board.startsWith(flopBoard) &&
+      !used.has(n.board.slice(6, 8)) && // turn card not already in the hero's hand
+      n.strategy[label],
+  )
+  return cands.length ? cands[Math.floor(Math.random() * cands.length)] : null
+}

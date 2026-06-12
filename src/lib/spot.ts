@@ -21,7 +21,16 @@ import {
   type StreetNode,
 } from '../data/postflop'
 import { describeHand, type Tier } from './flopEval'
-import { randomFreeplayNode, freeplayStrategy, heroSeatOf, openerOf, nodeLabels as fpLabels, facedBetBb } from '../data/freeplay'
+import {
+  randomFreeplayFlopNode,
+  turnContinuation,
+  freeplayStrategy,
+  heroSeatOf,
+  openerOf,
+  nodeLabels as fpLabels,
+  facedBetBb,
+  type FreeplayNode,
+} from '../data/freeplay'
 import type { Level } from './level'
 
 export type Action = 'fold' | 'raise' | 'call' | '3bet' | 'check' | 'bet' | 'bet33' | 'bet75' | 'squeeze' | 'cold-4bet'
@@ -69,6 +78,8 @@ export interface Spot {
   /** Street + betting line for rendering when there's no continuation handState. */
   street?: 'flop' | 'turn' | 'river'
   history?: string[]
+  /** The originating Freeplay node, so a flop spot can advance to its turn. */
+  fpNode?: FreeplayNode
 }
 
 /** Who the continuation opponent is: solver-perfect, or a loose live-game fish. */
@@ -427,14 +438,11 @@ const boardStr = (cards: Card[]): string => cards.map((c) => c.rank + c.suit).jo
  * (IP c-bet, OOP donk, or OOP facing a c-bet). Returns null until the all-seats
  * dataset is solved + installed, so callers fall back to current behaviour.
  */
-export function generateFreeplaySpot(): Spot | null {
-  const node = randomFreeplayNode()
-  if (!node) return null
-  const board = node.board.match(/../g)!.map((c) => parseCards(c)[0])
-  const label = randOf(fpLabels(node))
-  const cards = dealHandForLabel(label, board)
+/** Build a Freeplay Spot from a node + the hero's (already dealt) hand. */
+function freeplaySpotFromNode(node: FreeplayNode, cards: [Card, Card], label: string): Spot | null {
   const strat = freeplayStrategy(node, label)
   if (!strat) return null
+  const board = node.board.match(/../g)!.map((c) => parseCards(c)[0])
   const facing = node.kind === 'face_cbet'
   return {
     mode: 'postflop',
@@ -451,7 +459,31 @@ export function generateFreeplaySpot(): Spot | null {
     street: node.street,
     history: node.history,
     facingBet: facing ? { amountBb: facedBetBb(node.street) } : undefined,
+    fpNode: node,
   }
+}
+
+export function generateFreeplaySpot(): Spot | null {
+  // start every hand on the flop so it can advance to the turn (continuous play)
+  const node = randomFreeplayFlopNode()
+  if (!node) return null
+  const board = node.board.match(/../g)!.map((c) => parseCards(c)[0])
+  const label = randOf(fpLabels(node))
+  const cards = dealHandForLabel(label, board)
+  return freeplaySpotFromNode(node, cards, label)
+}
+
+/**
+ * Continue a Freeplay flop spot to the turn: same matchup / flop / hero seat,
+ * keeping the hero's hole cards, dealing a turn card. Null if no turn node
+ * matches (then the caller just deals a fresh hand).
+ */
+export function continueFreeplaySpot(spot: Spot): Spot | null {
+  if (!spot.freeplay || spot.street !== 'flop' || !spot.fpNode) return null
+  const used = new Set(spot.cards.map((c) => c.rank + c.suit))
+  const turn = turnContinuation(spot.fpNode.spot, spot.fpNode.board, spot.fpNode.hero, spot.label, used)
+  if (!turn) return null
+  return freeplaySpotFromNode(turn, spot.cards, spot.label)
 }
 
 /** After answering a flop or turn decision, advance to the next street. */

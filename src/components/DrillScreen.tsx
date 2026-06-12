@@ -21,6 +21,7 @@ import {
   advanceToFlop,
   buildContinuationSpot,
   canStartFlop,
+  continueFreeplaySpot,
   generateFreeplaySpot,
   generateSpot,
   judge,
@@ -192,6 +193,9 @@ export default function DrillScreen({
   const [fullHand, setFullHand] = useState(false)
   // remembers the last preflop sub-mode so the Preflop tab restores it
   const lastPreflopMode = useRef<DrillMode>('rfi')
+  // the turn spot built when a Freeplay flop spot is answered, so Continue
+  // advances the same hand instead of re-rolling a new turn
+  const freeplayCont = useRef<Spot | null>(null)
   // the preflop sub-menu only shows while open; it collapses after a pick
   const [preflopMenuOpen, setPreflopMenuOpen] = useState(false)
   // continuation opponent: solver-perfect or a loose fish (sub-menu like preflop's)
@@ -368,11 +372,14 @@ export default function DrillScreen({
     if (!result) return
     // continuation: preflop open → flop, then flop/turn → next street
     const continuation =
-      spot.mode === 'rfi'
-        ? advanceToFlop(spot.label, spot.cards, villainStyle)
-        : spot.handState
-          ? buildContinuationSpot(spot.handState, result.chosen)
-          : null
+      spot.freeplay
+        ? freeplayCont.current
+        : spot.mode === 'rfi'
+          ? advanceToFlop(spot.label, spot.cards, villainStyle)
+          : spot.handState
+            ? buildContinuationSpot(spot.handState, result.chosen)
+            : null
+    freeplayCont.current = null
     if (!continuation) return next()
     setSpot(continuation)
     setResult(null)
@@ -416,6 +423,10 @@ export default function DrillScreen({
       } else if (spot.mode === 'postflop' && (spot.handState?.street === 'flop' || spot.handState?.street === 'turn')) {
         // play the hand on regardless of whether the decision was correct
         setCanContinue(!!buildContinuationSpot(spot.handState, action))
+      } else if (spot.freeplay && spot.street === 'flop') {
+        // all-seats Freeplay: advance the same hand from flop to turn
+        freeplayCont.current = continueFreeplaySpot(spot)
+        setCanContinue(!!freeplayCont.current)
       }
     }
 
