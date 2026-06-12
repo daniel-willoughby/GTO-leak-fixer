@@ -82,6 +82,20 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
     return { pos, coord, status }
   })
 
+  // Heads-up postflop: seat the single active villain directly across from the
+  // hero (the top coordinate) so their cards, pill and bet never crowd a side
+  // rail, whatever their real position. Swap coords with whoever sits up top;
+  // the displaced seat is folded (a bare greyed pill), so it travels fine.
+  const TOP_SEAT = 3 // SEATS[3] is the top-centre coordinate
+  if (postflop && villain) {
+    const vi = seats.findIndex((s) => s.pos === villain.pos)
+    if (vi !== -1 && vi !== TOP_SEAT) {
+      const villainCoord = seats[vi].coord
+      seats[vi] = { ...seats[vi], coord: seats[TOP_SEAT].coord }
+      seats[TOP_SEAT] = { ...seats[TOP_SEAT], coord: villainCoord }
+    }
+  }
+
   // Dealer button puck on the felt next to the BTN seat. When the hero is on
   // the button, the bottom seat shows large hole cards, so park the puck to
   // their lower-right instead of the generic offset (which would cover them).
@@ -100,6 +114,9 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
   // Chips on the felt come from the caller (blinds, opens, calls, 3-bets per
   // mode); only render those whose seat is actually on the table.
   const bets = chips.filter((c) => seats.some((s) => s.pos === c.pos))
+  // When the villain has a bet chip, it already shows the amount, so skip the
+  // redundant "bets Xbb" text note (and avoid stacking the two on top seat).
+  const villainHasBet = !!villain && bets.some((b) => b.pos === villain.pos)
   // Park each chip a uniform distance inboard of its own seat (toward center)
   // so stacks hug their player instead of drifting into the pot or each other.
   const chipPos = (coord: { left: number; top: number }) => {
@@ -175,8 +192,9 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
           >
             {pos}
           </div>
-          {/* the red seat pill + the chip already show the raise, no extra label needed */}
-          {status === 'active' && villain && (
+          {/* villain action note (e.g. "checks" / "to act"); skipped when a bet
+              chip already conveys it */}
+          {status === 'active' && villain && !villainHasBet && (
             <span className="text-[10px] text-white/80 font-semibold">{villain.note}</span>
           )}
         </div>
@@ -185,9 +203,16 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
       {/* chips: posted blinds + the raiser's bet, in front of each player */}
       {bets.map((b) => {
         const seat = seats.find((s) => s.pos === b.pos)!
-        // the hero (bottom) shows big cards, park their own chip to the left
-        // of those cards so it never sits on top of them or the next seat.
-        const p = b.pos === heroPos ? { left: 34, top: 80 } : chipPos(seat.coord)
+        // hero (bottom) shows big cards, so park their chip to the left of those
+        // cards; the postflop villain sits up top, so park their bet just above
+        // the central pot (a straight chipPos would land it on the pot). Other
+        // chips hug their own seat.
+        const p =
+          b.pos === heroPos
+            ? { left: 34, top: 80 }
+            : postflop && villain && b.pos === villain.pos
+              ? { left: 30, top: 33 }
+              : chipPos(seat.coord)
         return (
           <div
             key={`chip-${b.pos}`}
@@ -201,7 +226,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
 
       {/* central pot */}
       {pot != null && (
-        <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-[6] flex items-center gap-1.5" style={{ top: '28%' }}>
+        <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-[6] flex items-center gap-1.5" style={{ top: '33%' }}>
           <ChipStack amount={pot} tone="pot" />
           <span className="text-[9px] font-semibold tracking-widest text-white/55">POT</span>
         </div>
