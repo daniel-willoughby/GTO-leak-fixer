@@ -122,6 +122,9 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
   // Park each chip a uniform distance inboard of its own seat (toward center)
   // so stacks hug their player instead of drifting into the pot or each other.
   const chipPos = (coord: { left: number; top: number }) => {
+    // the top seat's hole cards tuck below its pill onto the felt, so its chip
+    // must drop in below them (straight down, clear of the card backs)
+    if (coord.top < 15) return { left: coord.left, top: coord.top + 31 }
     const dx = 50 - coord.left
     const dy = 50 - coord.top
     const len = Math.hypot(dx, dy) || 1
@@ -201,9 +204,10 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
           >
             {pos}
           </div>
-          {/* villain action note (e.g. "checks" / "to act"); skipped when a bet
-              chip already conveys it */}
-          {status === 'active' && villain && !villainHasBet && (
+          {/* villain action note (e.g. "checks"); skipped when a bet chip
+              already conveys it, and on the top seat where the tucked cards
+              need the room (the prompt text states the action anyway) */}
+          {status === 'active' && villain && !villainHasBet && coord.top >= 15 && (
             <span className="text-[10px] text-white/80 font-semibold">{villain.note}</span>
           )}
         </div>
@@ -216,11 +220,13 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
         // cards; the postflop villain sits up top, so park their bet just above
         // the central pot (a straight chipPos would land it on the pot). Other
         // chips hug their own seat.
+        // hero's own blind posts on the felt just above their cards (the only
+        // clear lane: left/right collide with the neighbouring blind's chip)
         const p =
           b.pos === heroPos
-            ? { left: 34, top: 80 }
+            ? { left: 50, top: 61 }
             : postflop && villain && b.pos === villain.pos
-              ? { left: 30, top: 37 }
+              ? { left: 24, top: 28 }
               : chipPos(seat.coord)
         return (
           <div
@@ -233,11 +239,27 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
         )
       })}
 
-      {/* central pot */}
+      {/* central pot: compact single-line row (discs + amount) so it fits the
+          narrow band between the villain's tucked cards and the board */}
       {pot != null && (
-        <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-[6] flex items-center gap-1.5" style={{ top: '37%' }}>
-          <ChipStack amount={pot} tone="pot" />
-          <span className="text-[9px] font-semibold tracking-widest text-white/55">POT</span>
+        <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-[6] flex items-center gap-1.5" style={{ top: '34%' }}>
+          <div className="relative w-5 h-[26px]">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="absolute left-0 w-5 h-5 rounded-full border-2 border-dashed"
+                style={{
+                  background: 'radial-gradient(circle at 38% 30%, #8fa896 0%, #5b7461 55%, #44594c 100%)',
+                  borderColor: 'rgba(255,255,255,0.7)',
+                  bottom: `${i * 3}px`,
+                  boxShadow: '0 1px 2px rgba(34,31,25,0.4)',
+                }}
+              />
+            ))}
+          </div>
+          <span className="text-[9px] leading-none font-semibold text-white px-1.5 py-px rounded bg-[#3a352b]/70 whitespace-nowrap">
+            {pot} bb · POT
+          </span>
         </div>
       )}
 
