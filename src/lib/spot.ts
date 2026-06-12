@@ -758,7 +758,7 @@ function explainRfiBeginner(spot: Spot, chosen: Action): string {
   if (spot.freqs) {
     const raisePct = Math.round((spot.freqs[1] ?? 0) * 100)
     const verdict = right ? 'Good.' : 'Either play is fine here.'
-    return `${verdict} ${spot.label} is a borderline open from the ${posName}: the solver raises it about ${raisePct}% of the time and folds the rest. Hands right at the edge of a range get split like this on purpose to stay balanced, so both raising and folding are okay. Treat it as a coin-flip rather than a hand with one right answer.`
+    return `${verdict} ${spot.label} is a borderline ${posName} open: raise about ${raisePct}%, fold the rest. A true coin-flip, so both are okay.`
   }
   const inRange = spot.correct === 'raise'
   const verdict = right ? 'Correct.' : `The better play is to ${inRange ? 'raise' : 'fold'}.`
@@ -936,9 +936,9 @@ function explainRfi(spot: Spot, chosen: Action): string {
     const right = chosen === spot.correct
     const lean = spot.correct === 'raise' ? 'raise' : 'fold'
     const verdict = right
-      ? `Fine, both are defensible, with a slight lean to ${lean}.`
-      : `Not a mistake: ${chosen === 'raise' ? 'raising' : 'folding'} is part of the mix here.`
-    return `${verdict} ${spot.label} sits right on the edge of the ${posName} range (~${range.pct}% overall): the solver opens it about ${raisePct}% of the time and folds the rest. Threshold hands like this are split on purpose so the opening range stays balanced and unexploitable, so the exact frequency matters more than which side you pick on any one deal. ${handCharacter(spot.label)} ${positionWhy(pos, spot.correct === 'raise')}`
+      ? `Fine, both are defensible (slight lean to ${lean}).`
+      : `Not a mistake: ${chosen === 'raise' ? 'raising' : 'folding'} is part of the mix.`
+    return `${verdict} ${spot.label} sits on the edge of the ${posName} range, opened ~${raisePct}% to stay balanced. ${handCharacter(spot.label)}`
   }
   const inRange = spot.correct === 'raise'
   const verb = inRange ? 'opens' : 'folds'
