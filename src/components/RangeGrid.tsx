@@ -2,10 +2,12 @@ import { gridLabels } from '../lib/cards'
 
 export type CellKind = 'raise' | 'call' | 'fold'
 
+// fold/mixed cells keep their fixed oat background in dark mode, so their
+// text colours are fixed too (themed ink would go light-on-light)
 const KIND_CLASS: Record<CellKind, string> = {
-  raise: 'bg-sage text-white',
-  call: 'bg-dblue text-white',
-  fold: 'bg-[#e6dfcf] text-ink2',
+  raise: 'bg-sage text-white dark:text-[#16140f]',
+  call: 'bg-dblue text-white dark:text-[#16140f]',
+  fold: 'bg-[#e6dfcf] text-[#6b675c]',
 }
 
 interface Props {
@@ -42,7 +44,7 @@ export default function RangeGrid({ cell, freq, highlight }: Props) {
               title={`${label} · bet ${pct}%`}
             >
               <div className="absolute inset-x-0 bottom-0 bg-sage" style={{ height: `${pct}%` }} />
-              <span className="absolute inset-0 flex items-center justify-center text-[9px] sm:text-[10px] font-semibold text-ink/85">
+              <span className="absolute inset-0 flex items-center justify-center text-[9px] sm:text-[10px] font-semibold text-[#221f19]/85">
                 {label}
               </span>
             </div>

@@ -22,6 +22,8 @@ interface Props {
   // postflop
   board?: Card[]
   villain?: { pos: Position; note: string }
+  /** One-shot hero action animation: chips toss in (bet/raise/call) or cards muck (fold). */
+  heroAnim?: { kind: 'chips' | 'muck'; seq: number } | null
 }
 
 // Seat coordinates as % of the table container, seat 0 = hero (bottom). Seats
@@ -68,7 +70,7 @@ const SEAT_CLASS: Record<Status, string> = {
   waiting: 'bg-[#33423a] text-white border-[#283228] shadow-[0_2px_6px_rgba(34,31,25,0.25)]',
 }
 
-export default function PokerTable({ heroPos, heroCards, raiserPos, activePots = [], chips = [], pot, board, villain }: Props) {
+export default function PokerTable({ heroPos, heroCards, raiserPos, activePots = [], chips = [], pot, board, villain, heroAnim }: Props) {
   const heroIdx = actionIndex(heroPos)
   const postflop = !!board
   const seats = SEATS.map((coord, i) => {
@@ -131,7 +133,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
   }
 
   return (
-    <div className="relative w-full max-w-lg mx-auto aspect-[5/4]">
+    <div className="relative w-full max-w-lg mx-auto aspect-[4/3] sm:aspect-[5/4]">
       {/* rail */}
       <div
         className="absolute inset-[10%] rounded-full p-[7px]"
@@ -182,8 +184,15 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
               </div>
             </div>
           )}
-          {status !== 'hero' && status !== 'folded' && (
+          {/* top seat: cards tuck below the pill onto the felt (out of flow) so
+              they never poke above the rail into the content above the table */}
+          {status !== 'hero' && status !== 'folded' && coord.top >= 15 && (
             <div className="flex gap-1 mb-0.5 animate-deal">
+              <CardBack /><CardBack delay={70} />
+            </div>
+          )}
+          {status !== 'hero' && status !== 'folded' && coord.top < 15 && (
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 flex gap-1 animate-deal">
               <CardBack /><CardBack delay={70} />
             </div>
           )}
@@ -211,7 +220,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
           b.pos === heroPos
             ? { left: 34, top: 80 }
             : postflop && villain && b.pos === villain.pos
-              ? { left: 30, top: 33 }
+              ? { left: 30, top: 37 }
               : chipPos(seat.coord)
         return (
           <div
@@ -226,9 +235,41 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
 
       {/* central pot */}
       {pot != null && (
-        <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-[6] flex items-center gap-1.5" style={{ top: '33%' }}>
+        <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-[6] flex items-center gap-1.5" style={{ top: '37%' }}>
           <ChipStack amount={pot} tone="pot" />
           <span className="text-[9px] font-semibold tracking-widest text-white/55">POT</span>
+        </div>
+      )}
+
+      {/* one-shot hero action animation: chips toss toward the pot, or cards muck */}
+      {heroAnim && (
+        <div
+          key={heroAnim.seq}
+          className={`absolute left-1/2 z-[7] pointer-events-none ${
+            heroAnim.kind === 'chips' ? 'animate-chips-in' : 'animate-cards-muck'
+          }`}
+        >
+          {heroAnim.kind === 'chips' ? (
+            <div className="relative w-5 h-[26px]">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="absolute left-0 w-5 h-5 rounded-full border-2 border-dashed"
+                  style={{
+                    background: 'radial-gradient(circle at 38% 30%, #d99e86 0%, #c2785f 55%, #a85942 100%)',
+                    borderColor: 'rgba(255,255,255,0.75)',
+                    bottom: `${i * 3}px`,
+                    boxShadow: '0 1px 2px rgba(34,31,25,0.4)',
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex gap-1">
+              <CardBack />
+              <CardBack />
+            </div>
+          )}
         </div>
       )}
 

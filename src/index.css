@@ -2,6 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---- theme palette (RGB triplets so Tailwind opacity modifiers work) ---- */
+:root {
+  --c-paper: 245 242 234;
+  --c-paper2: 252 250 244;
+  --c-ink: 34 31 25;
+  --c-ink2: 107 103 92;
+  --c-ink3: 154 150 138;
+  --c-line: 230 224 211;
+  --c-sage: 91 116 97;
+  --c-sage-dark: 67 84 72;
+  --c-sage-light: 111 138 118;
+  --c-clay: 177 106 82;
+  --c-heartred: 177 66 44;
+  --c-dblue: 58 90 140;
+  --glow: #fffdf8;
+  --grain: rgba(120, 110, 90, 0.05);
+}
+.dark {
+  --c-paper: 24 22 18;
+  --c-paper2: 35 32 27;
+  --c-ink: 236 231 218;
+  --c-ink2: 168 162 148;
+  --c-ink3: 122 117 105;
+  --c-line: 58 54 45;
+  --c-sage: 122 152 127;
+  --c-sage-dark: 154 179 158;
+  --c-sage-light: 135 164 140;
+  --c-clay: 201 139 113;
+  --c-heartred: 208 107 83;
+  --c-dblue: 122 152 198;
+  --glow: rgba(255, 248, 230, 0.05);
+  --grain: rgba(255, 250, 235, 0.03);
+  color-scheme: dark;
+}
+
 html,
 body,
 #root {
@@ -10,9 +45,9 @@ body,
 
 body {
   margin: 0;
-  color: #221f19;
-  background-color: #f5f2ea;
-  background-image: radial-gradient(120% 70% at 50% -12%, #fffdf8 0%, rgba(255, 253, 248, 0) 55%);
+  color: rgb(var(--c-ink));
+  background-color: rgb(var(--c-paper));
+  background-image: radial-gradient(120% 70% at 50% -12%, var(--glow) 0%, transparent 55%);
   background-attachment: fixed;
   font-family: 'Inter Variable', system-ui, -apple-system, sans-serif;
   letter-spacing: -0.006em;
@@ -31,7 +66,7 @@ body::before {
   pointer-events: none;
   z-index: 0;
   opacity: 0.5;
-  background-image: radial-gradient(rgba(120, 110, 90, 0.05) 0.5px, transparent 0.5px);
+  background-image: radial-gradient(var(--grain) 0.5px, transparent 0.5px);
   background-size: 4px 4px;
 }
 #root {
@@ -84,8 +119,8 @@ body::before {
   transform: scale(0.985);
 }
 .btn-primary {
-  background: #5b7461;
-  border-color: #5b7461;
+  background: rgb(var(--c-sage));
+  border-color: rgb(var(--c-sage));
   color: #fff;
   box-shadow: 0 10px 24px -14px rgba(67, 84, 72, 0.85);
 }
@@ -93,22 +128,26 @@ body::before {
   filter: brightness(1.04);
 }
 .btn-secondary {
-  background: #fcfaf4;
-  border-color: #e6e0d3;
-  color: #221f19;
+  background: rgb(var(--c-paper2));
+  border-color: rgb(var(--c-line));
+  color: rgb(var(--c-ink));
 }
 .btn-secondary:hover {
-  border-color: #cfc8b8;
+  border-color: rgb(var(--c-ink3));
 }
 .btn-sky {
-  background: #3a5a8c;
-  border-color: #3a5a8c;
+  background: rgb(var(--c-dblue));
+  border-color: rgb(var(--c-dblue));
   color: #fff;
 }
 .btn-ghost {
   background: transparent;
-  border-color: #e6e0d3;
-  color: #221f19;
+  border-color: rgb(var(--c-line));
+  color: rgb(var(--c-ink));
+}
+.dark .btn-primary,
+.dark .btn-sky {
+  color: #16140f;
 }
 
 /* ---- animations -------------------------------------------------------- */
@@ -137,4 +176,43 @@ body::before {
 }
 .animate-deal {
   animation: deal-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+/* hero bets/raises: a chip stack tosses from the hero's seat into the pot */
+@keyframes chips-in {
+  0% {
+    top: 76%;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    top: 36%;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+}
+.animate-chips-in {
+  animation: chips-in 0.65s cubic-bezier(0.3, 0.7, 0.4, 1) forwards;
+}
+/* hero folds: the cards slide into the muck and fade */
+@keyframes cards-muck {
+  0% {
+    top: 78%;
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  }
+  100% {
+    top: 40%;
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(9deg) scale(0.82);
+  }
+}
+.animate-cards-muck {
+  animation: cards-muck 0.55s ease-in forwards;
 }

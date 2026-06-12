@@ -196,6 +196,8 @@ export default function DrillScreen({
   // the turn spot built when a Freeplay flop spot is answered, so Continue
   // advances the same hand instead of re-rolling a new turn
   const freeplayCont = useRef<Spot | null>(null)
+  // one-shot table animation for the hero's answer (chips in / cards mucked)
+  const [heroAnim, setHeroAnim] = useState<{ kind: 'chips' | 'muck'; seq: number } | null>(null)
   // the preflop sub-menu only shows while open; it collapses after a pick
   const [preflopMenuOpen, setPreflopMenuOpen] = useState(false)
   // continuation opponent: solver-perfect or a loose fish (sub-menu like preflop's)
@@ -392,6 +394,14 @@ export default function DrillScreen({
     if (result || !spot.actions.includes(action)) return
     const j = judge(spot, action, level)
     setResult(j)
+    // table animation: chips in for bets/raises/calls, cards mucked for folds
+    setHeroAnim(
+      action === 'fold'
+        ? { kind: 'muck', seq: Date.now() }
+        : action === 'check'
+          ? null
+          : { kind: 'chips', seq: Date.now() },
+    )
     if (j.isCorrect) {
       setStreak((s) => {
         const ns = s + 1
@@ -537,7 +547,7 @@ export default function DrillScreen({
   )
 
   return (
-    <div className="flex flex-col items-center gap-3 px-4 pb-28 lg:pb-12 pt-4 max-w-xl lg:max-w-5xl mx-auto">
+    <div className="flex flex-col items-center gap-2 px-4 pb-10 pt-2 lg:gap-3 lg:pb-12 lg:pt-4 max-w-xl lg:max-w-5xl mx-auto">
       {/* daily challenge celebration, transient, only on completion / milestone */}
       {!lesson && dailyFlash && (
         <div className="flex w-full lg:max-w-2xl lg:mx-auto animate-pop items-center gap-3 rounded-2xl border border-sage/40 bg-sage/10 px-4 py-3">
@@ -676,34 +686,34 @@ export default function DrillScreen({
         </div>
       )}
 
-      {/* focus + review controls */}
+      {/* focus + review controls (compact chip row) */}
       {!reviewMode && !lesson && (
-        <div className="flex items-center justify-between w-full lg:max-w-2xl lg:mx-auto gap-2">
+        <div className="flex items-center justify-between w-full lg:max-w-2xl lg:mx-auto gap-1.5">
           <button
             onClick={toggleFocus}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border transition ${
+            className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold border transition ${
               focusActive ? 'bg-sage/15 border-sage/40 text-sage-dark' : 'bg-paper2 border-line text-ink2 hover:text-ink'
             }`}
           >
-            <Zap size={13} /> {focusActive ? (focusLabel ?? 'Focusing leaks') : 'Focus my leaks'}
-            {focusActive && <X size={12} className="opacity-70" />}
+            <Zap size={12} /> {focusActive ? (focusLabel ?? 'Focusing leaks') : 'Focus my leaks'}
+            {focusActive && <X size={11} className="opacity-70" />}
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {/* compact daily challenge: progress + streak */}
             {daily && (
               <span
                 title={isDailyDone(daily) ? 'Daily goal complete' : `Daily challenge: ${Math.min(daily.count, daily.goal)} of ${daily.goal}`}
-                className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold ${
+                className={`flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold ${
                   isDailyDone(daily) ? 'bg-sage/15 border-sage/40 text-sage-dark' : 'bg-paper2 border-line text-ink2'
                 }`}
               >
-                <CalendarCheck size={13} className={isDailyDone(daily) ? 'text-sage' : 'text-ink3'} />
+                <CalendarCheck size={12} className={isDailyDone(daily) ? 'text-sage' : 'text-ink3'} />
                 <span className="tabular-nums">
                   {Math.min(daily.count, daily.goal)}/{daily.goal}
                 </span>
                 {liveStreak(daily) > 0 && (
                   <span className="flex items-center gap-0.5 text-clay">
-                    <Flame size={12} /> {liveStreak(daily)}
+                    <Flame size={11} /> {liveStreak(daily)}
                   </span>
                 )}
               </span>
@@ -711,9 +721,9 @@ export default function DrillScreen({
             {mistakeBadge > 0 && (
               <button
                 onClick={startReview}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border border-clay/40 bg-clay/10 text-clay hover:bg-clay/20 transition"
+                className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold border border-clay/40 bg-clay/10 text-clay hover:bg-clay/20 transition"
               >
-                <Repeat2 size={13} /> Review {mistakeBadge}
+                <Repeat2 size={12} /> Review {mistakeBadge}
               </button>
             )}
           </div>
@@ -724,19 +734,25 @@ export default function DrillScreen({
       <div className="w-full flex flex-col items-center gap-3 lg:grid lg:grid-cols-2 lg:gap-8 lg:items-start">
         {/* table column */}
         <div className="w-full flex flex-col items-center gap-3">
-      <div className="flex items-center justify-between w-full text-sm">
-        <span className="text-ink2">{spot.mode === 'postflop' ? postflopLabel : '100bb · 6-max cash'}</span>
+      {/* one line: matchup label · betting history (scrolls) · streak */}
+      <div className="flex items-center justify-between w-full gap-2 text-sm">
+        <span className="text-ink2 whitespace-nowrap shrink-0 text-xs">
+          {spot.mode === 'postflop' ? postflopLabel : '100bb · 6-max cash'}
+        </span>
+        {history.length > 0 && (
+          <div className="min-w-0 flex-1">
+            <HandHistory history={history} />
+          </div>
+        )}
         <span
-          className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 border transition ${
+          className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 border transition ${
             streak >= 3 ? 'border-clay/40 bg-clay/10 text-clay' : 'border-line bg-paper2 text-ink2'
           }`}
         >
-          <Flame size={15} className={streak >= 3 ? 'text-clay' : 'text-ink3'} />
-          <span className="font-bold tabular-nums">{streak}</span>
+          <Flame size={13} className={streak >= 3 ? 'text-clay' : 'text-ink3'} />
+          <span className="text-xs font-bold tabular-nums">{streak}</span>
         </span>
       </div>
-
-      {history.length > 0 && <HandHistory history={history} />}
 
       <PokerTable
         heroPos={spot.heroPos}
@@ -758,6 +774,7 @@ export default function DrillScreen({
               }
             : undefined
         }
+        heroAnim={result ? heroAnim : null}
       />
         </div>
 
@@ -791,7 +808,10 @@ export default function DrillScreen({
           </div>
         </div>
       ) : (
-        <div className="w-full flex flex-col items-center gap-4 animate-pop pb-24">
+        <div className="w-full flex flex-col items-center gap-4 animate-pop">
+          {/* nav buttons sit where the action buttons were, so the tap targets
+              stay in the same place and the explanation reads below them */}
+          <div className="flex w-full max-w-sm justify-center gap-3">{navButtons}</div>
           {lesson && lessonDone && (
             <div className="flex w-full items-center gap-3 rounded-2xl border border-sage/40 bg-sage/10 p-4">
               <Sparkles size={22} className="shrink-0 text-sage" />
@@ -836,17 +856,8 @@ export default function DrillScreen({
         </div>
       )}
 
-          {/* desktop: inline action bar under the decision column */}
-          {result && <div className="hidden lg:flex w-full justify-center gap-3 pt-1">{navButtons}</div>}
         </div>
       </div>
-
-      {/* mobile: sticky action bar */}
-      {result && (
-        <div className="fixed bottom-0 inset-x-0 z-20 lg:hidden flex justify-center gap-3 px-4 pb-[calc(4.25rem+env(safe-area-inset-bottom))] pt-10 bg-gradient-to-t from-paper via-paper/90 to-transparent pointer-events-none">
-          {navButtons}
-        </div>
-      )}
     </div>
   )
 }

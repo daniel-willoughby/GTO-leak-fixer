@@ -1,19 +1,24 @@
 /** @type {import('tailwindcss').Config} */
+// Palette lives in CSS variables (src/index.css) so dark mode can swap it.
+// Values are RGB triplets to keep Tailwind's opacity modifiers working.
+const v = (name) => `rgb(var(--${name}) / <alpha-value>)`
+
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        paper: '#f5f2ea',
-        paper2: '#fcfaf4',
-        ink: '#221f19',
-        ink2: '#6b675c',
-        ink3: '#9a968a',
-        line: '#e6e0d3',
-        sage: { DEFAULT: '#5b7461', dark: '#435448', light: '#6f8a76' },
-        clay: '#b16a52',
-        heartred: '#b1422c',
-        dblue: '#3a5a8c',
+        paper: v('c-paper'),
+        paper2: v('c-paper2'),
+        ink: v('c-ink'),
+        ink2: v('c-ink2'),
+        ink3: v('c-ink3'),
+        line: v('c-line'),
+        sage: { DEFAULT: v('c-sage'), dark: v('c-sage-dark'), light: v('c-sage-light') },
+        clay: v('c-clay'),
+        heartred: v('c-heartred'),
+        dblue: v('c-dblue'),
       },
       fontFamily: {
         sans: ['Inter Variable', 'system-ui', '-apple-system', 'sans-serif'],

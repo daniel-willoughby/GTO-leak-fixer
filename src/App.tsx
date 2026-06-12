@@ -31,6 +31,14 @@ const DIFFICULTIES: { id: Difficulty; label: string; note: string }[] = [
   { id: 'hard', label: 'Hard', note: 'Borderline spots' },
 ]
 
+type Theme = 'light' | 'dark' | 'auto'
+const THEMES: Theme[] = ['light', 'auto', 'dark']
+
+function applyTheme(theme: Theme) {
+  const dark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  document.documentElement.classList.toggle('dark', dark)
+}
+
 export default function App() {
   const [tab, setTab] = useState<Tab>('drill')
   const [progress, setProgress] = useState(0)
@@ -42,6 +50,22 @@ export default function App() {
   )
   const [level, setLevelState] = useState<Level | null>(() => getLevel())
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('lt-theme') as Theme) || 'auto')
+
+  // apply on change + follow the OS while in auto
+  useEffect(() => {
+    applyTheme(theme)
+    if (theme !== 'auto') return
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = () => applyTheme('auto')
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [theme])
+
+  function pickTheme(t: Theme) {
+    setTheme(t)
+    localStorage.setItem('lt-theme', t)
+  }
   // cloud sync (optional, only when Supabase is configured)
   const { user } = useAuth()
   const [accountOpen, setAccountOpen] = useState(false)
@@ -159,6 +183,20 @@ export default function App() {
                     }`}
                   >
                     {l}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs uppercase tracking-wide text-ink3 mb-2">Theme</p>
+              <div className="flex gap-1 mb-3 p-1 rounded-xl bg-ink/[0.06] border border-line">
+                {THEMES.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => pickTheme(t)}
+                    className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold capitalize transition ${
+                      theme === t ? 'bg-sage text-white dark:text-paper' : 'text-ink2 hover:text-ink'
+                    }`}
+                  >
+                    {t}
                   </button>
                 ))}
               </div>
