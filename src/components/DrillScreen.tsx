@@ -402,13 +402,13 @@ export default function DrillScreen({
           ? null
           : { kind: 'chips', seq: Date.now() },
     )
+    // play sound synchronously inside the click gesture (NOT in a setState
+    // updater, which React can defer outside the gesture and iOS then mutes)
     if (j.isCorrect) {
-      setStreak((s) => {
-        const ns = s + 1
-        if (ns > 0 && ns % 5 === 0) playStreak()
-        else playCorrect()
-        return ns
-      })
+      const ns = streak + 1
+      setStreak(ns)
+      if (ns > 0 && ns % 5 === 0) playStreak()
+      else playCorrect()
     } else {
       setStreak(0)
       playWrong()

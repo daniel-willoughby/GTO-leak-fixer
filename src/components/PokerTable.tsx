@@ -33,7 +33,7 @@ const SEATS = [
   { left: 50, top: 89 }, // hero (bottom)
   { left: 10, top: 68 }, // lower-left
   { left: 9,  top: 28 }, // upper-left
-  { left: 50, top: 7  }, // top
+  { left: 50, top: 14 }, // top (low enough that its cards fit above the pill, inside the table)
   { left: 91, top: 28 }, // upper-right
   { left: 90, top: 68 }, // lower-right
 ]
@@ -122,9 +122,6 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
   // Park each chip a uniform distance inboard of its own seat (toward center)
   // so stacks hug their player instead of drifting into the pot or each other.
   const chipPos = (coord: { left: number; top: number }) => {
-    // the top seat's hole cards tuck below its pill onto the felt, so its chip
-    // must drop in below them (straight down, clear of the card backs)
-    if (coord.top < 15) return { left: coord.left, top: coord.top + 31 }
     const dx = 50 - coord.left
     const dy = 50 - coord.top
     const len = Math.hypot(dx, dy) || 1
@@ -189,15 +186,10 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
               </div>
             </div>
           )}
-          {/* top seat: cards tuck below the pill onto the felt (out of flow) so
-              they never poke above the rail into the content above the table */}
-          {status !== 'hero' && status !== 'folded' && coord.top >= 15 && (
+          {/* other players' face-down cards, above their pill (the top seat sits
+              low enough that these still fit inside the table) */}
+          {status !== 'hero' && status !== 'folded' && (
             <div className="flex gap-1 mb-0.5 animate-deal">
-              <CardBack /><CardBack delay={70} />
-            </div>
-          )}
-          {status !== 'hero' && status !== 'folded' && coord.top < 15 && (
-            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 flex gap-1 animate-deal">
               <CardBack /><CardBack delay={70} />
             </div>
           )}

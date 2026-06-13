@@ -9,6 +9,26 @@ function audio(): AudioContext {
   return ctx
 }
 
+// iOS only unlocks Web Audio inside a user gesture. Prime + resume the context
+// on the first interaction anywhere so later sounds (which may fire just after
+// a state update) aren't silenced.
+if (typeof window !== 'undefined') {
+  const unlock = () => {
+    try {
+      const ac = audio()
+      void ac.resume()
+    } catch {
+      /* no-op */
+    }
+    window.removeEventListener('pointerdown', unlock)
+    window.removeEventListener('touchstart', unlock)
+    window.removeEventListener('keydown', unlock)
+  }
+  window.addEventListener('pointerdown', unlock, { once: false })
+  window.addEventListener('touchstart', unlock, { once: false })
+  window.addEventListener('keydown', unlock, { once: false })
+}
+
 interface ToneOpts {
   freq: number
   dur: number
