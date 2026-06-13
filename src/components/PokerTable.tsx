@@ -177,7 +177,9 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
           className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 z-10"
           style={{ left: `${coord.left}%`, top: `${coord.top}%` }}
         >
-          {status === 'hero' && (
+          {/* hero hole cards — hidden while the fold/muck animation plays so the
+              cards visibly leave the table (the muck overlay shows them sliding) */}
+          {status === 'hero' && heroAnim?.kind !== 'muck' && (
             <div className="flex gap-1 mb-0.5">
               <div className="animate-deal">
                 <PlayingCard card={heroCards[0]} size="sm" />
@@ -288,8 +290,8 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
             </div>
           ) : (
             <div className="flex gap-1">
-              <CardBack />
-              <CardBack />
+              <PlayingCard card={heroCards[0]} size="sm" />
+              <PlayingCard card={heroCards[1]} size="sm" />
             </div>
           )}
         </div>

@@ -177,14 +177,15 @@ body::before {
 .animate-deal {
   animation: deal-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-/* hero bets/raises: a chip stack tosses from the hero's seat into the pot */
+/* hero bets/raises: a chip stack tosses from the hero's seat toward the pot
+   (stops short of centre so it doesn't drift deep into the felt) */
 @keyframes chips-in {
   0% {
-    top: 76%;
+    top: 72%;
     opacity: 0;
     transform: translate(-50%, -50%) scale(0.9);
   }
-  20% {
+  25% {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1.05);
   }
@@ -192,27 +193,27 @@ body::before {
     opacity: 1;
   }
   100% {
-    top: 36%;
+    top: 54%;
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.85);
+    transform: translate(-50%, -50%) scale(0.9);
   }
 }
 .animate-chips-in {
-  animation: chips-in 0.65s cubic-bezier(0.3, 0.7, 0.4, 1) forwards;
+  animation: chips-in 0.6s cubic-bezier(0.3, 0.7, 0.4, 1) forwards;
 }
-/* hero folds: the cards slide into the muck and fade */
+/* hero folds: the hole cards slide forward into the muck and fade */
 @keyframes cards-muck {
   0% {
-    top: 78%;
+    top: 76%;
     opacity: 1;
     transform: translate(-50%, -50%) rotate(0deg) scale(1);
   }
   100% {
-    top: 40%;
+    top: 58%;
     opacity: 0;
-    transform: translate(-50%, -50%) rotate(9deg) scale(0.82);
+    transform: translate(-50%, -50%) rotate(10deg) scale(0.85);
   }
 }
 .animate-cards-muck {
-  animation: cards-muck 0.55s ease-in forwards;
+  animation: cards-muck 0.5s ease-in forwards;
 }
