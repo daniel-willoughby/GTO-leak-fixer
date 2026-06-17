@@ -117,9 +117,12 @@ export default function App() {
   }
 
   function pickLevel(l: Level) {
+    const firstTime = !level // onboarding pick vs a later change in settings
     setLevel(l)
     setLevelState(l)
     setSettingsOpen(false)
+    // new beginners start on the guided Lessons path, not the free Drill tab
+    if (firstTime && l === 'beginner') setTab('lessons')
   }
 
   if (!level) return <OnboardingScreen onPick={pickLevel} />
