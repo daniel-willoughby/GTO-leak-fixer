@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Spade, Target, GraduationCap, BookOpen, FileText, Volume2, VolumeX, SlidersHorizontal, Cloud, type LucideIcon } from 'lucide-react'
+import { Spade, Target, GraduationCap, BookOpen, Trophy, Volume2, VolumeX, SlidersHorizontal, Cloud, type LucideIcon } from 'lucide-react'
 import DrillScreen from './components/DrillScreen'
 import LessonsScreen from './components/LessonsScreen'
 import OnboardingScreen from './components/OnboardingScreen'
 import LeaksScreen from './components/LeaksScreen'
 import LearnScreen from './components/LearnScreen'
-import ImportScreen from './components/ImportScreen'
+import AchievementsScreen from './components/AchievementsScreen'
 import AccountModal from './components/AccountModal'
 import PwaUpdater from './components/PwaUpdater'
 import { isMuted, setMuted } from './lib/sound'
@@ -15,13 +15,13 @@ import { useAuth } from './lib/useAuth'
 import { syncNow, pushLocal } from './lib/sync'
 import type { Difficulty, FocusRequest } from './lib/spot'
 
-type Tab = 'drill' | 'lessons' | 'leaks' | 'import' | 'learn'
+type Tab = 'drill' | 'lessons' | 'leaks' | 'achievements' | 'learn'
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'drill', label: 'Drill', icon: Spade },
   { id: 'lessons', label: 'Lessons', icon: GraduationCap },
   { id: 'leaks', label: 'Leaks', icon: Target },
-  { id: 'import', label: 'Import', icon: FileText },
+  { id: 'achievements', label: 'Goals', icon: Trophy },
   { id: 'learn', label: 'Glossary', icon: BookOpen },
 ]
 
@@ -241,7 +241,7 @@ export default function App() {
           />
         )}
         {tab === 'leaks' && <LeaksScreen version={progress} onDrillLeaks={drillLeaks} onOpenLesson={openLesson} />}
-        {tab === 'import' && <ImportScreen onDrillLeaks={drillLeaks} />}
+        {tab === 'achievements' && <AchievementsScreen version={progress} />}
         {tab === 'learn' && <LearnScreen />}
       </main>
 
