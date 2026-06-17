@@ -98,13 +98,17 @@ export function randomFreeplayFlopNode(): FreeplayNode | null {
   if (!FREEPLAY_READY) return null
   const flop = FREEPLAY_NODES.filter((n) => n.street === 'flop')
   if (!flop.length) return null
+  // Weight: 48% face-a-c-bet, 42% c-bet, 10% donk. Donk is down-weighted on
+  // purpose: the simplified 2-size solve inflates BB donk-lead frequencies well
+  // above real GTO, so we surface those spots sparingly to avoid over-teaching
+  // donking (donk is still represented, just not a quarter of every session).
   const want = Math.random()
   const pools = [
     flop.filter((n) => n.kind === 'face_cbet'),
     flop.filter((n) => n.kind === 'cbet'),
     flop.filter((n) => n.kind === 'donk'),
   ]
-  const pick = want < 0.4 ? pools[0] : want < 0.72 ? pools[1] : pools[2]
+  const pick = want < 0.48 ? pools[0] : want < 0.9 ? pools[1] : pools[2]
   const pool = pick.length ? pick : flop
   return pool[Math.floor(Math.random() * pool.length)]
 }

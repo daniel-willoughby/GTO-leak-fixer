@@ -240,6 +240,11 @@ export default function LeaksScreen({ version, onDrillLeaks, onOpenLesson }: Pro
                       </div>
                     </div>
                   </div>
+                  {l.coach && (
+                    <p className="mt-2.5 rounded-lg bg-sage/[0.08] px-3 py-2 text-[13px] leading-relaxed text-ink2">
+                      <span className="font-semibold text-sage-dark">Fix:</span> {l.coach}
+                    </p>
+                  )}
                   <div className="mt-3 flex justify-end">
                     <FixActions leak={l} onDrillLeaks={onDrillLeaks} onOpenLesson={onOpenLesson} />
                   </div>

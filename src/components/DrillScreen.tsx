@@ -280,10 +280,12 @@ export default function DrillScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestFocus])
 
-  function dealNormal(m: DrillMode = mode, fh: boolean = fullHand) {
+  function dealNormal(m: DrillMode = mode, fh: boolean = fullHand, vs: VillainStyle = villainStyle) {
     // Freeplay vs GTO with real all-seats data: a varied solver-true spot from a
     // random seat / node type. vs Fish (or no data) keeps the play-a-hand flow.
-    const fp = fh && villainStyle === 'gto' && FREEPLAY_READY ? generateFreeplaySpot() : null
+    // `vs` is passed explicitly on a mode switch, since setVillainStyle hasn't
+    // applied yet when this runs synchronously after it.
+    const fp = fh && vs === 'gto' && FREEPLAY_READY ? generateFreeplaySpot() : null
     const fresh = lesson
       ? generateSpot(lesson.mode, scopeOpts)
       : fp
@@ -670,7 +672,7 @@ export default function DrillScreen({
                     if (v.id !== villainStyle) {
                       setVillainStyle(v.id)
                       setStreak(0)
-                      dealNormal('postflop', true)
+                      dealNormal('postflop', true, v.id)
                     }
                   }}
                   className={`flex-1 rounded-lg border px-1.5 py-1.5 text-xs font-semibold transition ${
