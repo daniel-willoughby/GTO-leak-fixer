@@ -36,7 +36,60 @@ export const GLOSSARY: Record<string, string> = {
   gto: 'Game Theory Optimal. A balanced strategy that cannot be exploited, used as the benchmark answer in this trainer.',
   broadway: 'Any card ten or higher (T, J, Q, K, A). Two broadway cards make a strong starting hand.',
   'suited connector': 'Two cards of the same suit that are next to each other in rank, like 8-7 suited. Good for making straights and flushes.',
+  // ---- postflop vocabulary ----
+  'board texture': 'What the community cards look like — dry or wet, high or low, paired, connected, one suit or two. It decides who the flop favours and how to bet.',
+  'dry board': 'A disconnected, unsuited flop with few draws (like A-8-3 rainbow). It favours the raiser, so you can c-bet small and often.',
+  'wet board': 'A connected or suited flop with lots of draws (like 9-8-7 two-tone). It hits the caller more, so you bet more selectively and larger.',
+  'range advantage': 'Having more of the strong hands on a given board than your opponent does. It lets you bet often and put them under pressure.',
+  polarized: 'A betting range split into strong value hands and bluffs, with the medium hands checking. Polarised ranges use bigger sizes.',
+  'thin value': 'Betting a medium-strength made hand to get called by slightly worse — a small edge, so you size small.',
+  barrel: 'Continuing to bet on the next street after you bet the previous one. A second bet is a double barrel, a third a triple barrel.',
+  donk: 'Leading into the previous street’s aggressor (betting before the player who bet last street can act). Correct only on a few boards that favour you.',
+  blocker: 'Holding a card that makes a key opponent hand less likely — e.g. holding an ace blocks their strong aces, so you can bluff more credibly.',
+  'fold equity': 'The extra value a bet gains from the chance your opponent folds. It is why semi-bluffs and pressure bets work.',
+  'top pair': 'Pairing the highest card on the board with one of your hole cards. A solid one-pair hand with real showdown value.',
+  overpair: 'A pocket pair higher than every board card (like QQ on a J-7-3 flop). Usually a strong value hand.',
+  set: 'Three of a kind made with a pocket pair plus one matching board card. Very strong and well disguised.',
+  'showdown value': 'A hand good enough to win at showdown sometimes without betting — so you check to keep weaker hands in or control the pot.',
+  'equity denial': 'Betting to make hands with outs fold now, denying them the chance to draw out on you. A big reason to c-bet on dry boards.',
 }
+
+/** Core strategic principles — the "why behind the why". Bodies use [term]
+ *  markers so beginners can tap the jargon. Shown on the Learn tab. */
+export const PRINCIPLES: { title: string; body: string }[] = [
+  {
+    title: 'Position is power',
+    body: 'Acting last is the single biggest edge in poker. [In position] you see what your opponent does before you decide, so you can play more hands profitably. Open wider on the [button], tighter [under the gun].',
+  },
+  {
+    title: 'Aggression has two ways to win',
+    body: 'Betting wins when your opponent folds *and* when they call with a worse hand. Checking only wins at showdown. That [fold equity] is why a [c-bet] and a [semi-bluff] are so powerful — passive play leaves money on the table.',
+  },
+  {
+    title: 'Think in ranges, not hands',
+    body: 'You never know exactly what your opponent has — only their [range], the set of hands they would play this way. Good decisions come from beating their whole range, not from reading one specific hand.',
+  },
+  {
+    title: 'Know who the board favours',
+    body: 'Before you bet, ask who has the [range advantage]. A [dry board] like A-8-3 hardly changes the raiser’s edge, so c-bet wide and small. A [wet board] like 9-8-7 hits the caller, so bet selectively and larger.',
+  },
+  {
+    title: 'Polarise big, merge small',
+    body: 'Big bets are for [polarized] ranges — your strongest [value] hands and your [bluff]s. Small bets are for wide, merged ranges taking [thin value] and [equity denial]. Let your size match your purpose.',
+  },
+  {
+    title: 'Defend wide, fold the bottom',
+    body: 'Facing a steal or a small [c-bet] you usually get a price to continue, so over-folding is a common leak — defend wide. But not everything: the truly weak hands with no [equity] still go in the muck.',
+  },
+  {
+    title: 'Bluff with equity, and with blockers',
+    body: 'A [semi-bluff] — betting a [draw] — beats a pure bluff because you can also win by hitting. And a [blocker] (holding a card that makes their strong hands less likely) makes your bluffs more credible.',
+  },
+  {
+    title: 'Discipline beats fancy play',
+    body: 'Most money is won by folding your trash and value-betting your good hands relentlessly, not by hero calls and big bluffs. Tight, aggressive, and patient is the winning baseline — fix the leaks before chasing the flair.',
+  },
+]
 
 /** Look a term up case-insensitively. Returns null if unknown. */
 export function lookupTerm(term: string): string | null {

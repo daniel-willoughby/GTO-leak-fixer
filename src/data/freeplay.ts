@@ -94,10 +94,15 @@ export function randomFreeplayNode(): FreeplayNode | null {
  * Freeplay hand begins on the flop and can advance to the turn via
  * turnContinuation, so play feels like a hand rather than disjoint spots.
  */
-export function randomFreeplayFlopNode(): FreeplayNode | null {
+export function randomFreeplayFlopNode(kind?: FreeplayNode['kind']): FreeplayNode | null {
   if (!FREEPLAY_READY) return null
   const flop = FREEPLAY_NODES.filter((n) => n.street === 'flop')
   if (!flop.length) return null
+  // lessons can pin to one node type (e.g. face_cbet to drill defending)
+  if (kind) {
+    const only = flop.filter((n) => n.kind === kind)
+    return only.length ? only[Math.floor(Math.random() * only.length)] : null
+  }
   // Weight: 48% face-a-c-bet, 42% c-bet, 10% donk. Donk is down-weighted on
   // purpose: the simplified 2-size solve inflates BB donk-lead frequencies well
   // above real GTO, so we surface those spots sparingly to avoid over-teaching

@@ -2,7 +2,20 @@
 // each followed by scoped drilling. Reuses the existing range/matchup/node data
 // (no new poker data). Lessons unlock one at a time as the previous is completed.
 
-import { Hand, Compass, ShieldAlert, Crosshair, Swords, TrendingUp, Layers, Spade, type LucideIcon } from 'lucide-react'
+import {
+  Hand,
+  Compass,
+  ShieldAlert,
+  Crosshair,
+  Swords,
+  TrendingUp,
+  Layers,
+  Spade,
+  Coins,
+  Grid3x3,
+  Shield,
+  type LucideIcon,
+} from 'lucide-react'
 import type { DrillMode } from '../lib/spot'
 import type { Position, RfiPosition } from './ranges'
 
@@ -25,6 +38,9 @@ export interface Lesson {
   concept: string
   mode: DrillMode
   scope?: LessonScope
+  /** For postflop lessons, pin the drill to a specific Freeplay node type
+   *  (e.g. 'face_cbet' so the lesson drills *defending* against a c-bet). */
+  freeplayKind?: 'cbet' | 'donk' | 'face_cbet'
   /** Correct answers needed to complete the lesson. */
   goal: number
   /** Shown on the card when this lesson opens up a new mode. */
@@ -117,14 +133,49 @@ export const CURRICULUM: Lesson[] = [
   },
   {
     id: 'postflop',
-    group: 'Beyond the basics',
+    group: 'Playing after the flop',
     title: 'Betting after the flop',
     blurb: 'C-bet or check',
     icon: Spade,
     mode: 'postflop',
     goal: 20,
     concept:
-      'After the flop you decide whether to [c-bet] (continuation bet) or [check]. Bet your strong hands for [value] and your [draw]s as a [semi-bluff]. Check the hands that are not strong enough to bet but still want to see another card cheaply.',
+      'As the preflop raiser you usually have the [range advantage], so after the flop you decide whether to [c-bet] (continuation bet) or [check]. Bet your strong hands for [value] and your [draw]s as a [semi-bluff], and bet many weak hands for [equity denial] on boards that favour you. Check the hands with [showdown value] that are not strong enough to bet but still want to reach a cheap showdown.',
+  },
+  {
+    id: 'board-texture',
+    group: 'Playing after the flop',
+    title: 'Reading the board',
+    blurb: 'Which flops to bet',
+    icon: Grid3x3,
+    mode: 'postflop',
+    goal: 20,
+    concept:
+      'Before you bet, read the [board texture]. A [dry board] (like A-8-3 rainbow) barely changes the raiser’s [range advantage], so you can [c-bet] a wide range. A [wet board] (connected or two-tone, like 9-8-7) hits the caller’s hands and [draw]s harder, so you bet more selectively. Ask: does this flop favour me or my opponent?',
+  },
+  {
+    id: 'cbet-size',
+    group: 'Playing after the flop',
+    title: 'How big to c-bet',
+    blurb: 'Small ⅓ vs big ¾',
+    icon: Coins,
+    mode: 'postflop',
+    goal: 20,
+    concept:
+      'Once you decide to bet, size tells a story. A small bet (about a third of the pot) works on a [dry board]: it bets a wide range cheaply for [thin value] and [equity denial]. A big bet (around three-quarters) is for [polarized] spots — your strongest [value] hands plus the [bluff]s that want [fold equity] — usually on wetter boards. Strong-and-vulnerable hands lean big; thin bets lean small.',
+  },
+  {
+    id: 'face-cbet',
+    group: 'Playing after the flop',
+    title: 'Facing a c-bet',
+    blurb: 'Fold, call, or raise',
+    icon: Shield,
+    mode: 'postflop',
+    freeplayKind: 'face_cbet',
+    goal: 20,
+    unlocksLabel: 'Defend vs a bet',
+    concept:
+      'Now you are the caller and the raiser has bet into you. Three options: [fold] your air, [call] to continue with [top pair], pairs and [draw]s that have [showdown value] or [equity], or [raise] your strongest hands for [value] and your best [draw]s as a [semi-bluff]. Do not over-fold to a small bet — you usually get a price to defend wide — but let the trash go.',
   },
 ]
 

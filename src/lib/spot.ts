@@ -463,9 +463,10 @@ function freeplaySpotFromNode(node: FreeplayNode, cards: [Card, Card], label: st
   }
 }
 
-export function generateFreeplaySpot(): Spot | null {
-  // start every hand on the flop so it can advance to the turn (continuous play)
-  const node = randomFreeplayFlopNode()
+export function generateFreeplaySpot(kind?: FreeplayNode['kind']): Spot | null {
+  // start every hand on the flop so it can advance to the turn (continuous play);
+  // lessons can pin one node type (e.g. face_cbet to drill defending vs a c-bet)
+  const node = randomFreeplayFlopNode(kind)
   if (!node) return null
   const board = node.board.match(/../g)!.map((c) => parseCards(c)[0])
   const label = randOf(fpLabels(node))
@@ -687,7 +688,17 @@ function explainFreeplay(spot: Spot, chosen: Action): string {
     .map((x) => `${FP_VERB[x.a] ?? x.a} ${Math.round(x.p * 100)}%`)
     .join(' · ')
   const verdict = right ? 'Correct.' : `Solver leans to ${FP_VERB[spot.correct] ?? 'this'}.`
-  return `${verdict} With ${desc.text}, GTO plays ${mix}.`
+  // a short strategic "why" per hand strength, so every hand teaches a principle
+  const facing = !!spot.facingBet
+  const WHY: Record<typeof desc.tier, string> = {
+    monster: 'A near-lock — raise for value and build the pot.',
+    strong: facing ? 'Strong enough to raise for value.' : 'A strong made hand — bet for value.',
+    top: facing ? 'Enough to continue, rarely fold.' : 'Solid showdown value.',
+    draw: 'A draw — semi-bluff for fold equity, or take a card.',
+    weak: facing ? 'A bluff-catcher — call if priced in, fold to pressure.' : 'Marginal showdown value, keep the pot small.',
+    air: facing ? 'Little equity — fold unless your price is great.' : 'Little to show down, bluff or give up.',
+  }
+  return `${verdict} With ${desc.text}, GTO plays ${mix}. ${WHY[desc.tier]}`
 }
 
 function explain(spot: Spot, chosen: Action, level: Level): string {

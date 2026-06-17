@@ -175,6 +175,16 @@ function freqFor(spot: Spot): ((label: string) => number | null) | undefined {
   }
 }
 
+/** A lesson's drill spot — a pinned Freeplay node type when the lesson asks for
+ *  one (e.g. face_cbet to drill defending), else the normal scoped generator. */
+function lessonSpot(l: Lesson, scopeOpts: GenOptions): Spot {
+  if (l.freeplayKind && FREEPLAY_READY) {
+    const fp = generateFreeplaySpot(l.freeplayKind)
+    if (fp) return fp
+  }
+  return generateSpot(l.mode, scopeOpts)
+}
+
 export default function DrillScreen({
   onProgress,
   requestFocus,
@@ -203,7 +213,9 @@ export default function DrillScreen({
   // continuation opponent: solver-perfect or a loose fish (sub-menu like preflop's)
   const [villainStyle, setVillainStyle] = useState<VillainStyle>('gto')
   const [contMenuOpen, setContMenuOpen] = useState(false)
-  const [spot, setSpot] = useState<Spot>(() => generateSpot(lesson ? lesson.mode : 'rfi', scopeOpts))
+  const [spot, setSpot] = useState<Spot>(() =>
+    lesson ? lessonSpot(lesson, scopeOpts) : generateSpot('rfi', scopeOpts),
+  )
   const [result, setResult] = useState<Judgement | null>(null)
   const [streak, setStreak] = useState(0)
   const [canContinue, setCanContinue] = useState(false)
@@ -287,7 +299,7 @@ export default function DrillScreen({
     // applied yet when this runs synchronously after it.
     const fp = fh && vs === 'gto' && FREEPLAY_READY ? generateFreeplaySpot() : null
     const fresh = lesson
-      ? generateSpot(lesson.mode, scopeOpts)
+      ? lessonSpot(lesson, scopeOpts)
       : fp
         ? fp
         : fh
