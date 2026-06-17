@@ -688,15 +688,16 @@ function explainFreeplay(spot: Spot, chosen: Action): string {
     .map((x) => `${FP_VERB[x.a] ?? x.a} ${Math.round(x.p * 100)}%`)
     .join(' · ')
   const verdict = right ? 'Correct.' : `Solver leans to ${FP_VERB[spot.correct] ?? 'this'}.`
-  // a short strategic "why" per hand strength, so every hand teaches a principle
-  const facing = !!spot.facingBet
+  // a short hand-strength note, DESCRIPTIVE only, never a prescribed action,
+  // so it can't contradict the solver's actual mix (e.g. a strong hand that
+  // checks for pot control). The mix above is what to do; this is the context.
   const WHY: Record<typeof desc.tier, string> = {
-    monster: 'A near-lock — raise for value and build the pot.',
-    strong: facing ? 'Strong enough to raise for value.' : 'A strong made hand — bet for value.',
-    top: facing ? 'Enough to continue, rarely fold.' : 'Solid showdown value.',
-    draw: 'A draw — semi-bluff for fold equity, or take a card.',
-    weak: facing ? 'A bluff-catcher — call if priced in, fold to pressure.' : 'Marginal showdown value, keep the pot small.',
-    air: facing ? 'Little equity — fold unless your price is great.' : 'Little to show down, bluff or give up.',
+    monster: 'A near-lock, your value anchor.',
+    strong: 'A strong made hand with real value.',
+    top: 'Solid one-pair showdown value.',
+    draw: 'A draw, leaning on its equity.',
+    weak: 'A thin, marginal hand.',
+    air: 'Little to show down.',
   }
   return `${verdict} With ${desc.text}, GTO plays ${mix}. ${WHY[desc.tier]}`
 }

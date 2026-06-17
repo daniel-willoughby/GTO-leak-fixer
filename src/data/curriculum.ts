@@ -162,7 +162,7 @@ export const CURRICULUM: Lesson[] = [
     mode: 'postflop',
     goal: 20,
     concept:
-      'Once you decide to bet, size tells a story. A small bet (about a third of the pot) works on a [dry board]: it bets a wide range cheaply for [thin value] and [equity denial]. A big bet (around three-quarters) is for [polarized] spots — your strongest [value] hands plus the [bluff]s that want [fold equity] — usually on wetter boards. Strong-and-vulnerable hands lean big; thin bets lean small.',
+      'Once you decide to bet, size tells a story. A small bet (about a third of the pot) works on a [dry board]: it bets a wide range cheaply for [thin value] and [equity denial]. A big bet (around three-quarters) is for [polarized] spots, your strongest [value] hands plus the [bluff]s that want [fold equity], usually on wetter boards. Strong-and-vulnerable hands lean big; thin bets lean small.',
   },
   {
     id: 'face-cbet',
@@ -175,7 +175,7 @@ export const CURRICULUM: Lesson[] = [
     goal: 20,
     unlocksLabel: 'Defend vs a bet',
     concept:
-      'Now you are the caller and the raiser has bet into you. Three options: [fold] your air, [call] to continue with [top pair], pairs and [draw]s that have [showdown value] or [equity], or [raise] your strongest hands for [value] and your best [draw]s as a [semi-bluff]. Do not over-fold to a small bet — you usually get a price to defend wide — but let the trash go.',
+      'Now you are the caller and the raiser has bet into you. Three options: [fold] your air, [call] to continue with [top pair], pairs and [draw]s that have [showdown value] or [equity], or [raise] your strongest hands for [value] and your best [draw]s as a [semi-bluff]. Do not over-fold to a small bet, you usually get a price to defend wide, but let the trash go.',
   },
 ]
 

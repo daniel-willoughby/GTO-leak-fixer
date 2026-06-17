@@ -175,7 +175,7 @@ function freqFor(spot: Spot): ((label: string) => number | null) | undefined {
   }
 }
 
-/** A lesson's drill spot — a pinned Freeplay node type when the lesson asks for
+/** A lesson's drill spot, a pinned Freeplay node type when the lesson asks for
  *  one (e.g. face_cbet to drill defending), else the normal scoped generator. */
 function lessonSpot(l: Lesson, scopeOpts: GenOptions): Spot {
   if (l.freeplayKind && FREEPLAY_READY) {

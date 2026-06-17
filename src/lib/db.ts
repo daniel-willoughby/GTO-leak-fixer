@@ -135,26 +135,26 @@ export interface TopLeak extends LeakStat {
   coach?: string
 }
 
-/** Short, actionable fix per leak category / seat — the teaching layer of the
+/** Short, actionable fix per leak category / seat, the teaching layer of the
  *  report, so a user learns the principle without opening a full lesson. */
 const COACH: Record<string, string> = {
   // seats (preflop opening discipline)
-  BTN: 'On the button you can open almost half your hands — fold the true junk, but stealing wide is where your edge is.',
+  BTN: 'On the button you can open almost half your hands, fold the true junk, but stealing wide is where your edge is.',
   CO: 'From the cutoff, open a wide but disciplined range; you still have the button and blinds left to act.',
-  HJ: 'From the hijack, open a solid range but lean tighter than the cutoff — more players can wake up behind you.',
+  HJ: 'From the hijack, open a solid range but lean tighter than the cutoff, more players can wake up behind you.',
   UTG: 'Up front, tighten up: big pairs, broadways, and the best suited hands. When unsure, fold.',
-  SB: "From the small blind, raise or fold — never limp. You'll be out of position, so the weakest hands go.",
+  SB: "From the small blind, raise or fold, never limp. You'll be out of position, so the weakest hands go.",
   BB: 'In the big blind you get a price to defend wide vs a raise, but still fold the bottom and 3-bet your best.',
   // hand categories
-  'Pocket pair': 'Pairs play for set value and showdown — open the big ones for value, fold the smallest out of position.',
-  'Suited ace': "Suited aces carry nut-flush and blocker value — they open and 3-bet well, so don't over-fold them.",
-  'Offsuit ace': 'Offsuit aces are easily dominated — they need position; fold the weak ones from early seats.',
-  'Suited broadway': 'Two big suited cards flop strong top pairs and draws — play them aggressively, respect early position.',
-  'Offsuit broadway': 'Good high-card value, weaker playability — open them later and fold them earlier than the suited version.',
-  'Suited connector': 'Suited connectors realise equity in position — continue more in position, let them go out of position.',
-  'Suited gapper': 'One-gap suited hands are speculative — keep them when you have position and a cheap price.',
+  'Pocket pair': 'Pairs play for set value and showdown, open the big ones for value, fold the smallest out of position.',
+  'Suited ace': "Suited aces carry nut-flush and blocker value, they open and 3-bet well, so don't over-fold them.",
+  'Offsuit ace': 'Offsuit aces are easily dominated, they need position; fold the weak ones from early seats.',
+  'Suited broadway': 'Two big suited cards flop strong top pairs and draws, play them aggressively, respect early position.',
+  'Offsuit broadway': 'Good high-card value, weaker playability, open them later and fold them earlier than the suited version.',
+  'Suited connector': 'Suited connectors realise equity in position, continue more in position, let them go out of position.',
+  'Suited gapper': 'One-gap suited hands are speculative, keep them when you have position and a cheap price.',
   'Suited other': 'Speculative suited hands lean on flush equity and position; do not overplay them.',
-  'Offsuit other': 'Offsuit, disconnected hands flop poorly — when in doubt, fold.',
+  'Offsuit other': 'Offsuit, disconnected hands flop poorly, when in doubt, fold.',
 }
 
 export interface LeakSummary {

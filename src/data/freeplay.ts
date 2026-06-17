@@ -3,7 +3,7 @@
 // UTG/HJ/CO/BTN-vs-BB matchups.
 //
 // The dataset (~5 MB) lives in public/freeplay-nodes.json and is fetched at
-// runtime rather than bundled — inlining it into the JS bundle is too big for
+// runtime rather than bundled, inlining it into the JS bundle is too big for
 // the build, and lazy-loading keeps the initial app download small. Until the
 // fetch resolves (or in tests, until setFreeplayNodes is called) the app falls
 // back to its other Freeplay generators.
