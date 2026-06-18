@@ -68,6 +68,7 @@ export default function App() {
   const [ladderRun, setLadderRun] = useState<LadderRun | null>(null)
   const [ladderResult, setLadderResult] = useState<{ score: number; total: number } | null>(null)
   const [dailyVersion, setDailyVersion] = useState(0)
+  const [drillView, setDrillView] = useState<'drill' | 'daily'>('drill')
 
   function startLadder() {
     const day = dayKey()
@@ -341,23 +342,32 @@ export default function App() {
               <LadderResults
                 score={ladderResult.score}
                 total={ladderResult.total}
-                onClose={() => setLadderResult(null)}
+                onClose={() => { setLadderResult(null); setDrillView('drill') }}
                 onLeaderboard={() => {
                   setLadderResult(null)
+                  setDrillView('drill')
                   setTab('profile')
                 }}
               />
-            ) : (
-              <div className="pt-4">
+            ) : drillView === 'daily' ? (
+              <div className="px-4 pt-6 max-w-xl lg:max-w-2xl mx-auto flex flex-col gap-4">
                 <DailyChallengeCard day={dayKey()} version={dailyVersion} onPlay={startLadder} />
-                <DrillScreen
-                  level={level}
-                  onProgress={() => setProgress((p) => p + 1)}
-                  requestFocus={focusRequest}
-                  onFocusConsumed={() => setFocusRequest(null)}
-                  difficulty={difficulty}
-                />
+                <button
+                  onClick={() => setDrillView('drill')}
+                  className="text-sm text-ink3 hover:text-ink2 text-center transition"
+                >
+                  ← Back to drilling
+                </button>
               </div>
+            ) : (
+              <DrillScreen
+                level={level}
+                onProgress={() => setProgress((p) => p + 1)}
+                requestFocus={focusRequest}
+                onFocusConsumed={() => setFocusRequest(null)}
+                difficulty={difficulty}
+                onOpenDaily={() => setDrillView('daily')}
+              />
             ))}
           {tab === 'lessons' && (
             <LessonsScreen

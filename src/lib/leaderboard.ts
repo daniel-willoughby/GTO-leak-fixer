@@ -132,6 +132,42 @@ export async function fetchDailyLeaderboard(day: string = dayKey(), limit = 50):
   return data as DailyRow[]
 }
 
+// ---- friends ---------------------------------------------------------------
+
+const FRIENDS_KEY = 'lt-friends'
+export const getFriends = (): string[] => {
+  try { return JSON.parse(localStorage.getItem(FRIENDS_KEY) ?? '[]') } catch { return [] }
+}
+export function addFriend(id: string): void {
+  const f = getFriends()
+  if (!f.includes(id)) localStorage.setItem(FRIENDS_KEY, JSON.stringify([...f, id]))
+}
+export function removeFriend(id: string): void {
+  localStorage.setItem(FRIENDS_KEY, JSON.stringify(getFriends().filter((x) => x !== id)))
+}
+
+/** Search profiles by handle (case-insensitive, partial match). */
+export async function searchByHandle(q: string): Promise<LeaderRow[]> {
+  if (!supabase || !q.trim()) return []
+  const { data } = await supabase
+    .from('profiles')
+    .select('user_id,handle,hands_played,best_streak,accuracy,pp_earned,avatar,flair')
+    .ilike('handle', `%${q.trim()}%`)
+    .limit(10)
+  return (data as LeaderRow[]) ?? []
+}
+
+/** Fetch leaderboard rows for a specific set of user ids. */
+export async function fetchFriendsLeaderboard(friendIds: string[]): Promise<LeaderRow[]> {
+  if (!supabase || !friendIds.length) return []
+  const { data } = await supabase
+    .from('profiles')
+    .select('user_id,handle,hands_played,best_streak,accuracy,pp_earned,avatar,flair')
+    .in('user_id', friendIds)
+    .order('pp_earned', { ascending: false })
+  return (data as LeaderRow[]) ?? []
+}
+
 /**
  * If you topped yesterday's daily board and haven't been paid yet, grant the
  * daily-winner bonus. Client-claimed (offline-first); returns true if granted.

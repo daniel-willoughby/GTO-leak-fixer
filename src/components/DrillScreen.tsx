@@ -101,6 +101,8 @@ interface Props {
   onExitLesson?: () => void
   /** When set, run the daily 20-question ladder instead of free play. */
   ladder?: LadderRun | null
+  /** Called when the user taps the Daily tab in the mode switcher. */
+  onOpenDaily?: () => void
 }
 
 /** Drives the daily-ladder run: a fixed sequence of seeded spots, scored. */
@@ -209,6 +211,7 @@ export default function DrillScreen({
   lesson = null,
   onExitLesson,
   ladder = null,
+  onOpenDaily,
 }: Props) {
   const scopeOpts: GenOptions = lesson?.scope
     ? { lockPos: lesson.scope.lockPos, lockMatchup: lesson.scope.lockMatchup }
@@ -689,6 +692,14 @@ export default function DrillScreen({
               {category === 'continuation' ? `Freeplay · ${villainStyle === 'fish' ? 'vs Fish' : 'vs GTO'}` : 'Freeplay'}
               <ChevronDown size={12} className={`transition-transform ${contMenuOpen ? 'rotate-180' : ''}`} />
             </button>
+            {onOpenDaily && (
+              <button
+                onClick={() => { setPreflopMenuOpen(false); setContMenuOpen(false); onOpenDaily() }}
+                className="flex flex-1 items-center justify-center px-1.5 py-2 rounded-xl font-semibold transition text-xs text-ink2 hover:text-ink"
+              >
+                Daily
+              </button>
+            )}
           </div>
           {/* preflop situations, only while the menu is open, collapses on select */}
           {category === 'preflop' && preflopMenuOpen && (

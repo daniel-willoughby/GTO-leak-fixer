@@ -27,12 +27,13 @@ export interface SyncSnapshot {
   lessons: LessonMap | null
   level: string | null
   difficulty: string | null
-  // game layer: cosmetics, purchases, daily ladder results, identity
+  // game layer: cosmetics, purchases, daily ladder results, identity, friends
   owned?: string[] | null
   equipped?: Equipped | null
   dailyResults?: DailyResults | null
   dailyWins?: string[] | null
   handle?: string | null
+  friends?: string[] | null
 }
 
 const TABLE = 'user_state'
@@ -62,6 +63,7 @@ export async function gatherLocal(): Promise<SyncSnapshot> {
     dailyResults: lsParse<DailyResults>('lt-daily-results'),
     dailyWins: lsParse<string[]>('lt-daily-wins'),
     handle: localStorage.getItem('lt-handle'),
+    friends: lsParse<string[]>('lt-friends'),
   }
 }
 
@@ -77,6 +79,7 @@ export async function applySnapshot(snap: SyncSnapshot): Promise<void> {
   if (snap.dailyResults) lsWrite('lt-daily-results', snap.dailyResults)
   if (snap.dailyWins) lsWrite('lt-daily-wins', snap.dailyWins)
   if (snap.handle) localStorage.setItem('lt-handle', snap.handle)
+  if (snap.friends) lsWrite('lt-friends', snap.friends)
 }
 
 // ---- merge ----------------------------------------------------------------
@@ -158,6 +161,7 @@ export function mergeSnapshots(a: SyncSnapshot, b: SyncSnapshot): SyncSnapshot {
     dailyResults: mergeDailyResults(a.dailyResults, b.dailyResults),
     dailyWins: mergeOwned(a.dailyWins, b.dailyWins),
     handle: (newer.handle || a.handle || b.handle) ?? null,
+    friends: mergeOwned(a.friends, b.friends),
   }
 }
 

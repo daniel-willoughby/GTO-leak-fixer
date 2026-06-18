@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Coins, Lock, Sparkles } from 'lucide-react'
+import { Check, Coins, Lock, Sparkles, UserPlus, UserMinus, Search } from 'lucide-react'
 import { getAchievements, type Achievement } from '../lib/achievements'
 import { pointsState, owned, equipped, equip, buyItem } from '../lib/points'
 import { itemsOfType, type ShopItem, type CosmeticType } from '../lib/shop'
@@ -9,6 +9,11 @@ import {
   upsertProfile,
   fetchDailyLeaderboard,
   fetchAllTimeLeaderboard,
+  fetchFriendsLeaderboard,
+  searchByHandle,
+  getFriends,
+  addFriend,
+  removeFriend,
   claimDailyWinIfTop,
   type DailyRow,
   type LeaderRow,
@@ -26,11 +31,12 @@ interface Props {
   onChanged: () => void
 }
 
-type Section = 'achievements' | 'daily' | 'alltime' | 'shop'
+type Section = 'achievements' | 'daily' | 'alltime' | 'friends' | 'shop'
 const SECTIONS: { id: Section; label: string }[] = [
   { id: 'achievements', label: 'Achievements' },
   { id: 'daily', label: 'Daily' },
   { id: 'alltime', label: 'All-time' },
+  { id: 'friends', label: 'Friends' },
   { id: 'shop', label: 'Shop' },
 ]
 
@@ -45,6 +51,11 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
   const [handle, setHandleState] = useState(getHandle())
   const [daily, setDaily] = useState<DailyRow[] | null>(null)
   const [allTime, setAllTime] = useState<LeaderRow[] | null>(null)
+  const [friendIds, setFriendIds] = useState<string[]>(getFriends())
+  const [friendRows, setFriendRows] = useState<LeaderRow[] | null>(null)
+  const [friendSearch, setFriendSearch] = useState('')
+  const [searchResults, setSearchResults] = useState<LeaderRow[] | null>(null)
+  const [searching, setSearching] = useState(false)
 
   const refreshLocal = () => {
     pointsState().then((s) => setBalance(s.balance))
@@ -66,7 +77,8 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
   useEffect(() => {
     if (section === 'daily') fetchDailyLeaderboard(dayKey()).then(setDaily)
     if (section === 'alltime') fetchAllTimeLeaderboard().then(setAllTime)
-  }, [section, version])
+    if (section === 'friends') fetchFriendsLeaderboard(friendIds).then(setFriendRows)
+  }, [section, version, friendIds])
 
   async function saveHandle() {
     setHandle(handle)
@@ -126,13 +138,13 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
         </div>
       </div>
 
-      {/* section switch */}
-      <div className="flex gap-1 rounded-2xl border border-line bg-ink/[0.06] p-1 text-sm">
+      {/* section switch — scrollable so 5 tabs fit on narrow screens */}
+      <div className="flex gap-1 overflow-x-auto rounded-2xl border border-line bg-ink/[0.06] p-1 text-sm [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {SECTIONS.map((s) => (
           <button
             key={s.id}
             onClick={() => setSection(s.id)}
-            className={`flex-1 rounded-xl py-2 text-xs font-semibold transition ${
+            className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold transition ${
               section === s.id ? 'bg-sage text-white shadow-[0_4px_12px_-4px_rgba(67,84,72,0.6)]' : 'text-ink2 hover:text-ink'
             }`}
           >
@@ -191,6 +203,36 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
               </span>
             </Row>
           )}
+        />
+      )}
+
+      {section === 'friends' && (
+        <FriendsPanel
+          configured={configured}
+          userId={userId}
+          onSignIn={onSignIn}
+          friendIds={friendIds}
+          friendRows={friendRows}
+          friendSearch={friendSearch}
+          setFriendSearch={setFriendSearch}
+          searchResults={searchResults}
+          searching={searching}
+          onSearch={async () => {
+            setSearching(true)
+            setSearchResults(await searchByHandle(friendSearch))
+            setSearching(false)
+          }}
+          onAdd={(id) => {
+            addFriend(id)
+            const next = getFriends()
+            setFriendIds(next)
+            setSearchResults(null)
+            setFriendSearch('')
+          }}
+          onRemove={(id) => {
+            removeFriend(id)
+            setFriendIds(getFriends())
+          }}
         />
       )}
 
@@ -300,6 +342,116 @@ function LeaderboardPanel<T>({
   if (rows === null) return <p className="px-1 text-sm text-ink2">Loading…</p>
   if (rows.length === 0) return <p className="px-1 text-sm text-ink2">{empty}</p>
   return <div className="flex flex-col gap-1.5">{rows.map(render)}</div>
+}
+
+function FriendsPanel({
+  configured,
+  userId,
+  onSignIn,
+  friendIds,
+  friendRows,
+  friendSearch,
+  setFriendSearch,
+  searchResults,
+  searching,
+  onSearch,
+  onAdd,
+  onRemove,
+}: {
+  configured: boolean
+  userId: string | null
+  onSignIn: () => void
+  friendIds: string[]
+  friendRows: LeaderRow[] | null
+  friendSearch: string
+  setFriendSearch: (q: string) => void
+  searchResults: LeaderRow[] | null
+  searching: boolean
+  onSearch: () => void
+  onAdd: (id: string) => void
+  onRemove: (id: string) => void
+}) {
+  if (!configured)
+    return <p className="px-1 text-sm text-ink2">Friends require cloud sync to be configured.</p>
+  if (!userId)
+    return (
+      <div className="panel flex items-center justify-between gap-3 p-4 text-sm text-ink2">
+        <span>Sign in to add friends.</span>
+        <button onClick={onSignIn} className="btn btn-primary shrink-0 px-3 py-2 text-sm">Sign in</button>
+      </div>
+    )
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* search */}
+      <div className="flex gap-2">
+        <input
+          value={friendSearch}
+          onChange={(e) => setFriendSearch(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && onSearch()}
+          placeholder="Search by username…"
+          style={{ fontSize: '16px' }}
+          className="min-w-0 flex-1 rounded-xl border border-line bg-paper2 px-3 py-2 text-ink outline-none focus:border-sage"
+        />
+        <button
+          onClick={onSearch}
+          disabled={searching || !friendSearch.trim()}
+          className="btn btn-primary flex shrink-0 items-center gap-1.5 px-3 py-2 text-sm disabled:opacity-50"
+        >
+          <Search size={14} /> {searching ? '…' : 'Search'}
+        </button>
+      </div>
+
+      {/* search results */}
+      {searchResults !== null && (
+        <div className="flex flex-col gap-1.5">
+          {searchResults.length === 0 && (
+            <p className="px-1 text-sm text-ink3">No players found.</p>
+          )}
+          {searchResults.filter((r) => r.user_id !== userId).map((r) => {
+            const isFriend = friendIds.includes(r.user_id)
+            return (
+              <div key={r.user_id} className="flex items-center gap-3 rounded-xl border border-line bg-paper2 px-3 py-2.5">
+                <Avatar id={r.avatar} size={30} />
+                <span className="min-w-0 flex-1 truncate font-semibold text-ink">{r.handle}</span>
+                <span className="shrink-0 text-xs tabular-nums text-ink3">{r.pp_earned} PP</span>
+                <button
+                  onClick={() => isFriend ? onRemove(r.user_id) : onAdd(r.user_id)}
+                  className={`shrink-0 rounded-lg p-1.5 transition ${isFriend ? 'text-clay hover:bg-clay/10' : 'text-sage-dark hover:bg-sage/10'}`}
+                >
+                  {isFriend ? <UserMinus size={16} /> : <UserPlus size={16} />}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* friends list */}
+      {friendIds.length === 0 ? (
+        <p className="px-1 text-sm text-ink3">Search for a player by username to add them as a friend.</p>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <p className="px-1 text-xs uppercase tracking-wide text-ink3">Your friends</p>
+          {friendRows === null ? (
+            <p className="px-1 text-sm text-ink2">Loading…</p>
+          ) : friendRows.map((r, i) => (
+            <Row key={r.user_id} rank={i + 1} me={r.user_id === userId} avatar={r.avatar} flair={r.flair} name={r.handle}>
+              <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-clay">
+                <Coins size={13} /> {r.pp_earned}
+              </span>
+              <button
+                onClick={() => onRemove(r.user_id)}
+                className="ml-1 shrink-0 rounded-lg p-1 text-ink3 hover:text-clay hover:bg-clay/10 transition"
+              >
+                <UserMinus size={15} />
+              </button>
+            </Row>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function Shop({
