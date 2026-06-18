@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Coins, Lock, Sparkles, UserPlus, UserMinus, Search, ChevronDown } from 'lucide-react'
+import { Check, Coins, Lock, Sparkles, UserPlus, UserMinus, UserCheck, Search, ChevronDown } from 'lucide-react'
 import { getAchievements, type Achievement } from '../lib/achievements'
 import { pointsState, owned, equipped, equip, buyItem } from '../lib/points'
 import { itemsOfType, type ShopItem, type CosmeticType } from '../lib/shop'
@@ -96,6 +96,13 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
     onChanged()
   }
 
+  /** Add or remove a player as a friend (used from leaderboard rows). */
+  function toggleFriend(id: string) {
+    if (getFriends().includes(id)) removeFriend(id)
+    else addFriend(id)
+    setFriendIds(getFriends())
+  }
+
   async function onBuy(item: ShopItem) {
     const res = await buyItem(item.id)
     if (res.ok) {
@@ -178,14 +185,26 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
           onSignIn={onSignIn}
           empty="No scores yet today — be the first to climb the ladder."
           rows={daily}
-          render={(r: DailyRow, i) => (
-            <Row key={r.user_id} rank={i + 1} me={r.user_id === userId} avatar={r.avatar} flair={r.flair} name={r.handle}>
-              <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-sage-dark">
-                {r.score}
-                <span className="text-ink3">/20</span>
-              </span>
-            </Row>
-          )}
+          render={(r: DailyRow, i) => {
+            const me = r.user_id === userId
+            return (
+              <Row
+                key={r.user_id}
+                rank={i + 1}
+                me={me}
+                avatar={r.avatar}
+                flair={r.flair}
+                name={r.handle}
+                onClick={me ? undefined : () => toggleFriend(r.user_id)}
+              >
+                <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-sage-dark">
+                  {r.score}
+                  <span className="text-ink3">/20</span>
+                </span>
+                {!me && <FriendToggle isFriend={friendIds.includes(r.user_id)} />}
+              </Row>
+            )
+          }}
         />
       )}
 
@@ -196,13 +215,25 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
           onSignIn={onSignIn}
           empty="No players yet — earn some Poker Points to appear here."
           rows={allTime}
-          render={(r: LeaderRow, i) => (
-            <Row key={r.user_id} rank={i + 1} me={r.user_id === userId} avatar={r.avatar} flair={r.flair} name={r.handle}>
-              <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-clay">
-                <Coins size={13} /> {r.pp_earned}
-              </span>
-            </Row>
-          )}
+          render={(r: LeaderRow, i) => {
+            const me = r.user_id === userId
+            return (
+              <Row
+                key={r.user_id}
+                rank={i + 1}
+                me={me}
+                avatar={r.avatar}
+                flair={r.flair}
+                name={r.handle}
+                onClick={me ? undefined : () => toggleFriend(r.user_id)}
+              >
+                <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-clay">
+                  <Coins size={13} /> {r.pp_earned}
+                </span>
+                {!me && <FriendToggle isFriend={friendIds.includes(r.user_id)} />}
+              </Row>
+            )
+          }}
         />
       )}
 
@@ -314,6 +345,15 @@ function Row({
       </span>
       {children}
     </div>
+  )
+}
+
+/** Trailing indicator on a tappable leaderboard row: add or already-added. */
+function FriendToggle({ isFriend }: { isFriend: boolean }) {
+  return isFriend ? (
+    <UserCheck size={16} className="shrink-0 text-sage-dark" />
+  ) : (
+    <UserPlus size={16} className="shrink-0 text-ink3" />
   )
 }
 
