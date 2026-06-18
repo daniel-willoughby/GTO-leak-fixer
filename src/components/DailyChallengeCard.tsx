@@ -1,4 +1,4 @@
-import { CalendarCheck, Flame, Play, RotateCcw, Check } from 'lucide-react'
+import { CalendarCheck, Flame, Play, Check } from 'lucide-react'
 import { dailyResult } from '../lib/points'
 import { ladderProgress, LADDER_LEN } from '../lib/dailyLadder'
 import { getDaily, liveStreak } from '../lib/daily'
@@ -20,8 +20,7 @@ export default function DailyChallengeCard({ day, version, onPlay }: Props) {
   const streak = liveStreak(getDaily())
 
   const state = done?.completed ? 'done' : progress ? 'resume' : 'new'
-  const label = state === 'done' ? 'Play again' : state === 'resume' ? 'Resume' : 'Play'
-  const Icon = state === 'done' ? RotateCcw : Play
+  const label = state === 'resume' ? 'Resume' : 'Play'
 
   return (
     <div className="mx-auto mb-3 flex w-full max-w-xl items-center gap-3 rounded-2xl border border-clay/30 bg-clay/[0.07] p-3.5 lg:max-w-2xl">
@@ -49,12 +48,18 @@ export default function DailyChallengeCard({ day, version, onPlay }: Props) {
           )}
         </p>
       </div>
-      <button
-        onClick={onPlay}
-        className="btn btn-primary flex shrink-0 items-center gap-1.5 px-3.5 py-2.5 text-sm"
-      >
-        <Icon size={15} /> {label}
-      </button>
+      {state === 'done' ? (
+        <span className="flex shrink-0 items-center gap-1 rounded-xl bg-sage/20 px-3 py-2 text-sm font-semibold text-sage-dark">
+          <Check size={14} /> Done
+        </span>
+      ) : (
+        <button
+          onClick={onPlay}
+          className="btn btn-primary flex shrink-0 items-center gap-1.5 px-3.5 py-2.5 text-sm"
+        >
+          <Play size={15} /> {label}
+        </button>
+      )}
     </div>
   )
 }
