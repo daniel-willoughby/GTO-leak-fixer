@@ -119,7 +119,8 @@ export default function AccountModal({ onClose, onSyncNow, syncing, lastSynced }
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Username (shown on leaderboards)"
                   maxLength={24}
-                  className="rounded-xl border border-line bg-paper2 px-3 py-2.5 text-base text-ink outline-none focus:border-sage"
+                  style={{ fontSize: '16px' }}
+                  className="rounded-xl border border-line bg-paper2 px-3 py-2.5 text-ink outline-none focus:border-sage"
                 />
               )}
               <input
@@ -128,7 +129,8 @@ export default function AccountModal({ onClose, onSyncNow, syncing, lastSynced }
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
-                className="rounded-xl border border-line bg-paper2 px-3 py-2.5 text-base text-ink outline-none focus:border-sage"
+                style={{ fontSize: '16px' }}
+                className="rounded-xl border border-line bg-paper2 px-3 py-2.5 text-ink outline-none focus:border-sage"
               />
               <input
                 type="password"
@@ -137,7 +139,8 @@ export default function AccountModal({ onClose, onSyncNow, syncing, lastSynced }
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password (6+ characters)"
-                className="rounded-xl border border-line bg-paper2 px-3 py-2.5 text-base text-ink outline-none focus:border-sage"
+                style={{ fontSize: '16px' }}
+                className="rounded-xl border border-line bg-paper2 px-3 py-2.5 text-ink outline-none focus:border-sage"
               />
               {error && <p className="text-xs text-heartred">{error}</p>}
               {notice && (
