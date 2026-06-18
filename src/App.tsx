@@ -224,25 +224,28 @@ export default function App() {
       </header>
 
       <main className="flex-1 overflow-y-auto">
-        {tab === 'drill' && (
-          <DrillScreen
-            level={level}
-            onProgress={() => setProgress((p) => p + 1)}
-            requestFocus={focusRequest}
-            onFocusConsumed={() => setFocusRequest(null)}
-            difficulty={difficulty}
-          />
-        )}
-        {tab === 'lessons' && (
-          <LessonsScreen
-            onProgress={() => setProgress((p) => p + 1)}
-            openLessonId={openLessonId}
-            onOpened={() => setOpenLessonId(null)}
-          />
-        )}
-        {tab === 'leaks' && <LeaksScreen version={progress} onDrillLeaks={drillLeaks} onOpenLesson={openLesson} />}
-        {tab === 'achievements' && <AchievementsScreen version={progress} />}
-        {tab === 'learn' && <LearnScreen />}
+        {/* keyed so each tab change re-mounts and plays a gentle fade-up */}
+        <div key={tab} className="animate-fade-up h-full">
+          {tab === 'drill' && (
+            <DrillScreen
+              level={level}
+              onProgress={() => setProgress((p) => p + 1)}
+              requestFocus={focusRequest}
+              onFocusConsumed={() => setFocusRequest(null)}
+              difficulty={difficulty}
+            />
+          )}
+          {tab === 'lessons' && (
+            <LessonsScreen
+              onProgress={() => setProgress((p) => p + 1)}
+              openLessonId={openLessonId}
+              onOpened={() => setOpenLessonId(null)}
+            />
+          )}
+          {tab === 'leaks' && <LeaksScreen version={progress} onDrillLeaks={drillLeaks} onOpenLesson={openLesson} />}
+          {tab === 'achievements' && <AchievementsScreen version={progress} />}
+          {tab === 'learn' && <LearnScreen />}
+        </div>
       </main>
 
       <nav className="safe-bottom fixed bottom-0 inset-x-0 z-30 bg-paper/90 backdrop-blur-xl border-t border-line flex sm:inset-x-auto sm:left-1/2 sm:bottom-5 sm:-translate-x-1/2 sm:w-[26rem] sm:rounded-2xl sm:border sm:px-1 sm:shadow-[0_12px_34px_-14px_rgba(34,31,25,0.4)]">

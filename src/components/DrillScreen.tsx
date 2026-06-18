@@ -763,7 +763,12 @@ export default function DrillScreen({
             streak >= 3 ? 'border-clay/40 bg-clay/10 text-clay' : 'border-line bg-paper2 text-ink2'
           }`}
         >
-          <Flame size={13} className={streak >= 3 ? 'text-clay' : 'text-ink3'} />
+          {/* the flame kicks each time the streak grows (keyed remount) */}
+          <Flame
+            key={streak}
+            size={13}
+            className={`${streak >= 3 ? 'text-clay' : 'text-ink3'} ${streak > 0 ? 'animate-streak' : ''}`}
+          />
           <span className="text-xs font-bold tabular-nums">{streak}</span>
         </span>
       </div>
@@ -835,13 +840,17 @@ export default function DrillScreen({
               </span>
             </div>
           )}
-          <div className={`w-full rounded-2xl p-4 text-sm leading-relaxed flex gap-3 border ${feedbackTone}`}>
+          <div
+            className={`w-full rounded-2xl p-4 text-sm leading-relaxed flex gap-3 border ${feedbackTone} ${
+              result.quality === 'correct' ? 'animate-glow' : ''
+            }`}
+          >
             {result.quality === 'acceptable' ? (
-              <MinusCircle size={22} className="text-[#b88a3a] shrink-0 mt-0.5" />
+              <MinusCircle size={22} className="animate-spring text-[#b88a3a] shrink-0 mt-0.5" />
             ) : result.isCorrect ? (
-              <CheckCircle2 size={22} className="text-sage shrink-0 mt-0.5" />
+              <CheckCircle2 size={22} className="animate-spring text-sage shrink-0 mt-0.5" />
             ) : (
-              <XCircle size={22} className="text-heartred shrink-0 mt-0.5" />
+              <XCircle size={22} className="animate-spring text-heartred shrink-0 mt-0.5" />
             )}
             {level === 'beginner' ? (
               <GlossaryText text={result.explanation} className="text-ink" />
