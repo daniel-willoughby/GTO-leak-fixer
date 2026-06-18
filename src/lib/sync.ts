@@ -12,6 +12,7 @@ import {
 } from './db'
 import type { DailyState } from './daily'
 import type { LessonState } from './level'
+import { upsertProfile } from './leaderboard'
 
 type LessonMap = Record<string, LessonState>
 
@@ -141,10 +142,13 @@ export async function syncNow(userId: string): Promise<SyncSnapshot> {
   const merged = remote ? mergeSnapshots(local, remote) : local
   if (remote) await applySnapshot(merged)
   await pushRemote(userId, merged)
+  await upsertProfile(userId, merged) // publish the public leaderboard row
   return merged
 }
 
 /** Push only, used for debounced background saves after local changes. */
 export async function pushLocal(userId: string): Promise<void> {
-  await pushRemote(userId, await gatherLocal())
+  const snap = await gatherLocal()
+  await pushRemote(userId, snap)
+  await upsertProfile(userId, snap)
 }

@@ -243,7 +243,14 @@ export default function App() {
             />
           )}
           {tab === 'leaks' && <LeaksScreen version={progress} onDrillLeaks={drillLeaks} onOpenLesson={openLesson} />}
-          {tab === 'achievements' && <AchievementsScreen version={progress} />}
+          {tab === 'achievements' && (
+            <AchievementsScreen
+              version={progress}
+              configured={supabaseConfigured}
+              userId={user?.id ?? null}
+              onSignIn={() => setAccountOpen(true)}
+            />
+          )}
           {tab === 'learn' && <LearnScreen />}
         </div>
       </main>

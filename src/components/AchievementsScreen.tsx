@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Trophy, Check } from 'lucide-react'
+import { Trophy, Check, Flame } from 'lucide-react'
 import { getAchievements, type Achievement } from '../lib/achievements'
+import { fetchLeaderboard, getHandle, setHandle, upsertProfile, type LeaderRow } from '../lib/leaderboard'
+import { gatherLocal } from '../lib/sync'
 
 const GROUPS: Achievement['group'][] = ['Volume', 'Accuracy', 'Streaks', 'Learning']
 
@@ -12,7 +14,7 @@ function Row({ a }: { a: Achievement }) {
       <div className="flex items-center gap-3">
         <span
           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-            a.done ? 'bg-sage text-white dark:text-paper' : 'bg-ink/[0.06] text-ink3'
+            a.done ? 'bg-sage text-white dark:text-paper animate-spring' : 'bg-ink/[0.06] text-ink3'
           }`}
         >
           {a.done ? <Check size={18} /> : <Icon size={17} />}
@@ -35,12 +37,37 @@ function Row({ a }: { a: Achievement }) {
   )
 }
 
-export default function AchievementsScreen({ version }: { version: number }) {
+interface Props {
+  version: number
+  /** Cloud sync configured (env vars present). */
+  configured: boolean
+  /** Signed-in user id, or null. */
+  userId: string | null
+  /** Open the account / sign-in modal. */
+  onSignIn: () => void
+}
+
+export default function AchievementsScreen({ version, configured, userId, onSignIn }: Props) {
   const [items, setItems] = useState<Achievement[] | null>(null)
+  const [board, setBoard] = useState<LeaderRow[] | null>(null)
+  const [handle, setHandleState] = useState(getHandle())
 
   useEffect(() => {
     getAchievements().then(setItems)
   }, [version])
+
+  useEffect(() => {
+    if (configured && userId) fetchLeaderboard().then(setBoard)
+    else setBoard(null)
+  }, [configured, userId, version])
+
+  async function saveHandle() {
+    setHandle(handle)
+    if (userId) {
+      await upsertProfile(userId, await gatherLocal())
+      setBoard(await fetchLeaderboard())
+    }
+  }
 
   if (!items) return null
   const done = items.filter((a) => a.done).length
@@ -69,6 +96,57 @@ export default function AchievementsScreen({ version }: { version: number }) {
           </section>
         )
       })}
+
+      {configured && (
+        <section className="flex flex-col gap-2.5">
+          <h2 className="text-xs uppercase tracking-wide text-ink3 px-1">Leaderboard</h2>
+          {!userId ? (
+            <div className="panel flex items-center justify-between gap-3 p-4 text-sm text-ink2">
+              <span>Sign in to compare streaks with everyone.</span>
+              <button onClick={onSignIn} className="btn btn-primary shrink-0 px-3 py-2 text-sm">
+                Sign in
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="panel flex items-center gap-2 p-3">
+                <span className="shrink-0 text-xs text-ink3">Your name</span>
+                <input
+                  value={handle}
+                  onChange={(e) => setHandleState(e.target.value)}
+                  onBlur={saveHandle}
+                  placeholder="Player"
+                  maxLength={24}
+                  className="flex-1 border-b border-line bg-transparent py-1 text-sm outline-none focus:border-sage"
+                />
+              </div>
+              {board === null ? (
+                <p className="px-1 text-sm text-ink2">Loading…</p>
+              ) : board.length === 0 ? (
+                <p className="px-1 text-sm text-ink2">No players yet, be the first.</p>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {board.map((r, i) => (
+                    <div
+                      key={r.user_id}
+                      className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
+                        r.user_id === userId ? 'bg-sage/10 border-sage/30' : 'bg-paper2 border-line'
+                      }`}
+                    >
+                      <span className="w-6 shrink-0 text-center text-sm font-bold tabular-nums text-ink3">{i + 1}</span>
+                      <span className="min-w-0 flex-1 truncate font-semibold text-ink">{r.handle}</span>
+                      <span className="flex shrink-0 items-center gap-1 text-sm text-clay">
+                        <Flame size={13} /> {r.best_streak}
+                      </span>
+                      <span className="w-12 shrink-0 text-right text-xs tabular-nums text-ink2">{r.accuracy}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      )}
     </div>
   )
 }
