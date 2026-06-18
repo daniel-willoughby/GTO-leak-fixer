@@ -301,6 +301,37 @@ export default function App() {
       </header>
 
       <main className="flex-1 overflow-y-auto">
+        {/* sign-in nudge: inline banner so it never overlaps content; hidden mid-ladder */}
+        {nudge && !ladderRun && (
+          <div className="animate-toast mx-auto w-full max-w-xl px-4 pt-3 lg:max-w-2xl">
+            <div className="flex items-center gap-3 rounded-2xl border border-line bg-paper2 p-3 shadow-sm">
+              <Cloud size={20} className="shrink-0 text-sage" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-ink">Save your progress</p>
+                <p className="text-xs text-ink2">Sign in to back up and sync across devices.</p>
+              </div>
+              <button
+                onClick={() => {
+                  setNudge(false)
+                  setAccountOpen(true)
+                }}
+                className="shrink-0 rounded-lg bg-sage px-3 py-1.5 text-xs font-semibold text-white"
+              >
+                Sign in
+              </button>
+              <button
+                onClick={() => {
+                  setNudge(false)
+                  sessionStorage.setItem(NUDGE_KEY, '1')
+                }}
+                className="shrink-0 p-1 text-ink3 hover:text-ink"
+                aria-label="Dismiss"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          </div>
+        )}
         {/* keyed so each tab change re-mounts and plays a gentle fade-up */}
         <div key={tab} className="animate-fade-up h-full">
           {tab === 'drill' &&
@@ -401,35 +432,6 @@ export default function App() {
           </button>
         )
       })()}
-
-      {nudge && (
-        <div className="animate-toast safe-top fixed inset-x-0 top-3 z-[60] mx-auto flex w-[22rem] max-w-[calc(100%-1.5rem)] items-center gap-3 rounded-2xl border border-line bg-paper2 p-3 shadow-xl">
-          <Cloud size={20} className="shrink-0 text-sage" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-ink">Save your progress</p>
-            <p className="text-xs text-ink2">Sign in to back up and sync across devices.</p>
-          </div>
-          <button
-            onClick={() => {
-              setNudge(false)
-              setAccountOpen(true)
-            }}
-            className="shrink-0 rounded-lg bg-sage px-3 py-1.5 text-xs font-semibold text-white"
-          >
-            Sign in
-          </button>
-          <button
-            onClick={() => {
-              setNudge(false)
-              sessionStorage.setItem(NUDGE_KEY, '1')
-            }}
-            className="shrink-0 p-1 text-ink3 hover:text-ink"
-            aria-label="Dismiss"
-          >
-            <X size={15} />
-          </button>
-        </div>
-      )}
 
       <PwaUpdater />
     </div>
