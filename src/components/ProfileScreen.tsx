@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Coins, Lock, Sparkles, UserPlus, UserMinus, Search } from 'lucide-react'
+import { Check, Coins, Lock, Sparkles, UserPlus, UserMinus, Search, ChevronDown } from 'lucide-react'
 import { getAchievements, type Achievement } from '../lib/achievements'
 import { pointsState, owned, equipped, equip, buyItem } from '../lib/points'
 import { itemsOfType, type ShopItem, type CosmeticType } from '../lib/shop'
@@ -288,6 +288,7 @@ function Row({
   flair,
   name,
   children,
+  onClick,
 }: {
   rank: number
   me: boolean
@@ -295,12 +296,15 @@ function Row({
   flair: string
   name: string
   children: React.ReactNode
+  /** When set, the row is tappable (used to expand a friend's stats). */
+  onClick?: () => void
 }) {
   return (
     <div
+      onClick={onClick}
       className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
         me ? 'bg-sage/10 border-sage/30' : 'bg-paper2 border-line'
-      }`}
+      } ${onClick ? 'cursor-pointer select-none transition hover:border-sage/40' : ''}`}
     >
       <span className="w-5 shrink-0 text-center text-sm font-bold tabular-nums text-ink3">{rank}</span>
       <Avatar id={avatar} size={30} />
@@ -309,6 +313,26 @@ function Row({
         <Flair id={flair} />
       </span>
       {children}
+    </div>
+  )
+}
+
+/** Headline stats shown when a friend row is expanded. */
+function FriendStats({ r }: { r: LeaderRow }) {
+  const stats: { label: string; value: string | number }[] = [
+    { label: 'Hands', value: r.hands_played },
+    { label: 'Accuracy', value: `${r.accuracy}%` },
+    { label: 'Best run', value: r.best_streak },
+    { label: 'PP', value: r.pp_earned },
+  ]
+  return (
+    <div className="-mt-0.5 grid grid-cols-4 gap-2 rounded-xl border border-line bg-ink/[0.03] px-3 py-3">
+      {stats.map((s) => (
+        <div key={s.label} className="flex flex-col items-center gap-0.5">
+          <span className="text-sm font-bold tabular-nums text-ink">{s.value}</span>
+          <span className="text-center text-[10px] uppercase leading-tight tracking-wide text-ink3">{s.label}</span>
+        </div>
+      ))}
     </div>
   )
 }
@@ -371,6 +395,7 @@ function FriendsPanel({
   onAdd: (id: string) => void
   onRemove: (id: string) => void
 }) {
+  const [expanded, setExpanded] = useState<string | null>(null)
   if (!configured)
     return <p className="px-1 text-sm text-ink2">Friends require cloud sync to be configured.</p>
   if (!userId)
@@ -435,19 +460,36 @@ function FriendsPanel({
           <p className="px-1 text-xs uppercase tracking-wide text-ink3">Your friends</p>
           {friendRows === null ? (
             <p className="px-1 text-sm text-ink2">Loading…</p>
-          ) : friendRows.map((r, i) => (
-            <Row key={r.user_id} rank={i + 1} me={r.user_id === userId} avatar={r.avatar} flair={r.flair} name={r.handle}>
-              <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-clay">
-                <Coins size={13} /> {r.pp_earned}
-              </span>
-              <button
-                onClick={() => onRemove(r.user_id)}
-                className="ml-1 shrink-0 rounded-lg p-1 text-ink3 hover:text-clay hover:bg-clay/10 transition"
-              >
-                <UserMinus size={15} />
-              </button>
-            </Row>
-          ))}
+          ) : friendRows.map((r, i) => {
+            const open = expanded === r.user_id
+            return (
+              <div key={r.user_id} className="flex flex-col gap-1.5">
+                <Row
+                  rank={i + 1}
+                  me={r.user_id === userId}
+                  avatar={r.avatar}
+                  flair={r.flair}
+                  name={r.handle}
+                  onClick={() => setExpanded(open ? null : r.user_id)}
+                >
+                  <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-clay">
+                    <Coins size={13} /> {r.pp_earned}
+                  </span>
+                  <ChevronDown
+                    size={15}
+                    className={`shrink-0 text-ink3 transition-transform ${open ? 'rotate-180' : ''}`}
+                  />
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onRemove(r.user_id) }}
+                    className="ml-1 shrink-0 rounded-lg p-1 text-ink3 hover:text-clay hover:bg-clay/10 transition"
+                  >
+                    <UserMinus size={15} />
+                  </button>
+                </Row>
+                {open && <FriendStats r={r} />}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
