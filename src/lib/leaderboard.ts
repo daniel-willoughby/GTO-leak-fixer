@@ -103,7 +103,7 @@ export const fetchLeaderboard = fetchAllTimeLeaderboard
 export async function submitDailyScore(userId: string, day: string, score: number, timeMs: number): Promise<void> {
   if (!supabase) return
   const eq = equipped()
-  await supabase.from('daily_scores').upsert(
+  const { error } = await supabase.from('daily_scores').upsert(
     {
       user_id: userId,
       day,
@@ -116,6 +116,7 @@ export async function submitDailyScore(userId: string, day: string, score: numbe
     },
     { onConflict: 'user_id,day' },
   )
+  if (error) console.error('[leaderboard] submitDailyScore failed:', error.message)
 }
 
 /** Today's daily leaderboard: best score first, faster time breaks ties. */

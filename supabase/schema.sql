@@ -105,3 +105,24 @@ create policy "daily update own"
   on public.daily_scores for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- ---------------------------------------------------------------------------
+-- Role grants. RLS policies only take effect once the role also holds the
+-- underlying table privilege — without these GRANTs every request is denied
+-- with "permission denied for table" *before* the policy is ever evaluated.
+-- (Supabase auto-grants for tables made via the Table Editor, but NOT for
+-- tables created here in the SQL editor — hence this block.)
+--   anon          = signed-out visitors (public leaderboard reads)
+--   authenticated = signed-in users (their own writes + leaderboard reads)
+-- ---------------------------------------------------------------------------
+
+-- Private per-user snapshot: only the owner (an authenticated session) touches it.
+grant select, insert, update on public.user_state to authenticated;
+
+-- Public leaderboard profile: everyone reads, owner writes.
+grant select on public.profiles to anon, authenticated;
+grant insert, update on public.profiles to authenticated;
+
+-- Daily ladder scores: everyone reads, owner writes.
+grant select on public.daily_scores to anon, authenticated;
+grant insert, update on public.daily_scores to authenticated;
