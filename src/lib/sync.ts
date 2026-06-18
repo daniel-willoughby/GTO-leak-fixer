@@ -13,7 +13,7 @@ import {
 import type { DailyState } from './daily'
 import type { LessonState } from './level'
 import type { Equipped, DailyResult } from './points'
-import { upsertProfile } from './leaderboard'
+import { upsertProfile, syncDailyScores } from './leaderboard'
 
 type LessonMap = Record<string, LessonState>
 type DailyResults = Record<string, DailyResult>
@@ -183,6 +183,7 @@ export async function syncNow(userId: string): Promise<SyncSnapshot> {
   if (remote) await applySnapshot(merged)
   await pushRemote(userId, merged)
   await upsertProfile(userId, merged) // publish the public leaderboard row
+  await syncDailyScores(userId)       // retroactively submit any pre-sign-in ladder results
   return merged
 }
 
@@ -191,4 +192,5 @@ export async function pushLocal(userId: string): Promise<void> {
   const snap = await gatherLocal()
   await pushRemote(userId, snap)
   await upsertProfile(userId, snap)
+  await syncDailyScores(userId)
 }

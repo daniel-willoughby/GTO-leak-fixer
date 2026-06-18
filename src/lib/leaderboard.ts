@@ -2,7 +2,7 @@
 // `daily_scores` (today's ladder) tables. Each user publishes a shareable
 // summary that everyone can read. Dormant until Supabase is configured.
 import { supabase, supabaseConfigured } from './supabase'
-import { equipped, earnedPoints, grantDailyWin, hasClaimedDailyWin } from './points'
+import { equipped, earnedPoints, grantDailyWin, hasClaimedDailyWin, dailyResults } from './points'
 import { dayKey, prevDay } from './daily'
 import type { SyncSnapshot } from './sync'
 
@@ -59,7 +59,7 @@ export function profileStats(snap: SyncSnapshot): Pick<LeaderRow, 'hands_played'
 export async function upsertProfile(userId: string, snap: SyncSnapshot): Promise<void> {
   if (!supabase) return
   const eq = equipped()
-  await supabase.from('profiles').upsert({
+  const { error } = await supabase.from('profiles').upsert({
     user_id: userId,
     handle: displayName(userId),
     ...profileStats(snap),
@@ -68,6 +68,18 @@ export async function upsertProfile(userId: string, snap: SyncSnapshot): Promise
     flair: eq.flair,
     updated_at: new Date().toISOString(),
   })
+  if (error) console.error('[leaderboard] upsertProfile failed:', error.message)
+}
+
+/**
+ * Push all locally-completed daily ladder results to the shared leaderboard.
+ * Safe to call repeatedly — uses upsert so it's idempotent. This ensures
+ * scores completed before sign-in are retroactively submitted on next sync.
+ */
+export async function syncDailyScores(userId: string): Promise<void> {
+  if (!supabase) return
+  const completed = Object.entries(dailyResults()).filter(([, r]) => r.completed)
+  await Promise.all(completed.map(([day, r]) => submitDailyScore(userId, day, r.score, r.timeMs)))
 }
 
 /** All-time leaderboard: top players by total Poker Points earned. */
