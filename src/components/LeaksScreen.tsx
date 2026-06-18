@@ -122,11 +122,13 @@ function ModeSection({
   icon,
   contextLabel,
   stats,
+  postflop = false,
 }: {
   title: string
   icon: ReactNode
   contextLabel: string
   stats: ModeStats
+  postflop?: boolean
 }) {
   if (stats.total === 0) return null
   // keep the report readable: prefer rows with a real sample, cap the list
@@ -134,6 +136,12 @@ function ModeSection({
     const sampled = rows.filter((s) => s.attempts >= 2)
     return (sampled.length ? sampled : rows).slice(0, 8)
   }
+  // postflop: per-board rows are too noisy (often one hand each), so summarise by
+  // flop texture and by the decision the solver wanted instead.
+  const primary = postflop && stats.byDecision ? stats.byDecision : stats.byContext
+  const primaryLabel = postflop ? 'By decision' : `By ${contextLabel}`
+  const secondary = postflop && stats.byTexture ? stats.byTexture : stats.byCategory
+  const secondaryLabel = postflop ? 'By board texture' : 'By hand type'
   return (
     <section className="panel p-4">
       <div className="flex items-center justify-between mb-3">
@@ -145,15 +153,15 @@ function ModeSection({
           <span className="text-sage-dark font-bold">{Math.round(stats.accuracy * 100)}%</span> · {stats.total} hands
         </span>
       </div>
-      <p className="text-xs uppercase tracking-wide text-ink3 mb-2">By {contextLabel}</p>
+      <p className="text-xs uppercase tracking-wide text-ink3 mb-2">{primaryLabel}</p>
       <div className="flex flex-col gap-2 mb-4">
-        {trim(stats.byContext).map((s) => (
+        {trim(primary).map((s) => (
           <Bar key={s.key} stat={s} />
         ))}
       </div>
-      <p className="text-xs uppercase tracking-wide text-ink3 mb-2">By hand type</p>
+      <p className="text-xs uppercase tracking-wide text-ink3 mb-2">{secondaryLabel}</p>
       <div className="flex flex-col gap-2">
-        {trim(stats.byCategory).map((s) => (
+        {trim(secondary).map((s) => (
           <Bar key={s.key} stat={s} />
         ))}
       </div>
@@ -261,7 +269,13 @@ export default function LeaksScreen({ version, onDrillLeaks, onOpenLesson }: Pro
         contextLabel="position"
         stats={sum.preflop}
       />
-      <ModeSection title="Postflop" icon={<Spade size={18} className="text-sage" />} contextLabel="board" stats={sum.postflop} />
+      <ModeSection
+        title="Postflop"
+        icon={<Spade size={18} className="text-sage" />}
+        contextLabel="board"
+        stats={sum.postflop}
+        postflop
+      />
     </div>
   )
 }

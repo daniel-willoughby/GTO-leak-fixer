@@ -182,7 +182,7 @@ function lessonSpot(l: Lesson, scopeOpts: GenOptions): Spot {
     const fp = generateFreeplaySpot(l.freeplayKind)
     if (fp) return fp
   }
-  return generateSpot(l.mode, scopeOpts)
+  return generateSpot(l.mode ?? 'rfi', scopeOpts)
 }
 
 export default function DrillScreen({
@@ -197,7 +197,7 @@ export default function DrillScreen({
   const scopeOpts: GenOptions = lesson?.scope
     ? { lockPos: lesson.scope.lockPos, lockMatchup: lesson.scope.lockMatchup }
     : {}
-  const [mode, setMode] = useState<DrillMode>(() => (lesson ? lesson.mode : 'rfi'))
+  const [mode, setMode] = useState<DrillMode>(() => lesson?.mode ?? 'rfi')
   // postflop has two flavours: single c-bet decisions (false) vs play-the-whole-
   // hand continuation (true). Only meaningful when mode === 'postflop'.
   const [fullHand, setFullHand] = useState(false)
@@ -436,7 +436,7 @@ export default function DrillScreen({
     }
     // beginner lesson: advance the goal on every correct (or acceptable) answer
     if (lesson && j.isCorrect && !lessonDone) {
-      const st = recordLessonCorrect(lesson.id, lesson.goal)
+      const st = recordLessonCorrect(lesson.id, lesson.goal ?? 1)
       setLessonCorrect(st.correct)
       if (st.done) setLessonDone(true)
     }
@@ -593,13 +593,13 @@ export default function DrillScreen({
             </button>
             <span className="serif min-w-0 flex-1 truncate text-center text-sm text-ink">{lesson.title}</span>
             <span className="text-xs tabular-nums text-ink3">
-              {Math.min(lessonCorrect, lesson.goal)}/{lesson.goal}
+              {Math.min(lessonCorrect, lesson.goal ?? 1)}/{lesson.goal ?? 1}
             </span>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink/[0.07]">
             <div
               className="h-full rounded-full bg-sage transition-all"
-              style={{ width: `${Math.min(100, (lessonCorrect / lesson.goal) * 100)}%` }}
+              style={{ width: `${Math.min(100, (lessonCorrect / (lesson.goal ?? 1)) * 100)}%` }}
             />
           </div>
         </div>

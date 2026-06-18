@@ -14,6 +14,10 @@ import {
   Coins,
   Grid3x3,
   Shield,
+  Zap,
+  Scale,
+  Telescope,
+  Gauge,
   type LucideIcon,
 } from 'lucide-react'
 import type { DrillMode } from '../lib/spot'
@@ -36,18 +40,102 @@ export interface Lesson {
   icon: LucideIcon
   /** Teaching copy with [term] markers resolved by GlossaryText. */
   concept: string
-  mode: DrillMode
+  /** Read-only primer lessons (the core principles) carry no drill. */
+  mode?: DrillMode
+  /** A read-only lesson is completed by reading it, no drilling. */
+  readOnly?: boolean
   scope?: LessonScope
   /** For postflop lessons, pin the drill to a specific Freeplay node type
    *  (e.g. 'face_cbet' so the lesson drills *defending* against a c-bet). */
   freeplayKind?: 'cbet' | 'donk' | 'face_cbet'
-  /** Correct answers needed to complete the lesson. */
-  goal: number
+  /** Correct answers needed to complete the lesson (omitted for read-only). */
+  goal?: number
   /** Shown on the card when this lesson opens up a new mode. */
   unlocksLabel?: string
 }
 
 export const CURRICULUM: Lesson[] = [
+  // ---- Core principles: short read-only primers, the "why behind the why" ----
+  {
+    id: 'principle-position',
+    group: 'Core principles',
+    title: 'Position is power',
+    blurb: 'Acting last is the biggest edge',
+    icon: Compass,
+    readOnly: true,
+    concept:
+      'Acting last is the single biggest edge in poker. [In position] you see what your opponent does before you decide, so you can play more hands profitably. Open wider on the [button], tighter [under the gun].',
+  },
+  {
+    id: 'principle-aggression',
+    group: 'Core principles',
+    title: 'Aggression has two ways to win',
+    blurb: 'Bet to fold them out or get called',
+    icon: Zap,
+    readOnly: true,
+    concept:
+      'Betting wins when your opponent folds and when they call with a worse hand. Checking only wins at showdown. That [fold equity] is why a [c-bet] and a [semi-bluff] are so powerful, passive play leaves money on the table.',
+  },
+  {
+    id: 'principle-ranges',
+    group: 'Core principles',
+    title: 'Think in ranges, not hands',
+    blurb: 'Beat the whole range',
+    icon: Layers,
+    readOnly: true,
+    concept:
+      'You never know exactly what your opponent has, only their [range], the set of hands they would play this way. Good decisions come from beating their whole range, not from reading one specific hand.',
+  },
+  {
+    id: 'principle-board',
+    group: 'Core principles',
+    title: 'Know who the board favours',
+    blurb: 'Range advantage decides the bet',
+    icon: Telescope,
+    readOnly: true,
+    concept:
+      'Before you bet, ask who has the [range advantage]. A [dry board] like A-8-3 hardly changes the raiser’s edge, so c-bet wide and small. A [wet board] like 9-8-7 hits the caller, so bet selectively and larger.',
+  },
+  {
+    id: 'principle-sizing',
+    group: 'Core principles',
+    title: 'Polarise big, merge small',
+    blurb: 'Let size match purpose',
+    icon: Gauge,
+    readOnly: true,
+    concept:
+      'Big bets are for [polarized] ranges, your strongest [value] hands and your [bluff]s. Small bets are for wide, merged ranges taking [thin value] and [equity denial]. Let your size match your purpose.',
+  },
+  {
+    id: 'principle-defend',
+    group: 'Core principles',
+    title: 'Defend wide, fold the bottom',
+    blurb: 'Over-folding is a common leak',
+    icon: Shield,
+    readOnly: true,
+    concept:
+      'Facing a steal or a small [c-bet] you usually get a price to continue, so over-folding is a common leak, defend wide. But not everything: the truly weak hands with no [equity] still go in the muck.',
+  },
+  {
+    id: 'principle-bluff',
+    group: 'Core principles',
+    title: 'Bluff with equity and blockers',
+    blurb: 'Semi-bluffs beat pure bluffs',
+    icon: TrendingUp,
+    readOnly: true,
+    concept:
+      'A [semi-bluff], betting a [draw], beats a pure bluff because you can also win by hitting. And a [blocker] (holding a card that makes their strong hands less likely) makes your bluffs more credible.',
+  },
+  {
+    id: 'principle-discipline',
+    group: 'Core principles',
+    title: 'Discipline beats fancy play',
+    blurb: 'Fix leaks before chasing flair',
+    icon: Scale,
+    readOnly: true,
+    concept:
+      'Most money is won by folding your trash and value-betting your good hands relentlessly, not by hero calls and big bluffs. Tight, aggressive, and patient is the winning baseline, fix the leaks before chasing the flair.',
+  },
   {
     id: 'rfi-btn',
     group: 'Opening hands',

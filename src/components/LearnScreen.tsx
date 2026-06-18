@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { ChevronDown, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import RangeGrid from './RangeGrid'
-import GlossaryText from './GlossaryText'
 import { isRfiHand, rfiFreq, POSITION_LABEL, RFI_POSITIONS, RFI_RANGES, type RfiPosition } from '../data/ranges'
-import { GLOSSARY, PRINCIPLES } from '../data/glossary'
+import { GLOSSARY } from '../data/glossary'
 
 const GLOSSARY_ENTRIES = Object.entries(GLOSSARY).sort((a, b) => a[0].localeCompare(b[0]))
 
@@ -16,19 +15,6 @@ export default function LearnScreen() {
     : GLOSSARY_ENTRIES
   return (
     <div className="px-4 pb-28 pt-6 max-w-xl lg:max-w-3xl mx-auto flex flex-col gap-6">
-      <section className="flex flex-col gap-3">
-        <h2 className="serif text-lg">Core principles</h2>
-        {PRINCIPLES.map((l) => (
-          <details key={l.title} className="panel p-4 group">
-            <summary className="serif text-[17px] cursor-pointer list-none flex items-center justify-between">
-              {l.title}
-              <ChevronDown size={16} className="text-ink3 transition group-open:rotate-180" />
-            </summary>
-            <GlossaryText text={l.body} className="block text-sm text-ink2 mt-2 leading-relaxed" />
-          </details>
-        ))}
-      </section>
-
       <section className="panel p-4">
         <h2 className="serif text-lg mb-3">Explore opening ranges</h2>
         <div className="flex flex-wrap gap-2 mb-3">

@@ -22,6 +22,13 @@ describe('multiway responses', () => {
     expect(respondMultiway(m, '72o')).toBe('fold')
   })
 
+  it('offers a flat-call in position with a caller in (regression: was squeeze-or-fold only)', () => {
+    const m = byId('UTG_open_HJ_call_CO_squeeze')
+    expect(m.actions).toContain('call')
+    expect(respondMultiway(m, 'JTs')).toBe('call')
+    expect(respondMultiway(m, '99')).toBe('call')
+  })
+
   it('every matchup can actually reach its aggressive action', () => {
     for (const m of MULTIWAY_MATCHUPS) {
       const aggro = m.actions.find((a) => a === 'squeeze' || a === 'cold-4bet' || a === '3bet')

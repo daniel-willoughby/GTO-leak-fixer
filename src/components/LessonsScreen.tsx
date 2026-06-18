@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Check, ArrowRight, ArrowLeft, Sparkles, GraduationCap, BookOpen, Trophy } from 'lucide-react'
 import { CURRICULUM, lessonById, type Lesson } from '../data/curriculum'
-import { lessonProgress, curriculumComplete } from '../lib/level'
+import { lessonProgress, curriculumComplete, completeLesson } from '../lib/level'
 import GlossaryText from './GlossaryText'
 import DrillScreen from './DrillScreen'
 
@@ -52,11 +52,22 @@ export default function LessonsScreen({ onProgress, openLessonId, onOpened }: Pr
     setView('list')
   }
 
-  if (view === 'drill' && active) {
+  if (view === 'drill' && active && !active.readOnly) {
     return <DrillScreen level="beginner" lesson={active} onProgress={onProgress} onExitLesson={backToList} />
   }
   if (view === 'intro' && active) {
-    return <LessonIntro lesson={active} onStart={() => setView('drill')} onBack={() => setView('list')} />
+    return (
+      <LessonIntro
+        lesson={active}
+        onStart={() => setView('drill')}
+        onComplete={() => {
+          completeLesson(active.id)
+          onProgress()
+          backToList()
+        }}
+        onBack={() => setView('list')}
+      />
+    )
   }
 
   const done = CURRICULUM.filter((l) => lessonProgress(l.id).done).length
@@ -125,14 +136,14 @@ export default function LessonsScreen({ onProgress, openLessonId, onOpened }: Pr
                     <div className="mt-2 flex items-center gap-2 text-[11px]">
                       {prog.done ? (
                         <span className="flex items-center gap-1 font-semibold text-sage-dark">
-                          <Check size={12} /> Complete
+                          <Check size={12} /> {l.readOnly ? 'Read' : 'Complete'}
                         </span>
                       ) : started ? (
                         <span className="font-semibold text-sage-dark tabular-nums">
                           {prog.correct}/{l.goal} correct
                         </span>
                       ) : (
-                        <span className="text-ink3">{l.goal} hands</span>
+                        <span className="text-ink3">{l.readOnly ? '2 min read' : `${l.goal} hands`}</span>
                       )}
                       <span className="text-ink3">·</span>
                       <span className="text-ink3">{l.blurb}</span>
@@ -163,7 +174,17 @@ export default function LessonsScreen({ onProgress, openLessonId, onOpened }: Pr
   )
 }
 
-function LessonIntro({ lesson, onStart, onBack }: { lesson: Lesson; onStart: () => void; onBack: () => void }) {
+function LessonIntro({
+  lesson,
+  onStart,
+  onComplete,
+  onBack,
+}: {
+  lesson: Lesson
+  onStart: () => void
+  onComplete: () => void
+  onBack: () => void
+}) {
   const Icon = lesson.icon
   return (
     <div className="px-4 pb-28 pt-4 max-w-xl mx-auto flex flex-col gap-4">
@@ -181,9 +202,15 @@ function LessonIntro({ lesson, onStart, onBack }: { lesson: Lesson; onStart: () 
           </div>
         </div>
         <GlossaryText text={lesson.concept} className="text-[15px] leading-relaxed text-ink2" />
-        <button onClick={onStart} className="btn btn-primary flex items-center justify-center gap-2 py-3.5 text-base">
-          Start drilling · {lesson.goal} hands <ArrowRight size={16} />
-        </button>
+        {lesson.readOnly ? (
+          <button onClick={onComplete} className="btn btn-primary flex items-center justify-center gap-2 py-3.5 text-base">
+            Got it <Check size={16} />
+          </button>
+        ) : (
+          <button onClick={onStart} className="btn btn-primary flex items-center justify-center gap-2 py-3.5 text-base">
+            Start drilling · {lesson.goal} hands <ArrowRight size={16} />
+          </button>
+        )}
         <p className="flex items-center justify-center gap-1.5 text-center text-xs text-ink3">
           <Sparkles size={13} /> Tap any underlined word for a quick definition.
         </p>

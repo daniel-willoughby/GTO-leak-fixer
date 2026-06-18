@@ -109,9 +109,62 @@ export interface ModeStats {
   accuracy: number
   byContext: LeakStat[]
   byCategory: LeakStat[]
+  /** Postflop only: leaks bucketed by flop texture (dry / wet / paired …). */
+  byTexture?: LeakStat[]
+  /** Postflop only: how you fare when the right move is bet / check / fold … */
+  byDecision?: LeakStat[]
 }
 
-function modeStats(rows: DecisionRecord[]): ModeStats {
+const RANK_VAL: Record<string, number> = {
+  A: 14, K: 13, Q: 12, J: 11, T: 10, '9': 9, '8': 8, '7': 7, '6': 6, '5': 5, '4': 4, '3': 3, '2': 2,
+}
+
+/** Bucket a flop into a readable texture: the noisy per-board breakdown collapses
+ *  into a handful of teachable groups that map onto the board-texture lesson. */
+export function boardTextureLabel(board: string): string {
+  const cards = board.match(/../g) ?? []
+  if (cards.length < 3) return 'Other'
+  const flop = cards.slice(0, 3)
+  const ranks = flop.map((c) => RANK_VAL[c[0].toUpperCase()] ?? 0).sort((a, b) => b - a)
+  const suits = flop.map((c) => c[1].toLowerCase())
+  const paired = new Set(ranks).size < 3
+  const suitCounts = suits.reduce<Record<string, number>>((m, s) => ((m[s] = (m[s] ?? 0) + 1), m), {})
+  const maxSuit = Math.max(...Object.values(suitCounts))
+  const span = ranks[0] - ranks[2]
+  const highCard = ranks[0]
+  if (paired) return 'Paired'
+  if (maxSuit === 3) return 'Monotone'
+  if (span <= 4) return 'Connected' // straight-heavy, the wettest unpaired boards
+  if (maxSuit === 2) return 'Two-tone' // a flush draw present, otherwise dry
+  if (highCard >= 12) return 'High & dry' // A/K/Q-high rainbow, the c-bet sweet spot
+  return 'Low & dry'
+}
+
+/** A friendly "when the solver wants X" bucket, so a player sees whether they
+ *  over-check, over-fold, or misvalue their bets, not just a board string. */
+export function decisionLabel(correct: Action): string {
+  switch (correct) {
+    case 'bet':
+    case 'bet33':
+    case 'bet75':
+      return 'When you should bet'
+    case 'check':
+      return 'When you should check'
+    case 'fold':
+      return 'When you should fold'
+    case 'call':
+      return 'When you should call'
+    case 'raise':
+    case '3bet':
+    case 'squeeze':
+    case 'cold-4bet':
+      return 'When you should raise'
+    default:
+      return 'Other'
+  }
+}
+
+function modeStats(rows: DecisionRecord[], postflop = false): ModeStats {
   const total = rows.length
   const correct = rows.filter((d) => d.isCorrect).length
   return {
@@ -120,6 +173,10 @@ function modeStats(rows: DecisionRecord[]): ModeStats {
     accuracy: total ? correct / total : 0,
     byContext: aggregateBy(rows, (d) => d.context ?? d.position),
     byCategory: aggregateBy(rows, (d) => d.category),
+    ...(postflop && {
+      byTexture: aggregateBy(rows, (d) => boardTextureLabel(d.context ?? '')),
+      byDecision: aggregateBy(rows, (d) => decisionLabel(d.correct)),
+    }),
   }
 }
 
@@ -204,7 +261,7 @@ export async function getLeakSummary(): Promise<LeakSummary> {
   const correct = all.filter((d) => d.isCorrect).length
 
   const preStats = modeStats(pre)
-  const postStats = modeStats(post)
+  const postStats = modeStats(post, true)
 
   const topLeaks: TopLeak[] = [
     ...preStats.byCategory.map((s) => ({

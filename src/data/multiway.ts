@@ -28,14 +28,14 @@ export interface MultiwayMatchup {
 const def = (tokens: string[]) => expandRange(tokens)
 
 const MATCHUPS: Omit<MultiwayMatchup, 'squeeze' | 'call'>[] = [
-  // UTG opens, HJ calls, CO squeezes or folds (no cold-call here)
+  // UTG opens, HJ calls, CO in position: call, squeeze, or fold
   {
     id: 'UTG_open_HJ_call_CO_squeeze',
-    description: 'UTG opens, HJ calls. CO: squeeze or fold?',
+    description: 'UTG opens, HJ calls. CO: call, squeeze, or fold?',
     activeBefore: ['UTG', 'HJ'],
     hero: 'CO',
     pot: 7.5,
-    actions: ['fold', 'squeeze'],
+    actions: ['fold', 'call', 'squeeze'],
     bets: { SB: 0.5, BB: 1, UTG: 2.5, HJ: 2.5 },
   },
   // CO opens, BTN calls, SB squeezes (SB is OOP so 3b-or-fold)
@@ -89,14 +89,14 @@ const MATCHUPS: Omit<MultiwayMatchup, 'squeeze' | 'call'>[] = [
     actions: ['fold', 'call', 'cold-4bet'],
     bets: { SB: 0.5, BB: 1, CO: 2.5, BTN: 9 },
   },
-  // UTG opens, BTN calls, BB squeezes from the blinds (OOP, 3bet-or-fold)
+  // UTG opens, BTN calls, BB closes the action: call (great price), squeeze, or fold
   {
     id: 'UTG_open_BTN_call_BB_squeeze',
-    description: 'UTG opens, BTN calls. BB: squeeze or fold?',
+    description: 'UTG opens, BTN calls. BB: call, squeeze, or fold?',
     activeBefore: ['UTG', 'BTN'],
     hero: 'BB',
     pot: 7,
-    actions: ['fold', 'squeeze'],
+    actions: ['fold', 'call', 'squeeze'],
     bets: { SB: 0.5, BB: 1, UTG: 2.5, BTN: 2.5 },
   },
 ]
@@ -104,8 +104,10 @@ const MATCHUPS: Omit<MultiwayMatchup, 'squeeze' | 'call'>[] = [
 // Ranges (solver-approximate)
 const RANGES: Record<string, { squeeze?: string[]; '3bet'?: string[]; call?: string[]; 'cold-4bet'?: string[] }> = {
   UTG_open_HJ_call_CO_squeeze: {
+    // CO is in position with a caller already in: flat the hands that play well
+    // multiway (pairs to set-mine, suited broadways) and squeeze the polarised top.
     squeeze: ['QQ+', 'AKs', 'AQs', 'AKo', 'A5s', 'KQs'],
-    call: [],
+    call: ['22-JJ', 'AJs', 'ATs', 'KJs', 'QJs', 'JTs', 'T9s', 'AQo'],
   },
   CO_open_BTN_call_SB_squeeze: {
     squeeze: ['TT+', 'AQs+', 'AKo', 'A4s', 'A5s', 'KQs'],
@@ -128,8 +130,9 @@ const RANGES: Record<string, { squeeze?: string[]; '3bet'?: string[]; call?: str
     call: ['22-JJ', 'AQs', 'AJs', 'ATs', 'KQs', 'KJs', 'QJs', 'JTs', 'T9s', 'AQo'],
   },
   UTG_open_BTN_call_BB_squeeze: {
+    // BB closes the action getting a great price: flat wide, squeeze the top.
     squeeze: ['JJ+', 'AKs', 'AQs', 'AKo', 'A5s', 'KQs'],
-    call: [],
+    call: ['22-TT', 'AJs', 'ATs', 'A9s', 'KJs', 'KTs', 'QJs', 'QTs', 'JTs', 'T9s', '98s', 'AQo', 'KQo'],
   },
 }
 

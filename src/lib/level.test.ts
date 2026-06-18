@@ -5,15 +5,23 @@ import {
   setLevel,
   lessonProgress,
   recordLessonCorrect,
+  completeLesson,
   isLessonUnlocked,
   isModeUnlocked,
   curriculumComplete,
   resetCurriculum,
 } from './level'
 
-const complete = (id: string, goal: number) => {
-  for (let i = 0; i < goal; i++) recordLessonCorrect(id, goal)
+// Read-only primer lessons (the core principles) carry no goal; they complete
+// on read. Drill lessons complete by reaching their goal.
+const complete = (id: string, goal?: number) => {
+  if (!goal) completeLesson(id)
+  else for (let i = 0; i < goal; i++) recordLessonCorrect(id, goal)
 }
+
+// the first lesson that actually drills (the principles come first, read-only)
+const firstDrill = CURRICULUM.find((l) => !l.readOnly && l.goal)!
+const drillIdx = CURRICULUM.indexOf(firstDrill)
 
 beforeEach(() => localStorage.clear())
 
@@ -32,18 +40,25 @@ describe('curriculum progression', () => {
   })
 
   it('marks a lesson done at its goal and unlocks the next', () => {
-    const l = CURRICULUM[0]
-    for (let i = 0; i < l.goal - 1; i++) expect(recordLessonCorrect(l.id, l.goal).done).toBe(false)
-    expect(recordLessonCorrect(l.id, l.goal).done).toBe(true)
-    expect(lessonProgress(l.id).correct).toBe(l.goal)
-    expect(isLessonUnlocked(CURRICULUM[1], CURRICULUM)).toBe(true)
+    const goal = firstDrill.goal!
+    for (let i = 0; i < goal - 1; i++) expect(recordLessonCorrect(firstDrill.id, goal).done).toBe(false)
+    expect(recordLessonCorrect(firstDrill.id, goal).done).toBe(true)
+    expect(lessonProgress(firstDrill.id).correct).toBe(goal)
+    expect(isLessonUnlocked(CURRICULUM[drillIdx + 1], CURRICULUM)).toBe(true)
   })
 
   it('does not over-count past the goal', () => {
-    const l = CURRICULUM[0]
-    complete(l.id, l.goal)
-    recordLessonCorrect(l.id, l.goal)
-    expect(lessonProgress(l.id).correct).toBe(l.goal)
+    const goal = firstDrill.goal!
+    complete(firstDrill.id, goal)
+    recordLessonCorrect(firstDrill.id, goal)
+    expect(lessonProgress(firstDrill.id).correct).toBe(goal)
+  })
+
+  it('completes a read-only primer by reading it', () => {
+    const primer = CURRICULUM.find((l) => l.readOnly)!
+    expect(lessonProgress(primer.id).done).toBe(false)
+    completeLesson(primer.id)
+    expect(lessonProgress(primer.id).done).toBe(true)
   })
 
   it('unlocks advanced modes only once their capstone is done', () => {

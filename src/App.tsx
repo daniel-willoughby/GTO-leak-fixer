@@ -13,6 +13,7 @@ import { getLevel, setLevel, type Level } from './lib/level'
 import { supabaseConfigured } from './lib/supabase'
 import { useAuth } from './lib/useAuth'
 import { syncNow, pushLocal } from './lib/sync'
+import { newlyEarned, type Achievement } from './lib/achievements'
 import type { Difficulty, FocusRequest } from './lib/spot'
 
 type Tab = 'drill' | 'lessons' | 'leaks' | 'achievements' | 'learn'
@@ -51,6 +52,27 @@ export default function App() {
   const [level, setLevelState] = useState<Level | null>(() => getLevel())
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('lt-theme') as Theme) || 'auto')
+  // celebratory pop-up queue for freshly unlocked achievements
+  const [toasts, setToasts] = useState<Achievement[]>([])
+
+  // check for newly earned achievements after each decision/sync; first run on
+  // mount seeds the baseline silently so returning players aren't flooded
+  useEffect(() => {
+    let alive = true
+    newlyEarned().then((fresh) => {
+      if (alive && fresh.length) setToasts((q) => [...q, ...fresh])
+    })
+    return () => {
+      alive = false
+    }
+  }, [progress])
+
+  // auto-dismiss the front toast after a beat
+  useEffect(() => {
+    if (!toasts.length) return
+    const t = setTimeout(() => setToasts((q) => q.slice(1)), 4000)
+    return () => clearTimeout(t)
+  }, [toasts])
 
   // apply on change + follow the OS while in auto
   useEffect(() => {
@@ -283,6 +305,29 @@ export default function App() {
           lastSynced={lastSynced}
         />
       )}
+
+      {toasts.length > 0 && (() => {
+        const a = toasts[0]
+        const Icon = a.icon
+        return (
+          <button
+            key={a.id}
+            onClick={() => {
+              setTab('achievements')
+              setToasts((q) => q.slice(1))
+            }}
+            className="animate-toast safe-top fixed inset-x-0 top-3 z-[60] mx-auto flex w-[20rem] max-w-[calc(100%-1.5rem)] items-center gap-3 rounded-2xl border border-sage/40 bg-paper2 p-3 text-left shadow-xl"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sage text-white dark:text-paper">
+              <Icon size={20} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-sage">Achievement unlocked</p>
+              <p className="truncate font-semibold text-ink">{a.title}</p>
+            </div>
+          </button>
+        )
+      })()}
 
       <PwaUpdater />
     </div>

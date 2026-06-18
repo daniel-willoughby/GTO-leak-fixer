@@ -90,3 +90,30 @@ export async function getAchievements(): Promise<Achievement[]> {
     count('scholar', 'Learning', 'Scholar', `Finish all ${CURRICULUM.length} lessons`, GraduationCap, lessonsDone, CURRICULUM.length),
   ]
 }
+
+const SEEN_KEY = 'lt-achieved'
+
+/**
+ * Returns achievements newly completed since the last check, and records them
+ * so they only pop once. First run seeds the baseline silently (no flood of
+ * pops for a returning player who already earned things).
+ */
+export async function newlyEarned(): Promise<Achievement[]> {
+  const items = await getAchievements()
+  const doneIds = items.filter((a) => a.done).map((a) => a.id)
+  const raw = localStorage.getItem(SEEN_KEY)
+  if (raw === null) {
+    localStorage.setItem(SEEN_KEY, JSON.stringify(doneIds))
+    return []
+  }
+  let seen: string[] = []
+  try {
+    seen = JSON.parse(raw) as string[]
+  } catch {
+    seen = []
+  }
+  const seenSet = new Set(seen)
+  const fresh = items.filter((a) => a.done && !seenSet.has(a.id))
+  if (fresh.length) localStorage.setItem(SEEN_KEY, JSON.stringify([...seenSet, ...fresh.map((a) => a.id)]))
+  return fresh
+}
