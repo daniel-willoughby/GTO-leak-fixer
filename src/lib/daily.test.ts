@@ -1,51 +1,31 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import {
-  dayKey,
-  prevDay,
-  getDaily,
-  isDailyDone,
-  liveStreak,
-  recordDailyCorrect,
-  resetDaily,
-  DAILY_GOAL,
-} from './daily'
+import { dayKey, prevDay, getDaily, isDailyDone, liveStreak, recordLadderComplete, resetDaily } from './daily'
 
-const at = (s: string) => new Date(`${s}T12:00:00`)
-/** Reach today's goal; returns the final tick. */
-const finishDay = (d: Date) => {
-  let last = recordDailyCorrect(d)
-  for (let i = 1; i < DAILY_GOAL; i++) last = recordDailyCorrect(d)
-  return last
-}
+// noon UTC so the date is unambiguous regardless of the runner's timezone
+const at = (s: string) => new Date(`${s}T12:00:00Z`)
+const finishDay = (d: Date) => recordLadderComplete(d)
 
 describe('date helpers', () => {
-  it('formats and steps days, including month boundaries', () => {
+  it('formats and steps UTC days, including month boundaries', () => {
     expect(dayKey(at('2026-06-09'))).toBe('2026-06-09')
     expect(prevDay('2026-06-01')).toBe('2026-05-31')
     expect(prevDay('2026-01-01')).toBe('2025-12-31')
   })
 })
 
-describe('daily challenge', () => {
+describe('daily ladder streak', () => {
   beforeEach(() => resetDaily())
 
-  it('counts toward the goal and completes exactly at it', () => {
-    const day = at('2026-06-09')
-    for (let i = 0; i < DAILY_GOAL - 1; i++) {
-      const t = recordDailyCorrect(day)
-      expect(t.justCompleted).toBe(false)
-      expect(isDailyDone(t.state)).toBe(false)
-    }
-    const done = recordDailyCorrect(day)
+  it('completing the ladder marks the day done and starts a streak', () => {
+    const done = recordLadderComplete(at('2026-06-09'))
     expect(done.justCompleted).toBe(true)
     expect(done.state.streak).toBe(1)
     expect(isDailyDone(done.state)).toBe(true)
   })
 
   it('only completes once per day', () => {
-    const day = at('2026-06-09')
-    finishDay(day)
-    const extra = recordDailyCorrect(day)
+    finishDay(at('2026-06-09'))
+    const extra = recordLadderComplete(at('2026-06-09'))
     expect(extra.justCompleted).toBe(false)
     expect(extra.state.streak).toBe(1)
   })
@@ -64,11 +44,11 @@ describe('daily challenge', () => {
     expect(after.state.best).toBe(2)
   })
 
-  it('rolls the daily count over at midnight but keeps the streak alive', () => {
+  it('keeps the streak alive across midnight (yesterday still counts)', () => {
     finishDay(at('2026-06-09'))
     const next = getDaily(at('2026-06-10'))
-    expect(next.count).toBe(0) // fresh day
-    expect(liveStreak(next, at('2026-06-10'))).toBe(1) // yesterday still counts
+    expect(isDailyDone(next)).toBe(false) // not done yet today
+    expect(liveStreak(next, at('2026-06-10'))).toBe(1)
   })
 
   it('reports a broken streak as 0 once two days lapse', () => {
@@ -78,10 +58,9 @@ describe('daily challenge', () => {
   })
 
   it('flags milestone streak lengths', () => {
-    const days = ['2026-06-01', '2026-06-02', '2026-06-03']
-    let last = finishDay(at(days[0]))
-    last = finishDay(at(days[1]))
-    last = finishDay(at(days[2]))
-    expect(last.milestone).toBe(3) // 3-day milestone
+    finishDay(at('2026-06-01'))
+    finishDay(at('2026-06-02'))
+    const last = finishDay(at('2026-06-03'))
+    expect(last.milestone).toBe(3)
   })
 })

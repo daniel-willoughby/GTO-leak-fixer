@@ -62,3 +62,46 @@ create policy "profiles update own"
   on public.profiles for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- ---------------------------------------------------------------------------
+-- Game layer: Poker Points + cosmetics on the profile, and a per-day ladder
+-- score table that powers the daily leaderboard. All public-read; owner-write.
+-- ---------------------------------------------------------------------------
+alter table public.profiles add column if not exists pp_earned  integer not null default 0;
+alter table public.profiles add column if not exists avatar     text;
+alter table public.profiles add column if not exists flair      text;
+alter table public.profiles add column if not exists background text;
+
+create table if not exists public.daily_scores (
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  day        text not null,             -- shared UTC YYYY-MM-DD
+  score      integer not null default 0,
+  time_ms    integer not null default 0,
+  handle     text not null default 'Player',
+  avatar     text,
+  flair      text,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, day)
+);
+
+-- best score first, faster total time breaks ties
+create index if not exists daily_scores_rank on public.daily_scores (day, score desc, time_ms asc);
+
+alter table public.daily_scores enable row level security;
+
+drop policy if exists "daily read all"   on public.daily_scores;
+drop policy if exists "daily insert own" on public.daily_scores;
+drop policy if exists "daily update own" on public.daily_scores;
+
+create policy "daily read all"
+  on public.daily_scores for select
+  using (true);
+
+create policy "daily insert own"
+  on public.daily_scores for insert
+  with check (auth.uid() = user_id);
+
+create policy "daily update own"
+  on public.daily_scores for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);

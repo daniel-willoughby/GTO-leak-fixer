@@ -12,8 +12,6 @@ import {
   X,
   Lightbulb,
   Sparkles,
-  CalendarCheck,
-  Trophy,
   ChevronDown,
 } from 'lucide-react'
 import {
@@ -39,11 +37,11 @@ import {
   type HandCategory,
   type Judgement,
   type Spot,
+  type SpotSeed,
   type VillainStyle,
 } from '../lib/spot'
 import type { Level } from '../lib/level'
 import { lessonProgress, recordLessonCorrect } from '../lib/level'
-import { getDaily, recordDailyCorrect, isDailyDone, liveStreak, type DailyState } from '../lib/daily'
 import type { Lesson } from '../data/curriculum'
 import GlossaryText from './GlossaryText'
 import { isRfiHand, rfiFreq, type Position, type RfiPosition } from '../data/ranges'
@@ -101,6 +99,23 @@ interface Props {
   lesson?: Lesson | null
   /** Leave the lesson and return to the learning path. */
   onExitLesson?: () => void
+  /** When set, run the daily 20-question ladder instead of free play. */
+  ladder?: LadderRun | null
+}
+
+/** Drives the daily-ladder run: a fixed sequence of seeded spots, scored. */
+export interface LadderRun {
+  seeds: SpotSeed[]
+  startIndex: number
+  startScore: number
+  /** ms already elapsed from a resumed run. */
+  baseTimeMs: number
+  /** Persist after each answer so a refresh can resume. */
+  onProgress: (index: number, score: number, timeMs: number) => void
+  /** Fired once the last question is answered and dismissed. */
+  onComplete: (score: number, timeMs: number) => void
+  /** Bail out of the ladder. */
+  onExit: () => void
 }
 
 const ACTION_STYLE: Record<Action, string> = {
@@ -193,6 +208,7 @@ export default function DrillScreen({
   level = 'intermediate',
   lesson = null,
   onExitLesson,
+  ladder = null,
 }: Props) {
   const scopeOpts: GenOptions = lesson?.scope
     ? { lockPos: lesson.scope.lockPos, lockMatchup: lesson.scope.lockMatchup }
@@ -214,7 +230,11 @@ export default function DrillScreen({
   const [villainStyle, setVillainStyle] = useState<VillainStyle>('gto')
   const [contMenuOpen, setContMenuOpen] = useState(false)
   const [spot, setSpot] = useState<Spot>(() =>
-    lesson ? lessonSpot(lesson, scopeOpts) : generateSpot('rfi', scopeOpts),
+    ladder
+      ? (spotFromSeed(ladder.seeds[ladder.startIndex]) ?? generateSpot('rfi', scopeOpts))
+      : lesson
+        ? lessonSpot(lesson, scopeOpts)
+        : generateSpot('rfi', scopeOpts),
   )
   const [result, setResult] = useState<Judgement | null>(null)
   const [streak, setStreak] = useState(0)
@@ -233,27 +253,23 @@ export default function DrillScreen({
   const [reviewQueue, setReviewQueue] = useState<MistakeRecord[]>([])
   const [reviewMode, setReviewMode] = useState(false)
   const [mistakeBadge, setMistakeBadge] = useState(0)
-  // daily challenge / streak
-  const [daily, setDaily] = useState<DailyState | null>(null)
-  const [dailyFlash, setDailyFlash] = useState<{ kind: 'done' | 'milestone'; streak: number } | null>(null)
+  // daily ladder run state
+  const [ladderIndex, setLadderIndex] = useState(() => ladder?.startIndex ?? 0)
+  const [ladderScore, setLadderScore] = useState(() => ladder?.startScore ?? 0)
+  const ladderTime = useRef(ladder?.baseTimeMs ?? 0)
+  const qShownAt = useRef(Date.now())
 
-  // load weak categories + mistake count + today's challenge state once
+  // load weak categories + mistake count once (skipped in the focused ladder run)
   useEffect(() => {
+    if (ladder) return
     weakCategories().then((cats) => setFocusCats(new Set(cats)))
     mistakeCount().then(setMistakeBadge)
-    setDaily(getDaily())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // auto-dismiss the daily celebration banner
+  // re-deal when difficulty changes (unless mid-feedback, reviewing, lesson, or ladder)
   useEffect(() => {
-    if (!dailyFlash) return
-    const t = setTimeout(() => setDailyFlash(null), 6000)
-    return () => clearTimeout(t)
-  }, [dailyFlash])
-
-  // re-deal when difficulty changes (unless mid-feedback, reviewing, or in a lesson)
-  useEffect(() => {
-    if (!reviewMode && !result && !lesson)
+    if (!reviewMode && !result && !lesson && !ladder)
       setSpot(
         fullHand
           ? generateSpot('rfi', { lockPos: 'BTN', difficulty })
@@ -264,7 +280,7 @@ export default function DrillScreen({
 
   // targeted-drill request from the Leaks report or import
   useEffect(() => {
-    if (!requestFocus) return
+    if (!requestFocus || ladder) return
     const fh = !!requestFocus.fullHand
     const cats = requestFocus.cats?.length ? new Set(requestFocus.cats) : new Set<HandCategory>()
     const lockPos = requestFocus.lockPos ?? null
@@ -336,6 +352,20 @@ export default function DrillScreen({
   }
 
   function next() {
+    if (ladder) {
+      const nextIndex = ladderIndex + 1
+      if (nextIndex >= ladder.seeds.length) {
+        ladder.onComplete(ladderScore, ladderTime.current)
+        return
+      }
+      setLadderIndex(nextIndex)
+      setSpot(spotFromSeed(ladder.seeds[nextIndex]) ?? generateSpot('rfi'))
+      setResult(null)
+      setShowHint(false)
+      setHeroAnim(null)
+      qShownAt.current = Date.now()
+      return
+    }
     if (reviewMode) {
       if (reviewQueue.length === 0) return exitReview()
       dealReview(reviewQueue)
@@ -427,12 +457,12 @@ export default function DrillScreen({
       setStreak(0)
       playWrong()
     }
-    // daily challenge: every correct decision in free play counts toward today
-    if (!lesson && j.isCorrect) {
-      const tick = recordDailyCorrect()
-      setDaily(tick.state)
-      if (tick.milestone) setDailyFlash({ kind: 'milestone', streak: tick.milestone })
-      else if (tick.justCompleted) setDailyFlash({ kind: 'done', streak: tick.state.streak })
+    // daily ladder: tally the score + think-time, persist for resume
+    if (ladder) {
+      ladderTime.current += Date.now() - qShownAt.current
+      const score = ladderScore + (j.isCorrect ? 1 : 0)
+      if (j.isCorrect) setLadderScore(score)
+      ladder.onProgress(ladderIndex + 1, score, ladderTime.current)
     }
     // beginner lesson: advance the goal on every correct (or acceptable) answer
     if (lesson && j.isCorrect && !lessonDone) {
@@ -548,13 +578,17 @@ export default function DrillScreen({
         onClick={lesson && lessonDone ? onExitLesson : next}
         className="btn btn-primary pointer-events-auto flex-1 max-w-sm py-4 text-lg flex items-center justify-center gap-2"
       >
-        {lesson && lessonDone
-          ? 'Finish lesson'
-          : reviewMode && reviewQueue.length === 0
-            ? 'Done'
-            : reviewMode
-              ? 'Next'
-              : 'Next hand'}{' '}
+        {ladder
+          ? ladderIndex + 1 >= ladder.seeds.length
+            ? 'See results'
+            : 'Next'
+          : lesson && lessonDone
+            ? 'Finish lesson'
+            : reviewMode && reviewQueue.length === 0
+              ? 'Done'
+              : reviewMode
+                ? 'Next'
+                : 'Next hand'}{' '}
         <ArrowRight size={18} />
       </button>
     </>
@@ -562,27 +596,34 @@ export default function DrillScreen({
 
   return (
     <div className="flex flex-col items-center gap-2 px-4 pb-10 pt-2 lg:gap-3 lg:pb-12 lg:pt-4 max-w-xl lg:max-w-5xl mx-auto">
-      {/* daily challenge celebration, transient, only on completion / milestone */}
-      {!lesson && dailyFlash && (
-        <div className="flex w-full lg:max-w-2xl lg:mx-auto animate-pop items-center gap-3 rounded-2xl border border-sage/40 bg-sage/10 px-4 py-3">
-          {dailyFlash.kind === 'milestone' ? (
-            <Trophy size={22} className="shrink-0 text-clay" />
-          ) : (
-            <Sparkles size={22} className="shrink-0 text-sage" />
-          )}
-          <span className="text-sm text-ink">
-            <span className="serif font-semibold">
-              {dailyFlash.kind === 'milestone' ? `${dailyFlash.streak}-day streak!` : 'Daily challenge complete.'}
-            </span>{' '}
-            {dailyFlash.kind === 'milestone'
-              ? 'Big milestone, keep the run alive tomorrow.'
-              : `Nice. Come back tomorrow to keep your ${dailyFlash.streak}-day streak going.`}
-          </span>
+      {/* ladder header: progress through the 20-question daily + running score */}
+      {ladder ? (
+        <div className="flex w-full flex-col gap-2 lg:max-w-2xl lg:mx-auto">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              onClick={ladder.onExit}
+              className="flex items-center gap-1 rounded-lg px-1 py-1 text-sm text-ink2 hover:text-ink"
+            >
+              <ArrowLeft size={16} /> Quit
+            </button>
+            <span className="serif min-w-0 flex-1 truncate text-center text-sm text-ink">
+              Daily challenge · {Math.min(ladderIndex + 1, ladder.seeds.length)}/{ladder.seeds.length}
+            </span>
+            <span className="flex shrink-0 items-center gap-1 text-xs font-bold tabular-nums text-clay">
+              <Sparkles size={12} /> {ladderScore}
+            </span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink/[0.07]">
+            <div
+              className="h-full rounded-full bg-clay transition-all"
+              style={{ width: `${(ladderIndex / ladder.seeds.length) * 100}%` }}
+            />
+          </div>
         </div>
-      )}
+      ) : null}
 
       {/* lesson header OR mode toggle OR review header */}
-      {lesson ? (
+      {ladder ? null : lesson ? (
         <div className="flex w-full flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             <button
@@ -701,7 +742,7 @@ export default function DrillScreen({
       )}
 
       {/* focus + review controls (compact chip row) */}
-      {!reviewMode && !lesson && (
+      {!reviewMode && !lesson && !ladder && (
         <div className="flex items-center justify-between w-full lg:max-w-2xl lg:mx-auto gap-1.5">
           <button
             onClick={toggleFocus}
@@ -713,25 +754,6 @@ export default function DrillScreen({
             {focusActive && <X size={11} className="opacity-70" />}
           </button>
           <div className="flex items-center gap-1.5">
-            {/* compact daily challenge: progress + streak */}
-            {daily && (
-              <span
-                title={isDailyDone(daily) ? 'Daily goal complete' : `Daily challenge: ${Math.min(daily.count, daily.goal)} of ${daily.goal}`}
-                className={`flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold ${
-                  isDailyDone(daily) ? 'bg-sage/15 border-sage/40 text-sage-dark' : 'bg-paper2 border-line text-ink2'
-                }`}
-              >
-                <CalendarCheck size={12} className={isDailyDone(daily) ? 'text-sage' : 'text-ink3'} />
-                <span className="tabular-nums">
-                  {Math.min(daily.count, daily.goal)}/{daily.goal}
-                </span>
-                {liveStreak(daily) > 0 && (
-                  <span className="flex items-center gap-0.5 text-clay">
-                    <Flame size={11} /> {liveStreak(daily)}
-                  </span>
-                )}
-              </span>
-            )}
             {mistakeBadge > 0 && (
               <button
                 onClick={startReview}

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { Spade, Target, GraduationCap, BookOpen, Trophy, Volume2, VolumeX, SlidersHorizontal, Cloud, X, type LucideIcon } from 'lucide-react'
-import DrillScreen from './components/DrillScreen'
+import { Spade, Target, GraduationCap, User, Volume2, VolumeX, SlidersHorizontal, Cloud, X, Coins, type LucideIcon } from 'lucide-react'
+import DrillScreen, { type LadderRun } from './components/DrillScreen'
+import DailyChallengeCard from './components/DailyChallengeCard'
+import LadderResults from './components/LadderResults'
 import LessonsScreen from './components/LessonsScreen'
 import OnboardingScreen from './components/OnboardingScreen'
 import LeaksScreen from './components/LeaksScreen'
-import LearnScreen from './components/LearnScreen'
-import AchievementsScreen from './components/AchievementsScreen'
+import ProfileScreen from './components/ProfileScreen'
 import AccountModal from './components/AccountModal'
 import PwaUpdater from './components/PwaUpdater'
 import { isMuted, setMuted } from './lib/sound'
@@ -14,16 +15,19 @@ import { supabaseConfigured } from './lib/supabase'
 import { useAuth } from './lib/useAuth'
 import { syncNow, pushLocal } from './lib/sync'
 import { newlyEarned, type Achievement } from './lib/achievements'
+import { pointsState, recordDailyResult } from './lib/points'
+import { dayKey, recordLadderComplete } from './lib/daily'
+import { dailyLadderSeeds, ladderProgress, saveLadderProgress, clearLadderProgress } from './lib/dailyLadder'
+import { submitDailyScore } from './lib/leaderboard'
 import type { Difficulty, FocusRequest } from './lib/spot'
 
-type Tab = 'drill' | 'lessons' | 'leaks' | 'achievements' | 'learn'
+type Tab = 'drill' | 'lessons' | 'leaks' | 'profile'
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'drill', label: 'Drill', icon: Spade },
   { id: 'lessons', label: 'Lessons', icon: GraduationCap },
   { id: 'leaks', label: 'Leaks', icon: Target },
-  { id: 'achievements', label: 'Goals', icon: Trophy },
-  { id: 'learn', label: 'Glossary', icon: BookOpen },
+  { id: 'profile', label: 'Profile', icon: User },
 ]
 
 const DIFFICULTIES: { id: Difficulty; label: string; note: string }[] = [
@@ -54,6 +58,41 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('lt-theme') as Theme) || 'auto')
   // celebratory pop-up queue for freshly unlocked achievements
   const [toasts, setToasts] = useState<Achievement[]>([])
+  // Poker Points balance, refreshed whenever progress changes
+  const [pp, setPp] = useState<number | null>(null)
+  useEffect(() => {
+    pointsState().then((s) => setPp(s.balance))
+  }, [progress])
+
+  // daily ladder run + results
+  const [ladderRun, setLadderRun] = useState<LadderRun | null>(null)
+  const [ladderResult, setLadderResult] = useState<{ score: number; total: number } | null>(null)
+  const [dailyVersion, setDailyVersion] = useState(0)
+
+  function startLadder() {
+    const day = dayKey()
+    const seeds = dailyLadderSeeds(day)
+    const saved = ladderProgress(day)
+    setLadderResult(null)
+    setLadderRun({
+      seeds,
+      startIndex: saved?.index ?? 0,
+      startScore: saved?.score ?? 0,
+      baseTimeMs: saved?.timeMs ?? 0,
+      onProgress: (index, score, timeMs) => saveLadderProgress({ day, index, score, timeMs }),
+      onComplete: (score, timeMs) => {
+        recordDailyResult(day, score, timeMs)
+        recordLadderComplete()
+        clearLadderProgress()
+        if (user) submitDailyScore(user.id, day, score, timeMs)
+        setLadderRun(null)
+        setLadderResult({ score, total: seeds.length })
+        setProgress((p) => p + 1) // refresh PP
+        setDailyVersion((v) => v + 1)
+      },
+      onExit: () => setLadderRun(null),
+    })
+  }
 
   // check for newly earned achievements after each decision/sync; first run on
   // mount seeds the baseline silently so returning players aren't flooded
@@ -174,6 +213,14 @@ export default function App() {
         <h1 className="serif text-xl font-semibold flex items-center justify-center gap-1">
           Leak<span className="text-sage">·</span>Tutor
         </h1>
+        <button
+          onClick={() => setTab('profile')}
+          aria-label="Poker Points"
+          className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 rounded-full border border-clay/30 bg-clay/10 px-2.5 py-1 text-sm font-bold tabular-nums text-clay transition hover:bg-clay/15"
+        >
+          <Coins size={15} />
+          {pp ?? 0}
+        </button>
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
           {supabaseConfigured && (
             <button
@@ -256,15 +303,31 @@ export default function App() {
       <main className="flex-1 overflow-y-auto">
         {/* keyed so each tab change re-mounts and plays a gentle fade-up */}
         <div key={tab} className="animate-fade-up h-full">
-          {tab === 'drill' && (
-            <DrillScreen
-              level={level}
-              onProgress={() => setProgress((p) => p + 1)}
-              requestFocus={focusRequest}
-              onFocusConsumed={() => setFocusRequest(null)}
-              difficulty={difficulty}
-            />
-          )}
+          {tab === 'drill' &&
+            (ladderRun ? (
+              <DrillScreen level={level} onProgress={() => setProgress((p) => p + 1)} ladder={ladderRun} />
+            ) : ladderResult ? (
+              <LadderResults
+                score={ladderResult.score}
+                total={ladderResult.total}
+                onClose={() => setLadderResult(null)}
+                onLeaderboard={() => {
+                  setLadderResult(null)
+                  setTab('profile')
+                }}
+              />
+            ) : (
+              <div className="pt-4">
+                <DailyChallengeCard day={dayKey()} version={dailyVersion} onPlay={startLadder} />
+                <DrillScreen
+                  level={level}
+                  onProgress={() => setProgress((p) => p + 1)}
+                  requestFocus={focusRequest}
+                  onFocusConsumed={() => setFocusRequest(null)}
+                  difficulty={difficulty}
+                />
+              </div>
+            ))}
           {tab === 'lessons' && (
             <LessonsScreen
               onProgress={() => setProgress((p) => p + 1)}
@@ -273,15 +336,15 @@ export default function App() {
             />
           )}
           {tab === 'leaks' && <LeaksScreen version={progress} onDrillLeaks={drillLeaks} onOpenLesson={openLesson} />}
-          {tab === 'achievements' && (
-            <AchievementsScreen
+          {tab === 'profile' && (
+            <ProfileScreen
               version={progress}
               configured={supabaseConfigured}
               userId={user?.id ?? null}
               onSignIn={() => setAccountOpen(true)}
+              onChanged={() => setProgress((p) => p + 1)}
             />
           )}
-          {tab === 'learn' && <LearnScreen />}
         </div>
       </main>
 
@@ -321,7 +384,7 @@ export default function App() {
           <button
             key={a.id}
             onClick={() => {
-              setTab('achievements')
+              setTab('profile')
               setToasts((q) => q.slice(1))
             }}
             className="animate-toast safe-top fixed inset-x-0 top-3 z-[60] mx-auto flex w-[20rem] max-w-[calc(100%-1.5rem)] items-center gap-3 rounded-2xl border border-sage/40 bg-paper2 p-3 text-left shadow-xl"
@@ -330,7 +393,9 @@ export default function App() {
               <Icon size={20} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-sage">Achievement unlocked</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-sage">
+                Achievement unlocked{a.reward > 0 && <span className="text-clay"> · +{a.reward} PP</span>}
+              </p>
               <p className="truncate font-semibold text-ink">{a.title}</p>
             </div>
           </button>

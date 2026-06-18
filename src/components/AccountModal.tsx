@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X, Cloud, CloudOff, LogOut, RefreshCw, Mail, Check } from 'lucide-react'
 import { useAuth } from '../lib/useAuth'
+import { getHandle, setHandle } from '../lib/leaderboard'
 
 interface Props {
   onClose: () => void
@@ -23,6 +24,7 @@ export default function AccountModal({ onClose, onSyncNow, syncing, lastSynced }
   const [mode, setMode] = useState<'in' | 'up'>('in')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [username, setUsername] = useState(getHandle())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -35,7 +37,11 @@ export default function AccountModal({ onClose, onSyncNow, syncing, lastSynced }
     try {
       const res = mode === 'in' ? await signIn(email, password) : await signUp(email, password)
       if (res.error) setError(res.error.message)
-      else if (mode === 'up' && !res.data.session) setNotice('Check your email to confirm your account, then sign in.')
+      else if (mode === 'up') {
+        // remember the chosen username; published to the leaderboard on first sync
+        if (username.trim()) setHandle(username)
+        if (!res.data.session) setNotice('Check your email to confirm your account, then sign in.')
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -105,6 +111,17 @@ export default function AccountModal({ onClose, onSyncNow, syncing, lastSynced }
               ))}
             </div>
             <form onSubmit={submit} className="flex flex-col gap-2.5">
+              {mode === 'up' && (
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Username (shown on leaderboards)"
+                  maxLength={24}
+                  className="rounded-xl border border-line bg-paper2 px-3 py-2.5 text-sm text-ink outline-none focus:border-sage"
+                />
+              )}
               <input
                 type="email"
                 required

@@ -4,6 +4,7 @@ import { CURRICULUM, lessonById, type Lesson } from '../data/curriculum'
 import { lessonProgress, curriculumComplete, completeLesson } from '../lib/level'
 import GlossaryText from './GlossaryText'
 import DrillScreen from './DrillScreen'
+import LearnScreen from './LearnScreen'
 
 interface Props {
   onProgress: () => void
@@ -27,6 +28,7 @@ function teaser(concept: string): string {
 
 export default function LessonsScreen({ onProgress, openLessonId, onOpened }: Props) {
   const [view, setView] = useState<View>('list')
+  const [section, setSection] = useState<'lessons' | 'glossary'>('lessons')
   const [activeId, setActiveId] = useState<string | null>(null)
   const [, setTick] = useState(0) // bump to re-read localStorage progress after a lesson
   const refresh = () => setTick((t) => t + 1)
@@ -74,9 +76,30 @@ export default function LessonsScreen({ onProgress, openLessonId, onOpened }: Pr
   const pct = Math.round((done / CURRICULUM.length) * 100)
 
   return (
-    <div className="px-4 pb-28 pt-6 max-w-xl lg:max-w-2xl mx-auto flex flex-col gap-6">
-      {/* header */}
-      <header className="flex flex-col gap-3">
+    <div className="flex flex-col">
+      {/* Lessons | Glossary switch (Glossary folded in here to slim the nav) */}
+      <div className="mx-auto w-full max-w-xl px-4 pb-1 pt-5 lg:max-w-2xl">
+        <div className="flex gap-1 rounded-2xl border border-line bg-ink/[0.06] p-1 text-sm">
+          {(['lessons', 'glossary'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setSection(s)}
+              className={`flex-1 rounded-xl py-2 font-semibold capitalize transition ${
+                section === s ? 'bg-sage text-white shadow-[0_4px_12px_-4px_rgba(67,84,72,0.6)]' : 'text-ink2 hover:text-ink'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {section === 'glossary' ? (
+        <LearnScreen />
+      ) : (
+        <div className="px-4 pb-28 pt-4 max-w-xl lg:max-w-2xl mx-auto flex flex-col gap-6">
+          {/* header */}
+          <header className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sage/12 text-sage-dark">
             <GraduationCap size={24} />
@@ -165,10 +188,12 @@ export default function LessonsScreen({ onProgress, openLessonId, onOpened }: Pr
             Now put it into practice in the Drill tab, and play full hands in Freeplay.
           </p>
         </div>
-      ) : (
-        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-ink3">
-          <BookOpen size={13} /> Each lesson teaches a concept, then drills it. Tap underlined words for definitions.
-        </p>
+          ) : (
+            <p className="flex items-center justify-center gap-1.5 text-center text-xs text-ink3">
+              <BookOpen size={13} /> Each lesson teaches a concept, then drills it. Tap underlined words for definitions.
+            </p>
+          )}
+        </div>
       )}
     </div>
   )

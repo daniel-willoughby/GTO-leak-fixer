@@ -20,6 +20,23 @@ export interface Achievement {
   done: boolean
   /** Grouping for the screen. */
   group: 'Volume' | 'Accuracy' | 'Streaks' | 'Learning'
+  /** Poker Points granted once when this milestone is unlocked. */
+  reward: number
+}
+
+/** PP reward per milestone id — tougher milestones pay more. */
+export const ACHIEVEMENT_REWARD: Record<string, number> = {
+  hands25: 25,
+  hands100: 50,
+  hands500: 100,
+  acc80: 75,
+  acc90: 150,
+  streak10: 50,
+  streak25: 100,
+  streak50: 200,
+  daily3: 30,
+  daily7: 75,
+  scholar: 150,
 }
 
 function longestRun(flags: boolean[]): number {
@@ -59,6 +76,7 @@ export async function getAchievements(): Promise<Achievement[]> {
     progress: Math.min(1, current / target),
     label: `${Math.min(current, target)} / ${target}`,
     done: current >= target,
+    reward: ACHIEVEMENT_REWARD[id] ?? 0,
   })
 
   // an accuracy milestone: % over the last 100 hands, only counts once 100 deep
@@ -73,6 +91,7 @@ export async function getAchievements(): Promise<Achievement[]> {
       progress: ready ? Math.min(1, accPct / target) : Math.min(0.95, total / 100),
       label: ready ? `${accPct}% / ${target}%` : `${total} / 100 hands`,
       done: ready && accPct >= target,
+      reward: ACHIEVEMENT_REWARD[id] ?? 0,
     }
   }
 
