@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Spade, Target, GraduationCap, BookOpen, Trophy, Volume2, VolumeX, SlidersHorizontal, Cloud, type LucideIcon } from 'lucide-react'
+import { Spade, Target, GraduationCap, BookOpen, Trophy, Volume2, VolumeX, SlidersHorizontal, Cloud, X, type LucideIcon } from 'lucide-react'
 import DrillScreen from './components/DrillScreen'
 import LessonsScreen from './components/LessonsScreen'
 import OnboardingScreen from './components/OnboardingScreen'
@@ -89,8 +89,16 @@ export default function App() {
     localStorage.setItem('lt-theme', t)
   }
   // cloud sync (optional, only when Supabase is configured)
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [accountOpen, setAccountOpen] = useState(false)
+  // show a sign-in nudge once per session for unauthenticated visitors
+  const NUDGE_KEY = 'lt-nudge-dismissed'
+  const [nudge, setNudge] = useState(false)
+  useEffect(() => {
+    if (!supabaseConfigured || authLoading) return
+    if (!user && !sessionStorage.getItem(NUDGE_KEY)) setNudge(true)
+    if (user) setNudge(false)
+  }, [user, authLoading])
   const [syncing, setSyncing] = useState(false)
   const [lastSynced, setLastSynced] = useState<number | null>(null)
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -328,6 +336,35 @@ export default function App() {
           </button>
         )
       })()}
+
+      {nudge && (
+        <div className="animate-toast safe-top fixed inset-x-0 top-3 z-[60] mx-auto flex w-[22rem] max-w-[calc(100%-1.5rem)] items-center gap-3 rounded-2xl border border-line bg-paper2 p-3 shadow-xl">
+          <Cloud size={20} className="shrink-0 text-sage" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-ink">Save your progress</p>
+            <p className="text-xs text-ink2">Sign in to back up and sync across devices.</p>
+          </div>
+          <button
+            onClick={() => {
+              setNudge(false)
+              setAccountOpen(true)
+            }}
+            className="shrink-0 rounded-lg bg-sage px-3 py-1.5 text-xs font-semibold text-white"
+          >
+            Sign in
+          </button>
+          <button
+            onClick={() => {
+              setNudge(false)
+              sessionStorage.setItem(NUDGE_KEY, '1')
+            }}
+            className="shrink-0 p-1 text-ink3 hover:text-ink"
+            aria-label="Dismiss"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
 
       <PwaUpdater />
     </div>

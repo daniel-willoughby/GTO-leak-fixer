@@ -19,7 +19,7 @@ function ago(ts: number | null): string {
 }
 
 export default function AccountModal({ onClose, onSyncNow, syncing, lastSynced }: Props) {
-  const { user, signIn, signUp, signInWithGoogle, signOut } = useAuth()
+  const { user, signIn, signUp, signOut } = useAuth()
   const [mode, setMode] = useState<'in' | 'up'>('in')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -132,21 +132,6 @@ export default function AccountModal({ onClose, onSyncNow, syncing, lastSynced }
                 {busy ? 'Please wait…' : mode === 'in' ? 'Sign in' : 'Create account'}
               </button>
             </form>
-            <div className="flex items-center gap-2 text-xs text-ink3">
-              <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
-            </div>
-            <button
-              onClick={() => signInWithGoogle()}
-              className="btn btn-secondary flex items-center justify-center gap-2 py-2.5 text-sm"
-            >
-              <svg width="15" height="15" viewBox="0 0 48 48">
-                <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.7 9.5 24 9.5z" />
-                <path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.1 5.3-4.6 7l7.1 5.5c4.2-3.9 6.6-9.6 6.6-17z" />
-                <path fill="#FBBC05" d="M10.4 28.3c-.5-1.4-.8-2.9-.8-4.3s.3-2.9.8-4.3l-7.8-6.1C.9 16.8 0 20.3 0 24s.9 7.2 2.6 10.4l7.8-6.1z" />
-                <path fill="#34A853" d="M24 48c6.2 0 11.5-2 15.3-5.5l-7.1-5.5c-2 1.4-4.6 2.2-8.2 2.2-6.3 0-11.7-3.7-13.6-9.1l-7.8 6.1C6.5 42.6 14.6 48 24 48z" />
-              </svg>
-              Continue with Google
-            </button>
           </div>
         )}
 
