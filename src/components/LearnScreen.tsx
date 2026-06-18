@@ -50,7 +50,7 @@ export default function LearnScreen() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search terms"
-            className="w-full rounded-xl border border-line bg-paper pl-9 pr-3 py-2 text-sm text-ink placeholder:text-ink3 focus:border-sage/50 focus:outline-none"
+            className="w-full rounded-xl border border-line bg-paper pl-9 pr-3 py-2 text-base text-ink placeholder:text-ink3 focus:border-sage/50 focus:outline-none"
           />
         </div>
         <dl className="flex flex-col divide-y divide-line">

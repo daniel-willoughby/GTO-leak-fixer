@@ -26,7 +26,10 @@ export function useAuth() {
     session,
     user: session?.user ?? null,
     loading,
-    signUp: (email: string, password: string) => supabase!.auth.signUp({ email, password }),
+    // emailRedirectTo points the confirmation link back at the deployed app
+    // (must also be allow-listed under Supabase → Auth → URL Configuration)
+    signUp: (email: string, password: string) =>
+      supabase!.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo } }),
     signIn: (email: string, password: string) => supabase!.auth.signInWithPassword({ email, password }),
     signInWithGoogle: () => supabase!.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } }),
     signOut: () => supabase!.auth.signOut(),
