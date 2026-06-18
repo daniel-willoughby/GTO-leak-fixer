@@ -275,7 +275,7 @@ export default function DrillScreen({
     if (!reviewMode && !result && !lesson && !ladder)
       setSpot(
         fullHand
-          ? generateSpot('rfi', { lockPos: 'BTN', difficulty })
+          ? generateSpot('rfi', { lockPos: 'BTN', focus: focusOn ? focusCats : undefined, difficulty })
           : generateSpot(mode, { focus: focusOn ? focusCats : undefined, lockPos: focusPos ?? undefined, difficulty }),
       )
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -297,7 +297,7 @@ export default function DrillScreen({
     setStreak(0)
     setSpot(
       fh
-        ? generateSpot('rfi', { lockPos: 'BTN', difficulty }) // Continuation starts preflop on the button
+        ? generateSpot('rfi', { lockPos: 'BTN', focus: cats.size > 0 ? cats : undefined, difficulty }) // Continuation starts preflop on the button
         : generateSpot(nextMode, {
             focus: cats.size > 0 ? cats : undefined,
             lockPos: lockPos ?? undefined,
@@ -322,7 +322,7 @@ export default function DrillScreen({
       : fp
         ? fp
         : fh
-          ? generateSpot('rfi', { lockPos: 'BTN', difficulty }) // continuation starts preflop on the button
+          ? generateSpot('rfi', { lockPos: 'BTN', focus: focusOn ? focusCats : undefined, difficulty }) // continuation starts preflop on the button
           : generateSpot(m, {
               focus: focusOn ? focusCats : undefined,
               lockPos: focusPos ?? undefined,
