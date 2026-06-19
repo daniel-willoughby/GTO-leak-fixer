@@ -2,7 +2,7 @@
 // `daily_scores` (today's ladder) tables. Each user publishes a shareable
 // summary that everyone can read. Dormant until Supabase is configured.
 import { supabase, supabaseConfigured } from './supabase'
-import { equipped, earnedPoints, grantDailyWin, hasClaimedDailyWin, dailyResults } from './points'
+import { equipped, earnedPoints, grantDailyWin, hasClaimedDailyWin, dailyResults, type DailyResult } from './points'
 import { dayKey, prevDay } from './daily'
 import type { SyncSnapshot } from './sync'
 
@@ -115,17 +115,27 @@ const submittedMap = (): Record<string, string> => {
 }
 export async function syncDailyScores(userId: string): Promise<void> {
   if (!supabase) return
-  // A completed daily never changes, so only upsert results we haven't already
-  // pushed (keyed by score+time). This turns a per-push N-row write into a
-  // no-op once everything is submitted.
+  // Only upsert results whose published form has changed, turning a per-push
+  // N-row write into a no-op in steady state. The key includes the denormalised
+  // handle + cosmetics, so renaming or re-skinning still refreshes the rows.
+  const eq = equipped()
+  const sig = (r: DailyResult) =>
+    `${r.score}:${r.timeMs}:${displayName(userId)}|${eq.avatar}|${eq.flair}|${eq.background}`
   const submitted = submittedMap()
   const pending = Object.entries(dailyResults()).filter(
-    ([day, r]) => r.completed && submitted[day] !== `${r.score}:${r.timeMs}`,
+    ([day, r]) => r.completed && submitted[day] !== sig(r),
   )
   if (!pending.length) return
-  await Promise.all(pending.map(([day, r]) => submitDailyScore(userId, day, r.score, r.timeMs)))
-  for (const [day, r] of pending) submitted[day] = `${r.score}:${r.timeMs}`
-  localStorage.setItem(SUBMITTED_KEY, JSON.stringify(submitted))
+  // Only mark a day as submitted once its write actually succeeds, so a
+  // transient failure is retried on the next sync instead of being lost.
+  const results = await Promise.all(
+    pending.map(async ([day, r]) => [day, r, await submitDailyScore(userId, day, r.score, r.timeMs)] as const),
+  )
+  let changed = false
+  for (const [day, r, ok] of results) {
+    if (ok) { submitted[day] = sig(r); changed = true }
+  }
+  if (changed) localStorage.setItem(SUBMITTED_KEY, JSON.stringify(submitted))
 }
 
 /** All-time leaderboard: top players by total Poker Points earned. */
@@ -147,9 +157,10 @@ export const fetchLeaderboard = fetchAllTimeLeaderboard
 
 // ---- daily leaderboard -----------------------------------------------------
 
-/** Publish today's ladder score (denormalised cosmetics for cheap render). */
-export async function submitDailyScore(userId: string, day: string, score: number, timeMs: number): Promise<void> {
-  if (!supabase) return
+/** Publish today's ladder score (denormalised cosmetics for cheap render).
+ *  Returns true when the row was written, false on error/offline. */
+export async function submitDailyScore(userId: string, day: string, score: number, timeMs: number): Promise<boolean> {
+  if (!supabase) return false
   const eq = equipped()
   const { error } = await supabase.from('daily_scores').upsert(
     {
@@ -165,8 +176,12 @@ export async function submitDailyScore(userId: string, day: string, score: numbe
     },
     { onConflict: 'user_id,day' },
   )
-  if (error) console.error('[leaderboard] submitDailyScore failed:', error.message)
-  else bustLeaderboardCache() // a fresh score should show up without waiting out the TTL
+  if (error) {
+    console.error('[leaderboard] submitDailyScore failed:', error.message)
+    return false
+  }
+  bustLeaderboardCache() // a fresh score should show up without waiting out the TTL
+  return true
 }
 
 /** Today's daily leaderboard: best score first, faster time breaks ties. */
