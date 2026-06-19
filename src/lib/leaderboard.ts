@@ -18,9 +18,11 @@ export interface LeaderRow {
   pp_earned: number
   avatar: string
   flair: string
+  /** Equipped background id, used to tint this player's leaderboard row. */
+  background: string
 }
 
-const COLS = 'user_id,handle,hands_played,best_streak,accuracy,pre_acc,post_acc,pp_earned,avatar,flair'
+const COLS = 'user_id,handle,hands_played,best_streak,accuracy,pre_acc,post_acc,pp_earned,avatar,flair,background'
 
 export interface DailyRow {
   user_id: string
@@ -30,6 +32,7 @@ export interface DailyRow {
   handle: string
   avatar: string
   flair: string
+  background: string
 }
 
 const HANDLE_KEY = 'lt-handle'
@@ -80,6 +83,7 @@ export async function upsertProfile(userId: string, snap: SyncSnapshot): Promise
     pp_earned: await earnedPoints(),
     avatar: eq.avatar,
     flair: eq.flair,
+    background: eq.background,
     updated_at: new Date().toISOString(),
   })
   if (error) console.error('[leaderboard] upsertProfile failed:', error.message)
@@ -126,6 +130,7 @@ export async function submitDailyScore(userId: string, day: string, score: numbe
       handle: displayName(userId),
       avatar: eq.avatar,
       flair: eq.flair,
+      background: eq.background,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'user_id,day' },
@@ -138,7 +143,7 @@ export async function fetchDailyLeaderboard(day: string = dayKey(), limit = 50):
   if (!supabaseConfigured || !supabase) return []
   const { data, error } = await supabase
     .from('daily_scores')
-    .select('user_id,day,score,time_ms,handle,avatar,flair')
+    .select('user_id,day,score,time_ms,handle,avatar,flair,background')
     .eq('day', day)
     .order('score', { ascending: false })
     .order('time_ms', { ascending: true })

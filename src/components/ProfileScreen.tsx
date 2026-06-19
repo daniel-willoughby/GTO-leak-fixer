@@ -197,6 +197,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
                 avatar={r.avatar}
                 flair={r.flair}
                 name={r.handle}
+                background={r.background}
                 onClick={me || isFriend ? undefined : () => addOnly(r.user_id)}
               >
                 <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-sage-dark">
@@ -228,6 +229,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
                 avatar={r.avatar}
                 flair={r.flair}
                 name={r.handle}
+                background={r.background}
                 onClick={me || isFriend ? undefined : () => addOnly(r.user_id)}
               >
                 <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-clay">
@@ -311,6 +313,7 @@ function Row({
   avatar,
   flair,
   name,
+  background,
   children,
   onClick,
 }: {
@@ -319,6 +322,8 @@ function Row({
   avatar: string
   flair: string
   name: string
+  /** Equipped background id — tints the row with that player's colour. */
+  background?: string
   children: React.ReactNode
   /** When set, the row is tappable (used to expand a friend's stats). */
   onClick?: () => void
@@ -326,17 +331,26 @@ function Row({
   return (
     <div
       onClick={onClick}
-      className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
+      className={`relative overflow-hidden rounded-xl border ${
         me ? 'bg-sage/10 border-sage/30' : 'bg-paper2 border-line'
       } ${onClick ? 'cursor-pointer select-none transition hover:border-sage/40' : ''}`}
     >
-      <span className="w-5 shrink-0 text-center text-sm font-bold tabular-nums text-ink3">{rank}</span>
-      <Avatar id={avatar} size={30} />
-      <span className="flex min-w-0 flex-1 items-center gap-1.5">
-        <span className="truncate font-semibold text-ink">{name}</span>
-        <Flair id={flair} />
-      </span>
-      {children}
+      {background && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-25"
+          style={{ background: bgWash(background) }}
+        />
+      )}
+      <div className="relative flex items-center gap-3 px-3 py-2.5">
+        <span className="w-5 shrink-0 text-center text-sm font-bold tabular-nums text-ink3">{rank}</span>
+        <Avatar id={avatar} size={30} />
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          <span className="truncate font-semibold text-ink">{name}</span>
+          <Flair id={flair} />
+        </span>
+        {children}
+      </div>
     </div>
   )
 }
@@ -511,6 +525,7 @@ function FriendsPanel({
                   avatar={r.avatar}
                   flair={r.flair}
                   name={r.handle}
+                  background={r.background}
                   onClick={() => setExpanded(open ? null : r.user_id)}
                 >
                   <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-clay">

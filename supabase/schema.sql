@@ -83,9 +83,12 @@ create table if not exists public.daily_scores (
   handle     text not null default 'Player',
   avatar     text,
   flair      text,
+  background text,
   updated_at timestamptz not null default now(),
   primary key (user_id, day)
 );
+-- background added after initial release; harmless if the table already exists.
+alter table public.daily_scores add column if not exists background text;
 
 -- best score first, faster total time breaks ties
 create index if not exists daily_scores_rank on public.daily_scores (day, score desc, time_ms asc);
