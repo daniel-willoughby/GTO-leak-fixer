@@ -2,10 +2,12 @@
 // streaks + lesson progress. Pure read; no new tracking needed (the best
 // streak is derived from the full decision log).
 
-import { Spade, Target, Flame, GraduationCap, CalendarCheck, Zap, TrendingUp, type LucideIcon } from 'lucide-react'
+import { Spade, Target, Flame, GraduationCap, CalendarCheck, Zap, TrendingUp, Trophy, Shirt, type LucideIcon } from 'lucide-react'
 import { db } from './db'
 import { getDaily, liveStreak } from './daily'
 import { lessonProgress } from './level'
+import { equipped, dailyResults } from './points'
+import { DEFAULT_AVATAR, DEFAULT_FLAIR, DEFAULT_BACKGROUND } from './shop'
 import { CURRICULUM } from '../data/curriculum'
 
 export interface Achievement {
@@ -19,7 +21,7 @@ export interface Achievement {
   label: string
   done: boolean
   /** Grouping for the screen. */
-  group: 'Volume' | 'Accuracy' | 'Streaks' | 'Learning'
+  group: 'Volume' | 'Accuracy' | 'Streaks' | 'Learning' | 'Collection'
   /** Poker Points granted once when this milestone is unlocked. */
   reward: number
 }
@@ -34,9 +36,12 @@ export const ACHIEVEMENT_REWARD: Record<string, number> = {
   streak10: 50,
   streak25: 100,
   streak50: 200,
+  streak100: 400,
   streak200: 1000, // ridiculous
   speedrun: 300,
   drilla: 200,
+  tiltproof: 150,
+  fashionista: 200,
   daily3: 30,
   daily7: 75,
   scholar: 150,
@@ -85,6 +90,15 @@ export async function getAchievements(): Promise<Achievement[]> {
   const improveDelta = third >= 20 ? acof(all.slice(-third)) - acof(all.slice(0, third)) : 0
   const improvePct = Math.round(improveDelta * 100)
 
+  // best daily-ladder score (out of 20) for Tilt-Proof
+  const bestDaily = Math.max(0, ...Object.values(dailyResults()).map((r) => r.score))
+  // how many cosmetic slots are off their default, for Fashionista
+  const eq = equipped()
+  const dressed =
+    (eq.avatar !== DEFAULT_AVATAR ? 1 : 0) +
+    (eq.flair !== DEFAULT_FLAIR ? 1 : 0) +
+    (eq.background !== DEFAULT_BACKGROUND ? 1 : 0)
+
   // a count milestone: current value out of a target
   const count = (
     id: string,
@@ -131,7 +145,19 @@ export async function getAchievements(): Promise<Achievement[]> {
     count('streak10', 'Streaks', 'Heating up', '10 correct in a row', Flame, best, 10),
     count('streak25', 'Streaks', 'On fire', '25 correct in a row', Flame, best, 25),
     count('streak50', 'Streaks', 'Locked in', '50 correct in a row', Flame, best, 50),
+    count('streak100', 'Streaks', 'Centurion', '100 correct in a row', Flame, best, 100),
     count('streak200', 'Streaks', 'Untouchable', '200 correct in a row', Flame, best, 200),
+    {
+      id: 'tiltproof',
+      group: 'Streaks',
+      title: 'Tilt-Proof',
+      desc: 'Finish a daily ladder with a perfect 20/20',
+      icon: Trophy,
+      progress: Math.min(1, bestDaily / 20),
+      label: `${bestDaily} / 20`,
+      done: bestDaily >= 20,
+      reward: ACHIEVEMENT_REWARD.tiltproof,
+    },
     {
       id: 'speedrun',
       group: 'Streaks',
@@ -157,6 +183,17 @@ export async function getAchievements(): Promise<Achievement[]> {
     count('daily3', 'Streaks', 'Daily habit', 'Keep a 3-day streak', CalendarCheck, dayStreak, 3),
     count('daily7', 'Streaks', 'Week strong', 'Keep a 7-day streak', CalendarCheck, dayStreak, 7),
     count('scholar', 'Learning', 'Scholar', `Finish all ${CURRICULUM.length} lessons`, GraduationCap, lessonsDone, CURRICULUM.length),
+    {
+      id: 'fashionista',
+      group: 'Collection',
+      title: 'Fashionista',
+      desc: 'Equip a custom avatar, flair and background at once',
+      icon: Shirt,
+      progress: dressed / 3,
+      label: `${dressed} / 3`,
+      done: dressed >= 3,
+      reward: ACHIEVEMENT_REWARD.fashionista,
+    },
   ]
 }
 

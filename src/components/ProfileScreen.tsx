@@ -39,7 +39,7 @@ const SECTIONS: { id: Section; label: string }[] = [
   { id: 'shop', label: 'Shop' },
 ]
 
-const GROUPS: Achievement['group'][] = ['Volume', 'Accuracy', 'Streaks', 'Learning']
+const GROUPS: Achievement['group'][] = ['Volume', 'Accuracy', 'Streaks', 'Learning', 'Collection']
 
 export default function ProfileScreen({ version, configured, userId, onSignIn, onChanged }: Props) {
   const [section, setSection] = useState<Section>('achievements')
