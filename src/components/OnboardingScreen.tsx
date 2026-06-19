@@ -1,5 +1,6 @@
 import { GraduationCap, Gauge, ArrowRight, Check, type LucideIcon } from 'lucide-react'
 import type { Level } from '../lib/level'
+import { Wordmark } from './Wordmark'
 
 interface Props {
   onPick: (level: Level) => void
@@ -34,8 +35,8 @@ export default function OnboardingScreen({ onPick }: Props) {
   return (
     <div className="min-h-full flex flex-col items-center justify-center px-5 py-10 max-w-xl mx-auto">
       <div className="text-center mb-8 animate-pop">
-        <h1 className="serif text-3xl font-semibold flex items-center justify-center gap-1">
-          Pot<span className="text-sage">·</span>King
+        <h1 className="flex items-center justify-center text-ink">
+          <Wordmark className="h-9" />
         </h1>
         <p className="text-ink2 mt-2 text-[15px] leading-relaxed">
           Learn GTO poker by drilling real solver decisions. First, how much do you already know?

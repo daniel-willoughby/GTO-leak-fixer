@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Spade, Target, GraduationCap, User, Volume2, VolumeX, SlidersHorizontal, Cloud, X, Coins, type LucideIcon } from 'lucide-react'
 import DrillScreen, { type LadderRun } from './components/DrillScreen'
+import { Wordmark } from './components/Wordmark'
 import DailyChallengeCard from './components/DailyChallengeCard'
 import LadderResults from './components/LadderResults'
 import LessonsScreen from './components/LessonsScreen'
@@ -220,8 +221,8 @@ export default function App() {
   return (
     <div className="min-h-full flex flex-col">
       <header className="safe-top sticky top-0 z-30 relative text-center py-3 border-b border-line bg-paper/80 backdrop-blur-md">
-        <h1 className="serif text-xl font-semibold flex items-center justify-center gap-1">
-          Pot<span className="text-sage">·</span>King
+        <h1 className="flex items-center justify-center text-ink">
+          <Wordmark className="h-5" />
         </h1>
         <button
           onClick={() => setTab('profile')}
