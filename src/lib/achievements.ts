@@ -2,7 +2,7 @@
 // streaks + lesson progress. Pure read; no new tracking needed (the best
 // streak is derived from the full decision log).
 
-import { Spade, Target, Flame, GraduationCap, CalendarCheck, type LucideIcon } from 'lucide-react'
+import { Spade, Target, Flame, GraduationCap, CalendarCheck, Zap, TrendingUp, type LucideIcon } from 'lucide-react'
 import { db } from './db'
 import { getDaily, liveStreak } from './daily'
 import { lessonProgress } from './level'
@@ -34,9 +34,29 @@ export const ACHIEVEMENT_REWARD: Record<string, number> = {
   streak10: 50,
   streak25: 100,
   streak50: 200,
+  streak200: 1000, // ridiculous
+  speedrun: 300,
+  drilla: 200,
   daily3: 30,
   daily7: 75,
   scholar: 150,
+}
+
+/** Largest run of consecutive-correct decisions that fits inside `windowMs`.
+ *  Used for The Speedrunner (20 correct in a row in under 10 seconds). */
+function bestSpeedRun(rows: { ts: number; isCorrect: boolean }[], windowMs = 10_000): number {
+  let best = 0
+  let runStart = 0
+  for (let i = 0; i < rows.length; i++) {
+    if (!rows[i].isCorrect) {
+      runStart = i + 1
+      continue
+    }
+    let j = i
+    while (j > runStart && rows[i].ts - rows[j - 1].ts <= windowMs) j--
+    best = Math.max(best, i - j + 1)
+  }
+  return best
 }
 
 function longestRun(flags: boolean[]): number {
@@ -57,6 +77,13 @@ export async function getAchievements(): Promise<Achievement[]> {
   const best = longestRun(all.map((d) => d.isCorrect))
   const dayStreak = liveStreak(getDaily())
   const lessonsDone = CURRICULUM.filter((l) => lessonProgress(l.id).done).length
+  const fastRun = bestSpeedRun(all) // best correct streak inside a 10s window
+
+  // "consistently improving": recent-third accuracy vs early-third accuracy.
+  const third = Math.floor(all.length / 3)
+  const acof = (arr: typeof all) => (arr.length ? arr.filter((d) => d.isCorrect).length / arr.length : 0)
+  const improveDelta = third >= 20 ? acof(all.slice(-third)) - acof(all.slice(0, third)) : 0
+  const improvePct = Math.round(improveDelta * 100)
 
   // a count milestone: current value out of a target
   const count = (
@@ -104,6 +131,29 @@ export async function getAchievements(): Promise<Achievement[]> {
     count('streak10', 'Streaks', 'Heating up', '10 correct in a row', Flame, best, 10),
     count('streak25', 'Streaks', 'On fire', '25 correct in a row', Flame, best, 25),
     count('streak50', 'Streaks', 'Locked in', '50 correct in a row', Flame, best, 50),
+    count('streak200', 'Streaks', 'Untouchable', '200 correct in a row', Flame, best, 200),
+    {
+      id: 'speedrun',
+      group: 'Streaks',
+      title: 'The Speedrunner',
+      desc: '20 correct in a row in under 10 seconds',
+      icon: Zap,
+      progress: Math.min(1, fastRun / 20),
+      label: `${Math.min(fastRun, 20)} / 20`,
+      done: fastRun >= 20,
+      reward: ACHIEVEMENT_REWARD.speedrun,
+    },
+    {
+      id: 'drilla',
+      group: 'Accuracy',
+      title: 'My Drilla',
+      desc: 'Lift your accuracy 15% from where you started',
+      icon: TrendingUp,
+      progress: third >= 20 ? Math.min(1, Math.max(0, improveDelta) / 0.15) : Math.min(0.95, all.length / 60),
+      label: third >= 20 ? `+${Math.max(0, improvePct)}% / +15%` : `${all.length} / 60 hands`,
+      done: third >= 20 && improveDelta >= 0.15,
+      reward: ACHIEVEMENT_REWARD.drilla,
+    },
     count('daily3', 'Streaks', 'Daily habit', 'Keep a 3-day streak', CalendarCheck, dayStreak, 3),
     count('daily7', 'Streaks', 'Week strong', 'Keep a 7-day streak', CalendarCheck, dayStreak, 7),
     count('scholar', 'Learning', 'Scholar', `Finish all ${CURRICULUM.length} lessons`, GraduationCap, lessonsDone, CURRICULUM.length),

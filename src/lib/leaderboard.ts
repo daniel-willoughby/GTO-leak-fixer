@@ -12,10 +12,15 @@ export interface LeaderRow {
   hands_played: number
   best_streak: number
   accuracy: number
+  /** Accuracy split by street (percent); -1 when there are no hands yet. */
+  pre_acc: number
+  post_acc: number
   pp_earned: number
   avatar: string
   flair: string
 }
+
+const COLS = 'user_id,handle,hands_played,best_streak,accuracy,pre_acc,post_acc,pp_earned,avatar,flair'
 
 export interface DailyRow {
   user_id: string
@@ -42,16 +47,25 @@ function longestRun(flags: boolean[]): number {
   return best
 }
 
+/** Accuracy (percent) over a set of decisions; -1 when the set is empty. */
+const accPct = (rows: { isCorrect: boolean }[]): number =>
+  rows.length ? Math.round((rows.filter((x) => x.isCorrect).length / rows.length) * 100) : -1
+
 /** Headline stats derived from a sync snapshot (the public-safe summary). */
-export function profileStats(snap: SyncSnapshot): Pick<LeaderRow, 'hands_played' | 'best_streak' | 'accuracy'> {
+export function profileStats(
+  snap: SyncSnapshot,
+): Pick<LeaderRow, 'hands_played' | 'best_streak' | 'accuracy' | 'pre_acc' | 'post_acc'> {
   const d = snap.decisions
   const total = d.length
-  const correct = d.filter((x) => x.isCorrect).length
   const byTime = [...d].sort((a, b) => a.ts - b.ts).map((x) => x.isCorrect)
+  const post = d.filter((x) => x.mode === 'postflop')
+  const pre = d.filter((x) => x.mode !== 'postflop')
   return {
     hands_played: total,
     best_streak: longestRun(byTime),
-    accuracy: total ? Math.round((correct / total) * 100) : 0,
+    accuracy: Math.max(0, accPct(d)),
+    pre_acc: accPct(pre),
+    post_acc: accPct(post),
   }
 }
 
@@ -87,11 +101,11 @@ export async function fetchAllTimeLeaderboard(limit = 50): Promise<LeaderRow[]> 
   if (!supabaseConfigured || !supabase) return []
   const { data, error } = await supabase
     .from('profiles')
-    .select('user_id,handle,hands_played,best_streak,accuracy,pp_earned,avatar,flair')
+    .select(COLS)
     .order('pp_earned', { ascending: false })
     .limit(limit)
   if (error || !data) return []
-  return data as LeaderRow[]
+  return data as unknown as LeaderRow[]
 }
 
 /** Back-compat alias used by older callers (streak board → all-time board). */
@@ -152,10 +166,10 @@ export async function searchByHandle(q: string): Promise<LeaderRow[]> {
   if (!supabase || !q.trim()) return []
   const { data } = await supabase
     .from('profiles')
-    .select('user_id,handle,hands_played,best_streak,accuracy,pp_earned,avatar,flair')
+    .select(COLS)
     .ilike('handle', `%${q.trim()}%`)
     .limit(10)
-  return (data as LeaderRow[]) ?? []
+  return (data as unknown as LeaderRow[]) ?? []
 }
 
 /** Fetch leaderboard rows for a specific set of user ids. */
@@ -163,10 +177,10 @@ export async function fetchFriendsLeaderboard(friendIds: string[]): Promise<Lead
   if (!supabase || !friendIds.length) return []
   const { data } = await supabase
     .from('profiles')
-    .select('user_id,handle,hands_played,best_streak,accuracy,pp_earned,avatar,flair')
+    .select(COLS)
     .in('user_id', friendIds)
     .order('pp_earned', { ascending: false })
-  return (data as LeaderRow[]) ?? []
+  return (data as unknown as LeaderRow[]) ?? []
 }
 
 /**

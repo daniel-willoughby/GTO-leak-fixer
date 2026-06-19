@@ -289,7 +289,14 @@ export async function getLeakSummary(): Promise<LeakSummary> {
     })),
   ]
     .filter((s) => s.attempts >= 4 && s.errorRate > 0)
-    .sort((a, b) => b.errorRate - a.errorRate || b.attempts - a.attempts)
+    // Prioritise preflop leaks: the preflop drills are well-covered, while the
+    // postflop focus relies on a sparse solved-board set. Surface preflop first,
+    // then by how leaky the spot is.
+    .sort((a, b) => {
+      const pa = a.key.includes('(postflop)') ? 1 : 0
+      const pb = b.key.includes('(postflop)') ? 1 : 0
+      return pa - pb || b.errorRate - a.errorRate || b.attempts - a.attempts
+    })
     .slice(0, 3)
 
   return {

@@ -428,7 +428,8 @@ export default function App() {
               setTab('profile')
               setToasts((q) => q.slice(1))
             }}
-            className="animate-toast safe-top fixed inset-x-0 top-3 z-[60] mx-auto flex w-[20rem] max-w-[calc(100%-1.5rem)] items-center gap-3 rounded-2xl border border-sage/40 bg-paper2 p-3 text-left shadow-xl"
+            style={{ top: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
+            className="animate-toast fixed inset-x-0 z-[60] mx-auto flex w-[20rem] max-w-[calc(100%-1.5rem)] items-center gap-3 rounded-2xl border border-sage/40 bg-paper2 p-3 text-left shadow-xl"
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sage text-white dark:text-paper">
               <Icon size={20} />

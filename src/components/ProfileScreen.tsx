@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Coins, Lock, Sparkles, UserPlus, UserMinus, UserCheck, Search, ChevronDown } from 'lucide-react'
+import { Check, Coins, Lock, Sparkles, UserPlus, UserCheck, Search, ChevronDown } from 'lucide-react'
 import { getAchievements, type Achievement } from '../lib/achievements'
 import { pointsState, owned, equipped, equip, buyItem } from '../lib/points'
 import { itemsOfType, type ShopItem, type CosmeticType } from '../lib/shop'
@@ -13,7 +13,6 @@ import {
   searchByHandle,
   getFriends,
   addFriend,
-  removeFriend,
   claimDailyWinIfTop,
   type DailyRow,
   type LeaderRow,
@@ -80,6 +79,14 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
     if (section === 'friends') fetchFriendsLeaderboard(friendIds).then(setFriendRows)
   }, [section, version, friendIds])
 
+  // Friends are permanent once added — adding is idempotent, with no un-add.
+  const addOnly = (id: string) => {
+    if (getFriends().includes(id)) return
+    addFriend(id)
+    setFriendIds(getFriends())
+    onChanged() // persist the friends list to the cloud snapshot
+  }
+
   async function saveHandle() {
     setHandle(handle)
     setHandleState(getHandle())
@@ -94,13 +101,6 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
     setEq(equipped())
     if (userId) await upsertProfile(userId, await gatherLocal())
     onChanged()
-  }
-
-  /** Add or remove a player as a friend (used from leaderboard rows). */
-  function toggleFriend(id: string) {
-    if (getFriends().includes(id)) removeFriend(id)
-    else addFriend(id)
-    setFriendIds(getFriends())
   }
 
   async function onBuy(item: ShopItem) {
@@ -126,14 +126,15 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
         <div className="relative flex items-center gap-4">
           <Avatar id={eq.avatar} size={64} />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <input
                 value={handle}
                 onChange={(e) => setHandleState(e.target.value)}
                 onBlur={saveHandle}
                 placeholder="Player"
                 maxLength={24}
-                className="min-w-0 flex-1 border-b border-transparent bg-transparent py-0.5 font-semibold text-white outline-none placeholder:text-white/60 focus:border-white/50"
+                size={Math.max((handle || 'Player').length, 4)}
+                className="min-w-0 max-w-full border-b border-transparent bg-transparent py-0.5 text-lg font-semibold text-white outline-none placeholder:text-white/60 focus:border-white/50"
                 style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}
               />
               <Flair id={eq.flair} size={18} />
@@ -187,6 +188,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
           rows={daily}
           render={(r: DailyRow, i) => {
             const me = r.user_id === userId
+            const isFriend = friendIds.includes(r.user_id)
             return (
               <Row
                 key={r.user_id}
@@ -195,13 +197,13 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
                 avatar={r.avatar}
                 flair={r.flair}
                 name={r.handle}
-                onClick={me ? undefined : () => toggleFriend(r.user_id)}
+                onClick={me || isFriend ? undefined : () => addOnly(r.user_id)}
               >
                 <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-sage-dark">
                   {r.score}
                   <span className="text-ink3">/20</span>
                 </span>
-                {!me && <FriendToggle isFriend={friendIds.includes(r.user_id)} />}
+                {!me && <FriendToggle isFriend={isFriend} />}
               </Row>
             )
           }}
@@ -217,6 +219,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
           rows={allTime}
           render={(r: LeaderRow, i) => {
             const me = r.user_id === userId
+            const isFriend = friendIds.includes(r.user_id)
             return (
               <Row
                 key={r.user_id}
@@ -225,12 +228,12 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
                 avatar={r.avatar}
                 flair={r.flair}
                 name={r.handle}
-                onClick={me ? undefined : () => toggleFriend(r.user_id)}
+                onClick={me || isFriend ? undefined : () => addOnly(r.user_id)}
               >
                 <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-clay">
                   <Coins size={13} /> {r.pp_earned}
                 </span>
-                {!me && <FriendToggle isFriend={friendIds.includes(r.user_id)} />}
+                {!me && <FriendToggle isFriend={isFriend} />}
               </Row>
             )
           }}
@@ -253,17 +256,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
             setSearchResults(await searchByHandle(friendSearch))
             setSearching(false)
           }}
-          onAdd={(id) => {
-            addFriend(id)
-            const next = getFriends()
-            setFriendIds(next)
-            setSearchResults(null)
-            setFriendSearch('')
-          }}
-          onRemove={(id) => {
-            removeFriend(id)
-            setFriendIds(getFriends())
-          }}
+          onAdd={addOnly}
         />
       )}
 
@@ -357,13 +350,16 @@ function FriendToggle({ isFriend }: { isFriend: boolean }) {
   )
 }
 
+/** Format a street accuracy that may be missing (-1 → no hands yet). */
+const accLabel = (v: number): string => (v < 0 ? '—' : `${v}%`)
+
 /** Headline stats shown when a friend row is expanded. */
 function FriendStats({ r }: { r: LeaderRow }) {
   const stats: { label: string; value: string | number }[] = [
     { label: 'Hands', value: r.hands_played },
-    { label: 'Accuracy', value: `${r.accuracy}%` },
     { label: 'Best run', value: r.best_streak },
-    { label: 'PP', value: r.pp_earned },
+    { label: 'Preflop', value: accLabel(r.pre_acc) },
+    { label: 'Postflop', value: accLabel(r.post_acc) },
   ]
   return (
     <div className="-mt-0.5 grid grid-cols-4 gap-2 rounded-xl border border-line bg-ink/[0.03] px-3 py-3">
@@ -420,7 +416,6 @@ function FriendsPanel({
   searching,
   onSearch,
   onAdd,
-  onRemove,
 }: {
   configured: boolean
   userId: string | null
@@ -433,7 +428,6 @@ function FriendsPanel({
   searching: boolean
   onSearch: () => void
   onAdd: (id: string) => void
-  onRemove: (id: string) => void
 }) {
   const [expanded, setExpanded] = useState<string | null>(null)
   if (!configured)
@@ -480,12 +474,19 @@ function FriendsPanel({
                 <Avatar id={r.avatar} size={30} />
                 <span className="min-w-0 flex-1 truncate font-semibold text-ink">{r.handle}</span>
                 <span className="shrink-0 text-xs tabular-nums text-ink3">{r.pp_earned} PP</span>
-                <button
-                  onClick={() => isFriend ? onRemove(r.user_id) : onAdd(r.user_id)}
-                  className={`shrink-0 rounded-lg p-1.5 transition ${isFriend ? 'text-clay hover:bg-clay/10' : 'text-sage-dark hover:bg-sage/10'}`}
-                >
-                  {isFriend ? <UserMinus size={16} /> : <UserPlus size={16} />}
-                </button>
+                {isFriend ? (
+                  <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-sage-dark">
+                    <UserCheck size={15} /> Added
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => onAdd(r.user_id)}
+                    className="shrink-0 rounded-lg p-1.5 text-sage-dark transition hover:bg-sage/10"
+                    aria-label={`Add ${r.handle} as a friend`}
+                  >
+                    <UserPlus size={16} />
+                  </button>
+                )}
               </div>
             )
           })}
@@ -519,12 +520,6 @@ function FriendsPanel({
                     size={15}
                     className={`shrink-0 text-ink3 transition-transform ${open ? 'rotate-180' : ''}`}
                   />
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onRemove(r.user_id) }}
-                    className="ml-1 shrink-0 rounded-lg p-1 text-ink3 hover:text-clay hover:bg-clay/10 transition"
-                  >
-                    <UserMinus size={15} />
-                  </button>
                 </Row>
                 {open && <FriendStats r={r} />}
               </div>

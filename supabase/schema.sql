@@ -71,6 +71,9 @@ alter table public.profiles add column if not exists pp_earned  integer not null
 alter table public.profiles add column if not exists avatar     text;
 alter table public.profiles add column if not exists flair      text;
 alter table public.profiles add column if not exists background text;
+-- accuracy split by street (percent; -1 = no hands yet on that street)
+alter table public.profiles add column if not exists pre_acc    integer not null default -1;
+alter table public.profiles add column if not exists post_acc   integer not null default -1;
 
 create table if not exists public.daily_scores (
   user_id    uuid not null references auth.users (id) on delete cascade,
