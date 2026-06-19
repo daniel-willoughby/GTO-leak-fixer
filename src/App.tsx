@@ -212,7 +212,7 @@ export default function App() {
     <div className="min-h-full flex flex-col">
       <header className="safe-top sticky top-0 z-30 relative text-center py-3 border-b border-line bg-paper/80 backdrop-blur-md">
         <h1 className="serif text-xl font-semibold flex items-center justify-center gap-1">
-          Leak<span className="text-sage">·</span>Tutor
+          Pot<span className="text-sage">·</span>King
         </h1>
         <button
           onClick={() => setTab('profile')}

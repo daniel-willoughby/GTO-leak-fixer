@@ -35,7 +35,7 @@ export default function OnboardingScreen({ onPick }: Props) {
     <div className="min-h-full flex flex-col items-center justify-center px-5 py-10 max-w-xl mx-auto">
       <div className="text-center mb-8 animate-pop">
         <h1 className="serif text-3xl font-semibold flex items-center justify-center gap-1">
-          Leak<span className="text-sage">·</span>Tutor
+          Pot<span className="text-sage">·</span>King
         </h1>
         <p className="text-ink2 mt-2 text-[15px] leading-relaxed">
           Learn GTO poker by drilling real solver decisions. First, how much do you already know?
