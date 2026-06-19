@@ -248,7 +248,12 @@ export default function DrillScreen({
   const [lessonDone, setLessonDone] = useState(() => (lesson ? lessonProgress(lesson.id).done : false))
   // adaptive focus
   const [focusOn, setFocusOn] = useState(false)
+  // the *active* focus set (a targeted leak's category, or the weak set when the
+  // generic "Focus my leaks" toggle is on)
   const [focusCats, setFocusCats] = useState<Set<HandCategory>>(new Set())
+  // the user's weak categories, preloaded for the generic toggle. Kept separate
+  // so its async load never clobbers a specific targeted-drill focus.
+  const [weakCats, setWeakCats] = useState<Set<HandCategory>>(new Set())
   // a targeted-leak drill: pin RFI to a leaky seat + show a banner label
   const [focusPos, setFocusPos] = useState<RfiPosition | null>(null)
   const [focusLabel, setFocusLabel] = useState<string | null>(null)
@@ -265,7 +270,7 @@ export default function DrillScreen({
   // load weak categories + mistake count once (skipped in the focused ladder run)
   useEffect(() => {
     if (ladder) return
-    weakCategories().then((cats) => setFocusCats(new Set(cats)))
+    weakCategories().then((cats) => setWeakCats(new Set(cats)))
     mistakeCount().then(setMistakeBadge)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -400,7 +405,11 @@ export default function DrillScreen({
       setFocusLabel(null)
     } else {
       setFocusOn(true)
-      weakCategories().then((cats) => setFocusCats(new Set(cats)))
+      // generic toggle focuses the user's weak categories
+      setFocusPos(null)
+      setFocusLabel(null)
+      if (weakCats.size) setFocusCats(new Set(weakCats))
+      else weakCategories().then((cats) => { setWeakCats(new Set(cats)); setFocusCats(new Set(cats)) })
     }
   }
 
