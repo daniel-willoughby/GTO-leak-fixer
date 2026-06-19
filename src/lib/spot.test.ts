@@ -11,6 +11,7 @@ import {
   generateFreeplaySpot,
   type Spot,
   type HandState,
+  type HandCategory,
 } from './spot'
 import { parseCards, formatBoardCode } from './cards'
 import { ALL_NODES, FLOP_NODES } from '../data/postflop'
@@ -93,6 +94,20 @@ describe('generateSpot scope locks', () => {
       const s = generateSpot('vsRfi', { lockMatchup: { raiser: 'CO', hero: 'BTN' } })
       expect(s.raiserPos).toBe('CO')
       expect(s.heroPos).toBe('BTN')
+    }
+  })
+
+  it('always deals the focused category for rfi (never falls back off-target)', () => {
+    const focus = new Set<HandCategory>(['Offsuit ace'])
+    for (let i = 0; i < 200; i++) {
+      expect(generateSpot('rfi', { focus }).category).toBe('Offsuit ace')
+    }
+  })
+
+  it('deals from any of several focused categories for vsRfi', () => {
+    const focus = new Set<HandCategory>(['Suited ace', 'Pocket pair'])
+    for (let i = 0; i < 200; i++) {
+      expect([...focus]).toContain(generateSpot('vsRfi', { focus }).category)
     }
   })
 })

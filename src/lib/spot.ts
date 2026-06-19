@@ -105,6 +105,33 @@ export interface HandState {
 const ALL_LABELS: string[] = Array.from(new Set(gridLabels().flat()))
 const randOf = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)]
 
+// Labels bucketed by hand category, so a focused drill can deal straight from
+// the target category instead of rejection-sampling random hands (which fails
+// ~11% of the time for a small category like offsuit aces and silently serves
+// an off-target hand). Built lazily — classifyHand depends on a const declared
+// later in the file, so this can't run at module-init time.
+let labelsByCat: Map<HandCategory, string[]> | null = null
+function labelsForCat(cat: HandCategory): string[] {
+  if (!labelsByCat) {
+    labelsByCat = new Map()
+    for (const l of ALL_LABELS) {
+      const c = classifyHand(l)
+      const arr = labelsByCat.get(c)
+      if (arr) arr.push(l)
+      else labelsByCat.set(c, [l])
+    }
+  }
+  return labelsByCat.get(cat) ?? []
+}
+/** Pick a preflop label, honouring a focus filter when one is active. */
+function pickLabel(focus?: Set<HandCategory>): string {
+  if (focus?.size) {
+    const pool = [...focus].flatMap(labelsForCat)
+    if (pool.length) return randOf(pool)
+  }
+  return randOf(ALL_LABELS)
+}
+
 export type Difficulty = 'easy' | 'all' | 'hard'
 
 export interface GenOptions {
@@ -199,7 +226,7 @@ export function generateSpot(mode: DrillMode, opts: GenOptions = {}): Spot {
 function generateOne(mode: DrillMode, opts: GenOptions = {}): Spot {
   if (mode === 'postflop') return generatePostflopSpot()
   if (mode === 'multiway') return generateMultiwaySpot()
-  const label = randOf(ALL_LABELS)
+  const label = pickLabel(opts.focus)
   const cards = dealHandForLabel(label)
   if (mode === 'rfi') {
     const heroPos = opts.lockPos ?? randOf(RFI_POSITIONS)
