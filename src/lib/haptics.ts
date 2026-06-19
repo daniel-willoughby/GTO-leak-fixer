@@ -13,11 +13,13 @@ let enabled = localStorage.getItem('lt-haptics') !== '0'
 
 const canVibrate = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function'
 
-// Lazily-created hidden switch used for the iOS fallback.
-let iosSwitch: HTMLInputElement | null = null
-function iosHapticEl(): HTMLInputElement | null {
+// Lazily-created hidden <label><input type="checkbox" switch></label>. Clicking
+// the *label* toggles the switch, which is what fires the iOS system haptic —
+// this is the canonical form used by web haptic libraries.
+let iosLabel: HTMLLabelElement | null = null
+function iosHapticEl(): HTMLLabelElement | null {
   if (typeof document === 'undefined') return null
-  if (iosSwitch) return iosSwitch
+  if (iosLabel) return iosLabel
   const label = document.createElement('label')
   label.setAttribute('aria-hidden', 'true')
   label.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0;pointer-events:none;opacity:0'
@@ -26,8 +28,8 @@ function iosHapticEl(): HTMLInputElement | null {
   input.setAttribute('switch', '') // Safari-only attribute that carries the haptic
   label.appendChild(input)
   document.body.appendChild(label)
-  iosSwitch = input
-  return input
+  iosLabel = label
+  return label
 }
 
 export type HapticKind = 'light' | 'success' | 'error' | 'celebrate'
