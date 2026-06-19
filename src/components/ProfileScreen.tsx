@@ -74,10 +74,13 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
   }, [configured, userId])
 
   useEffect(() => {
+    // Refetch only when the viewed section or friend set changes — not on every
+    // `version` bump (which fires on each answered hand). The 30s read cache in
+    // leaderboard.ts coalesces the rest.
     if (section === 'daily') fetchDailyLeaderboard(dayKey()).then(setDaily)
     if (section === 'alltime') fetchAllTimeLeaderboard().then(setAllTime)
     if (section === 'friends') fetchFriendsLeaderboard(friendIds).then(setFriendRows)
-  }, [section, version, friendIds])
+  }, [section, friendIds])
 
   // Friends are permanent once added — adding is idempotent, with no un-add.
   const addOnly = (id: string) => {

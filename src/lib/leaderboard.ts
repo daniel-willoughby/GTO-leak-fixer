@@ -35,6 +35,20 @@ export interface DailyRow {
   background: string
 }
 
+// Short-lived in-memory cache for leaderboard reads so flipping between the
+// Daily / All-time / Friends tabs (or a re-render) doesn't refetch every time.
+// Busted whenever we publish a write, so a fresh score shows up immediately.
+const READ_TTL = 30_000
+const readCache = new Map<string, { t: number; data: unknown }>()
+async function cachedRead<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const hit = readCache.get(key)
+  if (hit && Date.now() - hit.t < READ_TTL) return hit.data as T
+  const data = await fn()
+  readCache.set(key, { t: Date.now(), data })
+  return data
+}
+const bustLeaderboardCache = () => readCache.clear()
+
 const HANDLE_KEY = 'lt-handle'
 export const getHandle = (): string => localStorage.getItem(HANDLE_KEY) ?? ''
 export const setHandle = (h: string): void => localStorage.setItem(HANDLE_KEY, h.trim().slice(0, 24))
@@ -87,6 +101,7 @@ export async function upsertProfile(userId: string, snap: SyncSnapshot): Promise
     updated_at: new Date().toISOString(),
   })
   if (error) console.error('[leaderboard] upsertProfile failed:', error.message)
+  else bustLeaderboardCache()
 }
 
 /**
@@ -94,22 +109,37 @@ export async function upsertProfile(userId: string, snap: SyncSnapshot): Promise
  * Safe to call repeatedly — uses upsert so it's idempotent. This ensures
  * scores completed before sign-in are retroactively submitted on next sync.
  */
+const SUBMITTED_KEY = 'lt-daily-submitted'
+const submittedMap = (): Record<string, string> => {
+  try { return JSON.parse(localStorage.getItem(SUBMITTED_KEY) ?? '{}') } catch { return {} }
+}
 export async function syncDailyScores(userId: string): Promise<void> {
   if (!supabase) return
-  const completed = Object.entries(dailyResults()).filter(([, r]) => r.completed)
-  await Promise.all(completed.map(([day, r]) => submitDailyScore(userId, day, r.score, r.timeMs)))
+  // A completed daily never changes, so only upsert results we haven't already
+  // pushed (keyed by score+time). This turns a per-push N-row write into a
+  // no-op once everything is submitted.
+  const submitted = submittedMap()
+  const pending = Object.entries(dailyResults()).filter(
+    ([day, r]) => r.completed && submitted[day] !== `${r.score}:${r.timeMs}`,
+  )
+  if (!pending.length) return
+  await Promise.all(pending.map(([day, r]) => submitDailyScore(userId, day, r.score, r.timeMs)))
+  for (const [day, r] of pending) submitted[day] = `${r.score}:${r.timeMs}`
+  localStorage.setItem(SUBMITTED_KEY, JSON.stringify(submitted))
 }
 
 /** All-time leaderboard: top players by total Poker Points earned. */
 export async function fetchAllTimeLeaderboard(limit = 50): Promise<LeaderRow[]> {
   if (!supabaseConfigured || !supabase) return []
-  const { data, error } = await supabase
-    .from('profiles')
-    .select(COLS)
-    .order('pp_earned', { ascending: false })
-    .limit(limit)
-  if (error || !data) return []
-  return data as unknown as LeaderRow[]
+  return cachedRead(`alltime:${limit}`, async () => {
+    const { data, error } = await supabase!
+      .from('profiles')
+      .select(COLS)
+      .order('pp_earned', { ascending: false })
+      .limit(limit)
+    if (error || !data) return []
+    return data as unknown as LeaderRow[]
+  })
 }
 
 /** Back-compat alias used by older callers (streak board → all-time board). */
@@ -136,20 +166,23 @@ export async function submitDailyScore(userId: string, day: string, score: numbe
     { onConflict: 'user_id,day' },
   )
   if (error) console.error('[leaderboard] submitDailyScore failed:', error.message)
+  else bustLeaderboardCache() // a fresh score should show up without waiting out the TTL
 }
 
 /** Today's daily leaderboard: best score first, faster time breaks ties. */
 export async function fetchDailyLeaderboard(day: string = dayKey(), limit = 50): Promise<DailyRow[]> {
   if (!supabaseConfigured || !supabase) return []
-  const { data, error } = await supabase
-    .from('daily_scores')
-    .select('user_id,day,score,time_ms,handle,avatar,flair,background')
-    .eq('day', day)
-    .order('score', { ascending: false })
-    .order('time_ms', { ascending: true })
-    .limit(limit)
-  if (error || !data) return []
-  return data as DailyRow[]
+  return cachedRead(`daily:${day}:${limit}`, async () => {
+    const { data, error } = await supabase!
+      .from('daily_scores')
+      .select('user_id,day,score,time_ms,handle,avatar,flair,background')
+      .eq('day', day)
+      .order('score', { ascending: false })
+      .order('time_ms', { ascending: true })
+      .limit(limit)
+    if (error || !data) return []
+    return data as DailyRow[]
+  })
 }
 
 // ---- friends ---------------------------------------------------------------
@@ -180,12 +213,14 @@ export async function searchByHandle(q: string): Promise<LeaderRow[]> {
 /** Fetch leaderboard rows for a specific set of user ids. */
 export async function fetchFriendsLeaderboard(friendIds: string[]): Promise<LeaderRow[]> {
   if (!supabase || !friendIds.length) return []
-  const { data } = await supabase
-    .from('profiles')
-    .select(COLS)
-    .in('user_id', friendIds)
-    .order('pp_earned', { ascending: false })
-  return (data as unknown as LeaderRow[]) ?? []
+  return cachedRead(`friends:${[...friendIds].sort().join(',')}`, async () => {
+    const { data } = await supabase!
+      .from('profiles')
+      .select(COLS)
+      .in('user_id', friendIds)
+      .order('pp_earned', { ascending: false })
+    return (data as unknown as LeaderRow[]) ?? []
+  })
 }
 
 /**

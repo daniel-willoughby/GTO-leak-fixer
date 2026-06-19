@@ -191,9 +191,32 @@ export async function syncNow(userId: string): Promise<SyncSnapshot> {
   return merged
 }
 
+// Cheap signature of the synced state (everything except the wall-clock
+// `updatedAt`). Lets a debounced push bail out when nothing actually changed.
+let lastPushSig = ''
+function snapSig(s: SyncSnapshot): string {
+  const d = s.decisions
+  return [
+    d.length,
+    d.length ? d[d.length - 1].ts : 0,
+    s.mistakes.length,
+    JSON.stringify(s.owned),
+    JSON.stringify(s.equipped),
+    JSON.stringify(s.dailyResults),
+    JSON.stringify(s.dailyWins),
+    JSON.stringify(s.friends),
+    s.handle,
+    s.level,
+    s.difficulty,
+  ].join('|')
+}
+
 /** Push only, used for debounced background saves after local changes. */
 export async function pushLocal(userId: string): Promise<void> {
   const snap = await gatherLocal()
+  const sig = snapSig(snap)
+  if (sig === lastPushSig) return // nothing changed since the last push — skip all 3 writes
+  lastPushSig = sig
   await pushRemote(userId, snap)
   await upsertProfile(userId, snap)
   await syncDailyScores(userId)
