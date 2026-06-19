@@ -1,4 +1,5 @@
 // Tiny Web Audio sound engine, synthesised tones, no asset files, works offline.
+import { haptic } from './haptics'
 
 let muted = localStorage.getItem('lt-muted') === '1'
 let ctx: AudioContext | null = null
@@ -49,18 +50,22 @@ function tone({ freq, dur, type = 'sine', gain = 0.14, delay = 0, slideTo }: Ton
   osc.stop(t0 + dur + 0.02)
 }
 
+// Haptics fire before the mute check so a silenced device still gives feedback.
 export function playCorrect() {
+  haptic('success')
   if (muted) return
   tone({ freq: 587, dur: 0.12, type: 'triangle' }) // D5
   tone({ freq: 880, dur: 0.18, type: 'triangle', delay: 0.1 }) // A5
 }
 
 export function playWrong() {
+  haptic('error')
   if (muted) return
   tone({ freq: 196, dur: 0.26, type: 'sawtooth', gain: 0.1, slideTo: 120 })
 }
 
 export function playClick() {
+  haptic('light')
   if (muted) return
   tone({ freq: 420, dur: 0.05, type: 'square', gain: 0.06 })
 }
@@ -71,6 +76,7 @@ export function playDeal() {
 }
 
 export function playStreak() {
+  haptic('celebrate')
   if (muted) return
   ;[523, 659, 784, 1047].forEach((f, i) => tone({ freq: f, dur: 0.12, type: 'triangle', delay: i * 0.07 }))
 }

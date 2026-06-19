@@ -117,6 +117,18 @@ function Bar({ stat }: { stat: LeakStat }) {
   )
 }
 
+/** Compact preflop/postflop accuracy pill shown under the headline. */
+function AccChip({ label, stats }: { label: string; stats: ModeStats }) {
+  const has = stats.total > 0
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper2 px-2.5 py-1 text-xs">
+      <span className="text-ink3">{label}</span>
+      <span className="font-bold tabular-nums text-sage-dark">{has ? `${Math.round(stats.accuracy * 100)}%` : '—'}</span>
+      {has && <span className="text-ink3">({stats.total})</span>}
+    </span>
+  )
+}
+
 function ModeSection({
   title,
   icon,
@@ -196,6 +208,10 @@ export default function LeaksScreen({ version, onDrillLeaks, onOpenLesson }: Pro
           <div className="serif text-5xl font-semibold text-sage-dark">{Math.round(sum.accuracy * 100)}%</div>
           <div className="text-ink2 text-sm mt-1">
             {sum.total} hands · {sum.correct} correct
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <AccChip label="Preflop" stats={sum.preflop} />
+            <AccChip label="Postflop" stats={sum.postflop} />
           </div>
         </div>
         <button
