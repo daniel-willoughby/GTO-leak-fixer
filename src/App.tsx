@@ -10,6 +10,7 @@ import ProfileScreen from './components/ProfileScreen'
 import AccountModal from './components/AccountModal'
 import PwaUpdater from './components/PwaUpdater'
 import { isMuted, setMuted } from './lib/sound'
+import { hapticsEnabled, setHaptics, haptic } from './lib/haptics'
 import { getLevel, setLevel, type Level } from './lib/level'
 import { supabaseConfigured } from './lib/supabase'
 import { useAuth } from './lib/useAuth'
@@ -48,6 +49,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('drill')
   const [progress, setProgress] = useState(0)
   const [muted, setMutedState] = useState(isMuted())
+  const [haptics, setHapticsState] = useState(hapticsEnabled())
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null)
   const [openLessonId, setOpenLessonId] = useState<string | null>(null)
   const [difficulty, setDifficulty] = useState<Difficulty>(
@@ -180,6 +182,13 @@ export default function App() {
     setMutedState(v)
   }
 
+  function toggleHaptics() {
+    const v = !haptics
+    setHaptics(v)
+    setHapticsState(v)
+    if (v) haptic('success') // confirm the device actually buzzes
+  }
+
   function pickDifficulty(d: Difficulty) {
     setDifficulty(d)
     localStorage.setItem('lt-difficulty', d)
@@ -295,6 +304,11 @@ export default function App() {
                     <span className="text-xs text-ink3">{d.note}</span>
                   </button>
                 ))}
+              </div>
+              <p className="text-xs uppercase tracking-wide text-ink3 mb-2 mt-3">Feedback</p>
+              <div className="flex flex-col gap-1">
+                <ToggleRow label="Sound" on={!muted} onClick={toggleMute} />
+                <ToggleRow label="Haptics" sub="On supported phones" on={haptics} onClick={toggleHaptics} />
               </div>
             </div>
           </>
@@ -446,5 +460,29 @@ export default function App() {
 
       <PwaUpdater />
     </div>
+  )
+}
+
+/** A labelled on/off pill switch used in the settings panel. */
+function ToggleRow({ label, sub, on, onClick }: { label: string; sub?: string; on: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      role="switch"
+      aria-checked={on}
+      className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-ink transition hover:bg-ink/5"
+    >
+      <span className="flex flex-col items-start">
+        <span className="font-semibold">{label}</span>
+        {sub && <span className="text-[11px] text-ink3">{sub}</span>}
+      </span>
+      <span
+        className={`relative h-5 w-9 shrink-0 rounded-full transition ${on ? 'bg-sage' : 'bg-ink/20'}`}
+      >
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${on ? 'left-[1.125rem]' : 'left-0.5'}`}
+        />
+      </span>
+    </button>
   )
 }
