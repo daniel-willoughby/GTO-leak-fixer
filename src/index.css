@@ -49,8 +49,11 @@ body {
   background-color: rgb(var(--c-paper));
   background-image: radial-gradient(120% 70% at 50% -12%, var(--glow) 0%, transparent 55%);
   background-attachment: fixed;
-  font-family: 'Inter Variable', system-ui, -apple-system, sans-serif;
-  letter-spacing: -0.006em;
+  /* Bodoni Moda app-wide; the poker table + cards opt back into Inter (font-sans)
+     where the Didone's thin strokes would hurt readability. */
+  font-family: 'Bodoni Moda Variable', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: 0.1px;
   -webkit-tap-highlight-color: transparent;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;

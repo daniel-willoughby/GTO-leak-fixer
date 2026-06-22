@@ -133,7 +133,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
   }
 
   return (
-    <div className="relative w-full max-w-lg mx-auto aspect-[4/3] sm:aspect-[5/4]">
+    <div className="font-sans relative w-full max-w-lg mx-auto aspect-[4/3] sm:aspect-[5/4]">
       {/* rail */}
       <div
         className="absolute inset-[10%] rounded-full p-[7px]"
