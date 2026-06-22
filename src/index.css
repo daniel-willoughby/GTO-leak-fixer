@@ -96,10 +96,10 @@ body::before {
       0 1px 0 rgba(34, 31, 25, 0.03),
       0 10px 26px -16px rgba(34, 31, 25, 0.18);
   }
-  /* serif display */
+  /* serif display — Bodoni Moda, the free Bodoni Z37 stand-in */
   .serif {
-    font-family: 'Fraunces Variable', Georgia, serif;
-    font-weight: 500;
+    font-family: 'Bodoni Moda Variable', Georgia, serif;
+    font-weight: 600;
     letter-spacing: 0.2px;
   }
 }

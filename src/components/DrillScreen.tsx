@@ -580,7 +580,7 @@ export default function DrillScreen({
       {canContinue && (
         <button
           onClick={continueHand}
-          className="btn btn-secondary pointer-events-auto flex-1 max-w-[11rem] py-4 text-base flex items-center justify-center gap-2"
+          className="serif btn btn-secondary pointer-events-auto flex-1 max-w-[11rem] py-4 text-base flex items-center justify-center gap-2"
         >
           <FastForward size={16} />{' '}
           {spot.mode === 'rfi' ? 'Flop' : spot.handState?.street === 'turn' ? 'River' : 'Turn'}
@@ -588,7 +588,7 @@ export default function DrillScreen({
       )}
       <button
         onClick={lesson && lessonDone ? onExitLesson : next}
-        className="btn btn-primary pointer-events-auto flex-1 max-w-sm py-4 text-lg flex items-center justify-center gap-2"
+        className="serif btn btn-primary pointer-events-auto flex-1 max-w-sm py-4 text-lg flex items-center justify-center gap-2"
       >
         {ladder
           ? ladderIndex + 1 >= ladder.seeds.length
@@ -862,7 +862,7 @@ export default function DrillScreen({
           )}
           <div className={`grid w-full gap-3 ${spot.actions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {spot.actions.map((a) => (
-              <button key={a} onClick={() => answer(a)} className={`py-4 text-lg ${ACTION_STYLE[a]}`}>
+              <button key={a} onClick={() => answer(a)} className={`serif py-4 text-lg ${ACTION_STYLE[a]}`}>
                 {ACTION_LABEL[a]} <span className="text-xs opacity-70">({KEY_HINT[a] ?? ''})</span>
               </button>
             ))}

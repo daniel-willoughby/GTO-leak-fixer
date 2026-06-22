@@ -1,7 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/inter'
-import '@fontsource-variable/fraunces'
+// Bodoni Moda: a free high-contrast Didone, the close match to the Bodoni Z37
+// used for the wordmark. Drives the app's serif display type.
+import '@fontsource-variable/bodoni-moda'
 import './index.css'
 import App from './App.tsx'
 import { loadFreeplayNodes } from './data/freeplay'

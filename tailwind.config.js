@@ -22,7 +22,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter Variable', 'system-ui', '-apple-system', 'sans-serif'],
-        serif: ['Fraunces Variable', 'Georgia', 'serif'],
+        serif: ['Bodoni Moda Variable', 'Georgia', 'serif'],
       },
     },
   },
