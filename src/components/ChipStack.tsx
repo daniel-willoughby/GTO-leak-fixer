@@ -23,7 +23,7 @@ export default function ChipStack({ amount, tone = 'bet' }: { amount: number; to
           />
         ))}
       </div>
-      <span className="text-[9px] leading-none font-semibold text-white px-1.5 py-px rounded bg-[#3a352b]/70 whitespace-nowrap">
+      <span className="font-mono text-[9px] leading-none font-semibold text-white px-1.5 py-px rounded bg-[#3a352b]/70 whitespace-nowrap tabular-nums">
         {fmt(amount)}
       </span>
     </div>

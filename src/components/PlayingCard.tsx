@@ -23,7 +23,7 @@ export default function PlayingCard({ card, size = 'md' }: { card: Card; size?: 
 
   if (size === 'sm') {
     return (
-      <div className={`font-sans ${s.box} bg-[#fcfaf4] border border-[#e6e0d3] flex flex-col items-center justify-center leading-none shadow-[0_2px_8px_rgba(34,31,25,0.12)]`}>
+      <div className={`font-table ${s.box} bg-[#fcfaf4] border border-[#e6e0d3] flex flex-col items-center justify-center leading-none shadow-[0_2px_8px_rgba(34,31,25,0.12)]`}>
         <span className={`${s.rank} font-semibold ${color}`}>{card.rank}</span>
         <span className={`${s.suit} ${color}`}>{suit}</span>
       </div>
@@ -38,7 +38,7 @@ export default function PlayingCard({ card, size = 'md' }: { card: Card; size?: 
     </span>
   )
   return (
-    <div className={`font-sans ${s.box} bg-[#fcfaf4] border border-[#e6e0d3] relative shadow-[0_1px_0_rgba(34,31,25,0.04),0_10px_22px_-6px_rgba(34,31,25,0.18)]`}>
+    <div className={`font-table ${s.box} bg-[#fcfaf4] border border-[#e6e0d3] relative shadow-[0_1px_0_rgba(34,31,25,0.04),0_10px_22px_-6px_rgba(34,31,25,0.18)]`}>
       <div className="absolute top-1.5 left-2">{corner}</div>
       <div className={`absolute inset-0 flex items-center justify-center ${s.suit} ${color} opacity-90`}>{suit}</div>
       <div className="absolute bottom-1.5 right-2 rotate-180">{corner}</div>

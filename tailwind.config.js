@@ -23,6 +23,9 @@ export default {
       fontFamily: {
         sans: ['Inter Variable', 'system-ui', '-apple-system', 'sans-serif'],
         serif: ['Bodoni Moda Variable', 'Georgia', 'serif'],
+        // poker-table type: a grotesque that pairs with the Didone, kept legible
+        table: ['Archivo Variable', 'Inter Variable', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono Variable', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
     },
   },

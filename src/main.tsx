@@ -4,6 +4,10 @@ import '@fontsource-variable/inter'
 // Bodoni Moda: a free high-contrast Didone, the close match to the Bodoni Z37
 // used for the wordmark. Drives the app's serif display type.
 import '@fontsource-variable/bodoni-moda'
+// Poker table type: Archivo (a grotesque that pairs with the Didone, kept clear
+// at small sizes) + JetBrains Mono for tabular bet/stack figures.
+import '@fontsource-variable/archivo'
+import '@fontsource-variable/jetbrains-mono'
 import './index.css'
 import App from './App.tsx'
 import { loadFreeplayNodes } from './data/freeplay'

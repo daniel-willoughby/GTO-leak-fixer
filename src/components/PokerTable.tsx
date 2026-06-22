@@ -133,7 +133,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
   }
 
   return (
-    <div className="font-sans relative w-full max-w-lg mx-auto aspect-[4/3] sm:aspect-[5/4]">
+    <div className="font-table relative w-full max-w-lg mx-auto aspect-[4/3] sm:aspect-[5/4]">
       {/* rail */}
       <div
         className="absolute inset-[10%] rounded-full p-[7px]"
@@ -251,7 +251,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
               />
             ))}
           </div>
-          <span className="text-[9px] leading-none font-semibold text-white px-1.5 py-px rounded bg-[#3a352b]/70 whitespace-nowrap">
+          <span className="font-mono text-[9px] leading-none font-semibold text-white px-1.5 py-px rounded bg-[#3a352b]/70 whitespace-nowrap tabular-nums">
             {pot} bb · POT
           </span>
         </div>
