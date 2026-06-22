@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Spade, Target, GraduationCap, User, Volume2, VolumeX, SlidersHorizontal, Cloud, X, Coins, type LucideIcon } from 'lucide-react'
+import { Spade, Target, GraduationCap, User, CalendarCheck, Volume2, VolumeX, SlidersHorizontal, Cloud, X, Coins, type LucideIcon } from 'lucide-react'
 import DrillScreen, { type LadderRun } from './components/DrillScreen'
 import { Wordmark } from './components/Wordmark'
 import DailyChallengeCard from './components/DailyChallengeCard'
@@ -17,16 +17,17 @@ import { supabaseConfigured } from './lib/supabase'
 import { useAuth } from './lib/useAuth'
 import { syncNow, pushLocal } from './lib/sync'
 import { newlyEarned, type Achievement } from './lib/achievements'
-import { pointsState, recordDailyResult } from './lib/points'
+import { pointsState, recordDailyResult, dailyResult } from './lib/points'
 import { dayKey, recordLadderComplete } from './lib/daily'
 import { dailyLadderSeeds, ladderProgress, saveLadderProgress, clearLadderProgress } from './lib/dailyLadder'
 import { submitDailyScore } from './lib/leaderboard'
 import type { Difficulty, FocusRequest } from './lib/spot'
 
-type Tab = 'drill' | 'lessons' | 'leaks' | 'profile'
+type Tab = 'drill' | 'daily' | 'lessons' | 'leaks' | 'profile'
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'drill', label: 'Drill', icon: Spade },
+  { id: 'daily', label: 'Daily', icon: CalendarCheck },
   { id: 'lessons', label: 'Lessons', icon: GraduationCap },
   { id: 'leaks', label: 'Leaks', icon: Target },
   { id: 'profile', label: 'Profile', icon: User },
@@ -71,7 +72,20 @@ export default function App() {
   const [ladderRun, setLadderRun] = useState<LadderRun | null>(null)
   const [ladderResult, setLadderResult] = useState<{ score: number; total: number } | null>(null)
   const [dailyVersion, setDailyVersion] = useState(0)
-  const [drillView, setDrillView] = useState<'drill' | 'daily'>('drill')
+
+  // one-per-day invite popup nudging the player toward today's challenge
+  const DAILY_INVITE_KEY = 'lt-daily-invite-dismissed'
+  const [dailyInvite, setDailyInvite] = useState(false)
+  useEffect(() => {
+    const today = dayKey()
+    const done = dailyResult(today)?.completed
+    const dismissed = localStorage.getItem(DAILY_INVITE_KEY) === today
+    setDailyInvite(!done && !dismissed)
+  }, [dailyVersion])
+  function dismissDailyInvite() {
+    localStorage.setItem(DAILY_INVITE_KEY, dayKey())
+    setDailyInvite(false)
+  }
 
   function startLadder() {
     const day = dayKey()
@@ -350,39 +364,32 @@ export default function App() {
         )}
         {/* keyed so each tab change re-mounts and plays a gentle fade-up */}
         <div key={tab} className="animate-fade-up h-full">
-          {tab === 'drill' &&
+          {tab === 'drill' && (
+            <DrillScreen
+              level={level}
+              onProgress={() => setProgress((p) => p + 1)}
+              requestFocus={focusRequest}
+              onFocusConsumed={() => setFocusRequest(null)}
+              difficulty={difficulty}
+            />
+          )}
+          {tab === 'daily' &&
             (ladderRun ? (
               <DrillScreen level={level} onProgress={() => setProgress((p) => p + 1)} ladder={ladderRun} />
             ) : ladderResult ? (
               <LadderResults
                 score={ladderResult.score}
                 total={ladderResult.total}
-                onClose={() => { setLadderResult(null); setDrillView('drill') }}
+                onClose={() => setLadderResult(null)}
                 onLeaderboard={() => {
                   setLadderResult(null)
-                  setDrillView('drill')
                   setTab('profile')
                 }}
               />
-            ) : drillView === 'daily' ? (
-              <div className="px-4 pt-6 max-w-xl lg:max-w-2xl mx-auto flex flex-col gap-4">
-                <DailyChallengeCard day={dayKey()} version={dailyVersion} onPlay={startLadder} />
-                <button
-                  onClick={() => setDrillView('drill')}
-                  className="text-sm text-ink3 hover:text-ink2 text-center transition"
-                >
-                  ← Back to drilling
-                </button>
-              </div>
             ) : (
-              <DrillScreen
-                level={level}
-                onProgress={() => setProgress((p) => p + 1)}
-                requestFocus={focusRequest}
-                onFocusConsumed={() => setFocusRequest(null)}
-                difficulty={difficulty}
-                onOpenDaily={() => setDrillView('daily')}
-              />
+              <div className="px-4 pt-6 max-w-xl lg:max-w-2xl mx-auto">
+                <DailyChallengeCard day={dayKey()} version={dailyVersion} onPlay={startLadder} />
+              </div>
             ))}
           {tab === 'lessons' && (
             <LessonsScreen
@@ -458,6 +465,32 @@ export default function App() {
           </button>
         )
       })()}
+
+      {dailyInvite && tab !== 'daily' && !ladderRun && (
+        <div
+          className="fixed inset-x-0 z-50 flex justify-center px-4"
+          style={{ bottom: 'calc(4.75rem + env(safe-area-inset-bottom))' }}
+        >
+          <div className="animate-pop flex w-full max-w-sm items-center gap-3 rounded-2xl border border-sage/40 bg-paper2 px-4 py-3 shadow-xl">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sage text-white dark:text-paper">
+              <CalendarCheck size={20} />
+            </span>
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="text-sm font-semibold text-ink">Today's challenge is live</p>
+              <p className="text-xs text-ink2">20 spots, one shot — climb the daily board.</p>
+            </div>
+            <button
+              onClick={() => { setDailyInvite(false); setTab('daily') }}
+              className="btn btn-primary shrink-0 px-3 py-1.5 text-sm"
+            >
+              Play
+            </button>
+            <button onClick={dismissDailyInvite} aria-label="Dismiss" className="shrink-0 p-1 text-ink3 hover:text-ink">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       <PwaUpdater />
     </div>
