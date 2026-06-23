@@ -75,7 +75,9 @@ export async function touchMistake(key: string): Promise<void> {
 }
 
 export async function dueMistakes(limit = 50): Promise<MistakeRecord[]> {
-  return db.mistakes.orderBy('ts').limit(limit).toArray()
+  // Most recent mistakes first: review starts with what you just got wrong
+  // (ts is the last time the spot was missed), capped to the newest `limit`.
+  return db.mistakes.orderBy('ts').reverse().limit(limit).toArray()
 }
 
 export async function mistakeCount(): Promise<number> {
