@@ -13,6 +13,14 @@ export interface Card {
 // rank index: A=0 (highest) .. 2=12 (lowest)
 export const rankIndex = (r: Rank): number => RANKS.indexOf(r)
 
+// Human-facing rank text. Internally a ten is the single char 'T' (so keys,
+// parsing and range data stay two-chars-per-card); only the display reads "10".
+export const rankLabel = (r: string): string => (r === 'T' ? '10' : r)
+
+// Display form of a hand-grid label ("T9s" → "109s", "TT" → "1010"). Only the
+// 'T' rank is rewritten; the suited/offsuit suffix is lowercase so it's untouched.
+export const prettyHandLabel = (label: string): string => label.replace(/T/g, '10')
+
 /** Canonical 169-hand label for two cards, e.g. "AKs", "AKo", "77". */
 export function handLabel(a: Card, b: Card): string {
   const [hi, lo] = rankIndex(a.rank) <= rankIndex(b.rank) ? [a, b] : [b, a]
@@ -133,7 +141,7 @@ const BOARD_CODE = /^([2-9TJQKA][shdc]){3,5}$/
  */
 export function formatBoardCode(code: string): string {
   if (!BOARD_CODE.test(code)) return code
-  const cards = code.match(/../g)!.map((c) => `${c[0]}${SUIT_GLYPH[c[1]]}`)
+  const cards = code.match(/../g)!.map((c) => `${rankLabel(c[0])}${SUIT_GLYPH[c[1]]}`)
   const flop = cards.slice(0, 3).join(' ')
   return cards.length === 3 ? flop : `${flop} · ${cards.slice(3).join(' ')}`
 }

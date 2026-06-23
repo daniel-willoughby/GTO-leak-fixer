@@ -1,4 +1,4 @@
-import { dealHandForLabel, gridLabels, parseCards, type Card } from './cards'
+import { dealHandForLabel, gridLabels, parseCards, prettyHandLabel, type Card } from './cards'
 import {
   isRfiHand,
   rfiFreq,
@@ -730,6 +730,18 @@ function explainFreeplay(spot: Spot, chosen: Action): string {
 }
 
 function explain(spot: Spot, chosen: Action, level: Level): string {
+  return tensInLabel(explainRaw(spot, chosen, level), spot.label)
+}
+
+// Swap the embedded hand label for its "10"-spelled display form *after* the
+// text is built, so only the exact label token changes — seat names like UTG
+// and BTN (which also contain a 'T') are never touched.
+function tensInLabel(text: string, label?: string): string {
+  if (!label || !label.includes('T')) return text
+  return text.split(label).join(prettyHandLabel(label))
+}
+
+function explainRaw(spot: Spot, chosen: Action, level: Level): string {
   if (spot.freeplay) return explainFreeplay(spot, chosen)
   if (spot.facingBet) return explainFacingBet(spot, chosen, level)
   if (level === 'beginner') {

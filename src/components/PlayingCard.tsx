@@ -1,4 +1,4 @@
-import type { Card } from '../lib/cards'
+import { rankLabel, type Card } from '../lib/cards'
 
 const SUIT_SYMBOL: Record<string, string> = { s: '♠', h: '♥', d: '♦', c: '♣' }
 // muted, editorial 4-colour palette (slightly richer for legibility on cream)
@@ -24,7 +24,7 @@ export default function PlayingCard({ card, size = 'md' }: { card: Card; size?: 
   if (size === 'sm') {
     return (
       <div className={`font-table ${s.box} bg-[#fcfaf4] border border-[#e6e0d3] flex flex-col items-center justify-center leading-none shadow-[0_2px_8px_rgba(34,31,25,0.12)]`}>
-        <span className={`${s.rank} font-semibold ${color}`}>{card.rank}</span>
+        <span className={`${s.rank} font-semibold tracking-tight ${color}`}>{rankLabel(card.rank)}</span>
         <span className={`${s.suit} ${color}`}>{suit}</span>
       </div>
     )
@@ -33,7 +33,7 @@ export default function PlayingCard({ card, size = 'md' }: { card: Card; size?: 
   // large card: clean corner index + big centre pip (Inter for readability)
   const corner = (
     <span className={`flex flex-col items-center leading-none ${color}`}>
-      <span className="text-lg font-semibold">{card.rank}</span>
+      <span className="text-lg font-semibold tracking-tight">{rankLabel(card.rank)}</span>
       <span className="text-[10px] -mt-0.5">{suit}</span>
     </span>
   )
