@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Coins, Lock, Sparkles, UserPlus, UserCheck, Search, ChevronDown, Pencil } from 'lucide-react'
+import { Check, Coins, Lock, Sparkles, UserPlus, UserCheck, Search, ChevronDown, Pencil, X } from 'lucide-react'
 import { getAchievements, type Achievement } from '../lib/achievements'
 import { pointsState, owned, equipped, equip, buyItem } from '../lib/points'
 import { itemsOfType, type ShopItem, type CosmeticType } from '../lib/shop'
@@ -15,8 +15,12 @@ import {
   getFriends,
   addFriend,
   claimDailyWinIfTop,
+  sendFriendRequest,
+  fetchIncomingRequests,
+  deleteFriendRequest,
   type DailyRow,
   type LeaderRow,
+  type FriendRequest,
 } from '../lib/leaderboard'
 import { gatherLocal } from '../lib/sync'
 import { dayKey } from '../lib/daily'
@@ -31,19 +35,26 @@ interface Props {
   onChanged: () => void
 }
 
-type Section = 'achievements' | 'daily' | 'alltime' | 'friends' | 'shop'
+type Section = 'achievements' | 'leaderboards' | 'friends' | 'shop'
 const SECTIONS: { id: Section; label: string }[] = [
   { id: 'achievements', label: 'Achievements' },
-  { id: 'daily', label: 'Daily' },
-  { id: 'alltime', label: 'All-time' },
+  { id: 'leaderboards', label: 'Leaderboards' },
   { id: 'friends', label: 'Friends' },
   { id: 'shop', label: 'Shop' },
+]
+
+// the Leaderboards tab switches between these two boards with a sub-toggle
+type BoardMode = 'daily' | 'alltime'
+const BOARD_MODES: { id: BoardMode; label: string }[] = [
+  { id: 'daily', label: 'Daily' },
+  { id: 'alltime', label: 'All-time' },
 ]
 
 const GROUPS: Achievement['group'][] = ['Volume', 'Accuracy', 'Streaks', 'Learning', 'Collection']
 
 export default function ProfileScreen({ version, configured, userId, onSignIn, onChanged }: Props) {
   const [section, setSection] = useState<Section>('achievements')
+  const [boardMode, setBoardMode] = useState<BoardMode>('daily')
   const [items, setItems] = useState<Achievement[] | null>(null)
   const [balance, setBalance] = useState(0)
   const [eq, setEq] = useState(equipped())
@@ -56,6 +67,11 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
   const [friendSearch, setFriendSearch] = useState('')
   const [searchResults, setSearchResults] = useState<LeaderRow[] | null>(null)
   const [searching, setSearching] = useState(false)
+  const [requests, setRequests] = useState<FriendRequest[]>([])
+
+  const loadRequests = () => {
+    if (userId) fetchIncomingRequests(userId).then(setRequests)
+  }
 
   const refreshLocal = () => {
     pointsState().then((s) => setBalance(s.balance))
@@ -78,17 +94,46 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
     // Refetch only when the viewed section or friend set changes — not on every
     // `version` bump (which fires on each answered hand). The 30s read cache in
     // leaderboard.ts coalesces the rest.
-    if (section === 'daily') fetchDailyLeaderboard(dayKey()).then(setDaily)
-    if (section === 'alltime') fetchAllTimeLeaderboard().then(setAllTime)
-    if (section === 'friends') fetchFriendsLeaderboard(friendIds).then(setFriendRows)
-  }, [section, friendIds])
+    if (section === 'leaderboards' && boardMode === 'daily') fetchDailyLeaderboard(dayKey()).then(setDaily)
+    if (section === 'leaderboards' && boardMode === 'alltime') fetchAllTimeLeaderboard().then(setAllTime)
+    if (section === 'friends') {
+      fetchFriendsLeaderboard(friendIds).then(setFriendRows)
+      loadRequests()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section, boardMode, friendIds])
+
+  // keep the incoming-request inbox fresh whenever the signed-in user changes
+  useEffect(() => {
+    loadRequests()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId])
 
   // Friends are permanent once added — adding is idempotent, with no un-add.
+  // Adding also pings the other player so they're notified and can add back.
   const addOnly = (id: string) => {
     if (getFriends().includes(id)) return
     addFriend(id)
     setFriendIds(getFriends())
+    if (userId) sendFriendRequest(userId, id)
     onChanged() // persist the friends list to the cloud snapshot
+  }
+
+  // Accept an incoming request: add them back, then clear the request.
+  const acceptRequest = async (req: FriendRequest) => {
+    if (!getFriends().includes(req.from_user)) {
+      addFriend(req.from_user)
+      setFriendIds(getFriends())
+    }
+    await deleteFriendRequest(req.id)
+    setRequests((rs) => rs.filter((r) => r.id !== req.id))
+    if (section === 'friends') fetchFriendsLeaderboard(getFriends()).then(setFriendRows)
+    onChanged()
+  }
+
+  const dismissRequest = async (req: FriendRequest) => {
+    await deleteFriendRequest(req.id)
+    setRequests((rs) => rs.filter((r) => r.id !== req.id))
   }
 
   async function saveHandle() {
@@ -196,67 +241,84 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
         </>
       )}
 
-      {section === 'daily' && (
-        <LeaderboardPanel
-          configured={configured}
-          userId={userId}
-          onSignIn={onSignIn}
-          empty="No scores yet today — be the first to climb the ladder."
-          rows={daily}
-          render={(r: DailyRow, i) => {
-            const me = r.user_id === userId
-            const isFriend = friendIds.includes(r.user_id)
-            return (
-              <Row
-                key={r.user_id}
-                rank={i + 1}
-                me={me}
-                avatar={r.avatar}
-                flair={r.flair}
-                name={r.handle}
-                background={r.background}
-                onClick={me || isFriend ? undefined : () => addOnly(r.user_id)}
+      {section === 'leaderboards' && (
+        <div className="flex flex-col gap-4">
+          {/* sub-toggle: Daily ↔ All-time, both boards under one tab */}
+          <div className="flex gap-1 rounded-xl border border-line bg-ink/[0.06] p-1 text-sm">
+            {BOARD_MODES.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setBoardMode(m.id)}
+                className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  boardMode === m.id ? 'bg-sage text-white shadow-[0_4px_12px_-4px_rgba(67,84,72,0.6)]' : 'text-ink2 hover:text-ink'
+                }`}
               >
-                <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-sage-dark">
-                  {r.score}
-                  <span className="text-ink3">/20</span>
-                </span>
-                {!me && <FriendToggle isFriend={isFriend} />}
-              </Row>
-            )
-          }}
-        />
-      )}
+                {m.label}
+              </button>
+            ))}
+          </div>
 
-      {section === 'alltime' && (
-        <LeaderboardPanel
-          configured={configured}
-          userId={userId}
-          onSignIn={onSignIn}
-          empty="No players yet — earn some Poker Points to appear here."
-          rows={allTime}
-          render={(r: LeaderRow, i) => {
-            const me = r.user_id === userId
-            const isFriend = friendIds.includes(r.user_id)
-            return (
-              <Row
-                key={r.user_id}
-                rank={i + 1}
-                me={me}
-                avatar={r.avatar}
-                flair={r.flair}
-                name={r.handle}
-                background={r.background}
-                onClick={me || isFriend ? undefined : () => addOnly(r.user_id)}
-              >
-                <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-clay">
-                  <Coins size={13} /> {r.pp_earned}
-                </span>
-                {!me && <FriendToggle isFriend={isFriend} />}
-              </Row>
-            )
-          }}
-        />
+          {boardMode === 'daily' ? (
+            <LeaderboardPanel
+              configured={configured}
+              userId={userId}
+              onSignIn={onSignIn}
+              empty="No scores yet today — be the first to climb the ladder."
+              rows={daily}
+              render={(r: DailyRow, i) => {
+                const me = r.user_id === userId
+                const isFriend = friendIds.includes(r.user_id)
+                return (
+                  <Row
+                    key={r.user_id}
+                    rank={i + 1}
+                    me={me}
+                    avatar={r.avatar}
+                    flair={r.flair}
+                    name={r.handle}
+                    background={r.background}
+                    onClick={me || isFriend ? undefined : () => addOnly(r.user_id)}
+                  >
+                    <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-sage-dark">
+                      {r.score}
+                      <span className="text-ink3">/20</span>
+                    </span>
+                    {!me && <FriendToggle isFriend={isFriend} />}
+                  </Row>
+                )
+              }}
+            />
+          ) : (
+            <LeaderboardPanel
+              configured={configured}
+              userId={userId}
+              onSignIn={onSignIn}
+              empty="No players yet — earn some Poker Points to appear here."
+              rows={allTime}
+              render={(r: LeaderRow, i) => {
+                const me = r.user_id === userId
+                const isFriend = friendIds.includes(r.user_id)
+                return (
+                  <Row
+                    key={r.user_id}
+                    rank={i + 1}
+                    me={me}
+                    avatar={r.avatar}
+                    flair={r.flair}
+                    name={r.handle}
+                    background={r.background}
+                    onClick={me || isFriend ? undefined : () => addOnly(r.user_id)}
+                  >
+                    <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-clay">
+                      <Coins size={13} /> {r.pp_earned}
+                    </span>
+                    {!me && <FriendToggle isFriend={isFriend} />}
+                  </Row>
+                )
+              }}
+            />
+          )}
+        </div>
       )}
 
       {section === 'friends' && (
@@ -276,6 +338,9 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
             setSearching(false)
           }}
           onAdd={addOnly}
+          requests={requests}
+          onAccept={acceptRequest}
+          onDismiss={dismissRequest}
         />
       )}
 
@@ -447,6 +512,9 @@ function FriendsPanel({
   searching,
   onSearch,
   onAdd,
+  requests,
+  onAccept,
+  onDismiss,
 }: {
   configured: boolean
   userId: string | null
@@ -459,6 +527,9 @@ function FriendsPanel({
   searching: boolean
   onSearch: () => void
   onAdd: (id: string) => void
+  requests: FriendRequest[]
+  onAccept: (req: FriendRequest) => void
+  onDismiss: (req: FriendRequest) => void
 }) {
   const [expanded, setExpanded] = useState<string | null>(null)
   if (!configured)
@@ -473,6 +544,43 @@ function FriendsPanel({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* incoming friend requests — the "you've been added" notification */}
+      {requests.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <p className="px-1 text-xs uppercase tracking-wide text-ink3">
+            Friend requests · {requests.length}
+          </p>
+          {requests.map((req) => (
+            <div
+              key={req.id}
+              className="flex items-center gap-3 rounded-xl border border-sage/30 bg-sage/[0.08] px-3 py-2.5"
+            >
+              <Avatar id={req.from_avatar} size={30} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1 truncate">
+                  <span className="truncate font-semibold text-ink">{req.from_handle}</span>
+                  {req.from_flair && <Flair id={req.from_flair} size={14} />}
+                </div>
+                <p className="text-xs text-ink3">added you as a friend</p>
+              </div>
+              <button
+                onClick={() => onAccept(req)}
+                className="btn btn-primary flex shrink-0 items-center gap-1 px-2.5 py-1.5 text-xs"
+              >
+                <UserCheck size={14} /> Add back
+              </button>
+              <button
+                onClick={() => onDismiss(req)}
+                className="shrink-0 rounded-lg p-1.5 text-ink3 transition hover:bg-ink/[0.06] hover:text-ink2"
+                aria-label={`Dismiss request from ${req.from_handle}`}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* search */}
       <div className="flex gap-2">
         <input

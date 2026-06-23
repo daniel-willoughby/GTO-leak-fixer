@@ -238,6 +238,55 @@ export async function fetchFriendsLeaderboard(friendIds: string[]): Promise<Lead
   })
 }
 
+// ---- friend requests -------------------------------------------------------
+
+export interface FriendRequest {
+  id: string
+  from_user: string
+  from_handle: string
+  from_avatar: string
+  from_flair: string
+  created_at: string
+}
+
+/** Notify another player that you added them (writes to their request inbox).
+ *  Denormalises your name + cosmetics so their inbox renders without a join. */
+export async function sendFriendRequest(fromUserId: string, toUserId: string): Promise<void> {
+  if (!supabase || fromUserId === toUserId) return
+  const eq = equipped()
+  const { error } = await supabase.from('friend_requests').upsert(
+    {
+      from_user: fromUserId,
+      to_user: toUserId,
+      from_handle: displayName(fromUserId),
+      from_avatar: eq.avatar,
+      from_flair: eq.flair,
+    },
+    { onConflict: 'from_user,to_user', ignoreDuplicates: true },
+  )
+  if (error) console.error('[friends] sendFriendRequest failed:', error.message)
+}
+
+/** Incoming friend requests for this user (most recent first). Not cached so the
+ *  notification badge clears as soon as a request is accepted or dismissed. */
+export async function fetchIncomingRequests(userId: string): Promise<FriendRequest[]> {
+  if (!supabaseConfigured || !supabase) return []
+  const { data, error } = await supabase
+    .from('friend_requests')
+    .select('id,from_user,from_handle,from_avatar,from_flair,created_at')
+    .eq('to_user', userId)
+    .order('created_at', { ascending: false })
+  if (error || !data) return []
+  return data as FriendRequest[]
+}
+
+/** Remove a request row (accepting or dismissing both resolve to a delete). */
+export async function deleteFriendRequest(id: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.from('friend_requests').delete().eq('id', id)
+  if (error) console.error('[friends] deleteFriendRequest failed:', error.message)
+}
+
 /**
  * If you topped yesterday's daily board and haven't been paid yet, grant the
  * daily-winner bonus. Client-claimed (offline-first); returns true if granted.

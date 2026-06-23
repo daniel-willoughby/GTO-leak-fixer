@@ -132,3 +132,47 @@ grant insert, update on public.profiles to authenticated;
 -- Daily ladder scores: everyone reads, owner writes.
 grant select on public.daily_scores to anon, authenticated;
 grant insert, update on public.daily_scores to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Friend requests: a small inbox so a player is *notified* when someone adds
+-- them. The sender writes a row (with their denormalised name/avatar/flair for
+-- a cheap render); the recipient reads their inbox and either accepts (adds
+-- back) or dismisses — both just delete the row. One pending row per (from,to).
+-- ---------------------------------------------------------------------------
+create table if not exists public.friend_requests (
+  id          uuid primary key default gen_random_uuid(),
+  from_user   uuid not null references auth.users (id) on delete cascade,
+  to_user     uuid not null references auth.users (id) on delete cascade,
+  from_handle text,
+  from_avatar text,
+  from_flair  text,
+  created_at  timestamptz not null default now(),
+  unique (from_user, to_user)
+);
+
+alter table public.friend_requests enable row level security;
+
+drop policy if exists "friend_requests read involved"   on public.friend_requests;
+drop policy if exists "friend_requests insert own"      on public.friend_requests;
+drop policy if exists "friend_requests delete involved" on public.friend_requests;
+
+-- both parties can see a request that involves them
+create policy "friend_requests read involved"
+  on public.friend_requests for select
+  using (auth.uid() = from_user or auth.uid() = to_user);
+
+-- you can only send a request *as* yourself
+create policy "friend_requests insert own"
+  on public.friend_requests for insert
+  with check (auth.uid() = from_user);
+
+-- recipient accepts/dismisses, sender can cancel — all are a delete
+create policy "friend_requests delete involved"
+  on public.friend_requests for delete
+  using (auth.uid() = from_user or auth.uid() = to_user);
+
+create index if not exists friend_requests_to_idx
+  on public.friend_requests (to_user, created_at desc);
+
+-- Friend requests are private to the two parties (no anon read).
+grant select, insert, delete on public.friend_requests to authenticated;

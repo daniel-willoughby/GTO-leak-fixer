@@ -20,7 +20,7 @@ import { newlyEarned, markAchievementsSeen, type Achievement } from './lib/achie
 import { pointsState, recordDailyResult, dailyResult } from './lib/points'
 import { dayKey, recordLadderComplete } from './lib/daily'
 import { dailyLadderSeeds, ladderProgress, saveLadderProgress, clearLadderProgress } from './lib/dailyLadder'
-import { submitDailyScore } from './lib/leaderboard'
+import { submitDailyScore, fetchIncomingRequests } from './lib/leaderboard'
 import type { Difficulty, FocusRequest } from './lib/spot'
 
 type Tab = 'drill' | 'daily' | 'lessons' | 'leaks' | 'profile'
@@ -180,6 +180,18 @@ export default function App() {
     if (user) handleSyncNow()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
+
+  // incoming friend-request count → notification dot on the Profile tab. Polled
+  // on sign-in, after profile actions (progress), and on a slow interval.
+  const [friendReqCount, setFriendReqCount] = useState(0)
+  useEffect(() => {
+    if (!user) return setFriendReqCount(0)
+    const refresh = () => fetchIncomingRequests(user.id).then((r) => setFriendReqCount(r.length))
+    refresh()
+    const t = setInterval(refresh, 60_000)
+    return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, progress])
 
   // debounced background push after activity
   useEffect(() => {
@@ -427,7 +439,17 @@ export default function App() {
               }`}
             >
               {active && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-sage" />}
-              <Icon size={22} strokeWidth={active ? 2.4 : 1.9} />
+              <span className="relative">
+                <Icon size={22} strokeWidth={active ? 2.4 : 1.9} />
+                {t.id === 'profile' && friendReqCount > 0 && (
+                  <span
+                    className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-clay px-1 text-[10px] font-bold leading-none text-white"
+                    aria-label={`${friendReqCount} friend requests`}
+                  >
+                    {friendReqCount}
+                  </span>
+                )}
+              </span>
               {t.label}
             </button>
           )
