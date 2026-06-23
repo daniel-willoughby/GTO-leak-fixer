@@ -101,17 +101,22 @@ function ProgressChart({ trend }: { trend: ProgressTrend }) {
 
 function Bar({ stat }: { stat: LeakStat }) {
   const pct = Math.round(stat.errorRate * 100)
+  // severity: red = big leak, amber = watch, sage = solid. Used for both the
+  // bar fill and the percentage so the number's meaning is obvious at a glance.
+  const fill = pct > 33 ? 'bg-clay' : pct > 15 ? 'bg-[#c79a4a]' : 'bg-sage'
+  const num = pct > 33 ? 'text-clay' : pct > 15 ? 'text-[#a9781f]' : 'text-sage-dark'
   return (
     <div className="flex items-center gap-3 text-sm">
-      <span className="w-36 sm:w-40 truncate text-ink">{formatBoardCode(stat.key)}</span>
-      <div className="flex-1 h-2 rounded-full bg-[#e9e3d6] overflow-hidden">
-        <div
-          className={pct > 33 ? 'h-full bg-clay' : pct > 15 ? 'h-full bg-[#c79a4a]' : 'h-full bg-sage'}
-          style={{ width: `${pct}%` }}
-        />
+      <span className="w-24 sm:w-36 shrink-0 truncate text-ink">{formatBoardCode(stat.key)}</span>
+      <div className="flex-1 h-2 min-w-[2rem] rounded-full bg-[#e9e3d6] overflow-hidden">
+        <div className={`h-full rounded-full ${fill}`} style={{ width: `${Math.max(pct, 2)}%` }} />
       </div>
-      <span className="w-20 text-right text-ink2 tabular-nums">
-        {pct}% · {stat.errors}/{stat.attempts}
+      {/* single line, mono numerals: bold miss-% + the muted raw fraction */}
+      <span className="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap">
+        <span className={`font-mono font-bold tabular-nums ${num}`}>{pct}%</span>
+        <span className="font-mono text-[11px] tabular-nums text-ink3">
+          {stat.errors}/{stat.attempts}
+        </span>
       </span>
     </div>
   )
@@ -123,8 +128,8 @@ function AccChip({ label, stats }: { label: string; stats: ModeStats }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper2 px-2.5 py-1 text-xs">
       <span className="text-ink3">{label}</span>
-      <span className="font-bold tabular-nums text-sage-dark">{has ? `${Math.round(stats.accuracy * 100)}%` : '—'}</span>
-      {has && <span className="text-ink3">({stats.total})</span>}
+      <span className="font-mono font-bold tabular-nums text-sage-dark">{has ? `${Math.round(stats.accuracy * 100)}%` : '—'}</span>
+      {has && <span className="font-mono text-ink3 tabular-nums">({stats.total})</span>}
     </span>
   )
 }
@@ -162,9 +167,12 @@ function ModeSection({
           {title}
         </h2>
         <span className="text-sm text-ink2">
-          <span className="text-sage-dark font-bold">{Math.round(stats.accuracy * 100)}%</span> · {stats.total} hands
+          <span className="text-sage-dark font-bold">{Math.round(stats.accuracy * 100)}%</span> accurate · {stats.total} hands
         </span>
       </div>
+      {/* the header shows accuracy (higher = better); the rows below show miss
+          rate (higher = worse), so spell that out to avoid the flipped reading */}
+      <p className="text-xs text-ink3 mb-3">Bars show your <span className="font-semibold text-clay">miss rate</span> — longer, redder bars are bigger leaks to fix.</p>
       <p className="text-xs uppercase tracking-wide text-ink3 mb-2">{primaryLabel}</p>
       <div className="flex flex-col gap-2 mb-4">
         {trim(primary).map((s) => (
@@ -205,9 +213,10 @@ export default function LeaksScreen({ version, onDrillLeaks, onOpenLesson }: Pro
     <div className="px-4 pb-28 pt-6 max-w-xl lg:max-w-3xl mx-auto flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <div>
-          <div className="serif text-5xl font-semibold text-sage-dark">{Math.round(sum.accuracy * 100)}%</div>
+          <div className="serif text-5xl font-semibold text-sage-dark tabular-nums">{Math.round(sum.accuracy * 100)}%</div>
           <div className="text-ink2 text-sm mt-1">
-            {sum.total} hands · {sum.correct} correct
+            <span className="font-mono tabular-nums">{sum.total}</span> hands ·{' '}
+            <span className="font-mono tabular-nums">{sum.correct}</span> correct
           </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
             <AccChip label="Preflop" stats={sum.preflop} />
@@ -260,7 +269,9 @@ export default function LeaksScreen({ version, onDrillLeaks, onOpenLesson }: Pro
                         <TrendBadge trend={l.trend} />
                       </div>
                       <div className="text-sm text-ink2">
-                        Wrong {Math.round(l.errorRate * 100)}% of the time ({l.errors} of {l.attempts}).
+                        Missed <span className="font-mono font-semibold tabular-nums text-clay">{Math.round(l.errorRate * 100)}%</span>{' '}
+                        (<span className="font-mono tabular-nums">{l.errors}</span> of{' '}
+                        <span className="font-mono tabular-nums">{l.attempts}</span>).
                       </div>
                     </div>
                   </div>
