@@ -2,8 +2,9 @@
 /// <reference types="vite-plugin-pwa/client" />
 /// <reference types="vite-plugin-pwa/react" />
 
-declare module '@fontsource-variable/inter'
-declare module '@fontsource-variable/fraunces'
+// Fontsource packages ship CSS only (no types); declare the whole scope so any
+// side-effect font import type-checks (avoids TS2882 in the production build).
+declare module '@fontsource-variable/*'
 
 interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL?: string
