@@ -194,7 +194,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
             </div>
           )}
           <div
-            className={`px-2.5 py-1 rounded-lg text-xs font-bold border min-w-[42px] text-center ${SEAT_CLASS[status]}`}
+            className={`font-table px-2.5 py-1 rounded-lg text-xs font-bold tracking-wide border min-w-[42px] text-center ${SEAT_CLASS[status]}`}
           >
             {pos}
           </div>
@@ -202,7 +202,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
               already conveys it, and on the top seat where the tucked cards
               need the room (the prompt text states the action anyway) */}
           {status === 'active' && villain && !villainHasBet && coord.top >= 15 && (
-            <span className="text-[10px] text-white/80 font-semibold">{villain.note}</span>
+            <span className="font-table text-[10px] text-white/80 font-semibold">{villain.note}</span>
           )}
         </div>
       ))}

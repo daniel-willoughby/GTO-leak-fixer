@@ -223,3 +223,25 @@ export async function newlyEarned(): Promise<Achievement[]> {
   if (fresh.length) localStorage.setItem(SEEN_KEY, JSON.stringify([...seenSet, ...fresh.map((a) => a.id)]))
   return fresh
 }
+
+/**
+ * Fold every currently-unlocked achievement into the "seen" set *without*
+ * popping anything. Call this right after a sign-in sync: the sync pulls a
+ * whole history in at once, and without this the next `newlyEarned()` would
+ * flood the player with pops (and "+PP") for achievements they unlocked long
+ * ago — which reads as re-earning the same achievement on every login.
+ */
+export async function markAchievementsSeen(): Promise<void> {
+  const items = await getAchievements()
+  const doneIds = items.filter((a) => a.done).map((a) => a.id)
+  let seen: string[] = []
+  const raw = localStorage.getItem(SEEN_KEY)
+  if (raw) {
+    try {
+      seen = JSON.parse(raw) as string[]
+    } catch {
+      seen = []
+    }
+  }
+  localStorage.setItem(SEEN_KEY, JSON.stringify([...new Set([...seen, ...doneIds])]))
+}

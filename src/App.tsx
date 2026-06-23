@@ -16,7 +16,7 @@ import { getLevel, setLevel, type Level } from './lib/level'
 import { supabaseConfigured } from './lib/supabase'
 import { useAuth } from './lib/useAuth'
 import { syncNow, pushLocal } from './lib/sync'
-import { newlyEarned, type Achievement } from './lib/achievements'
+import { newlyEarned, markAchievementsSeen, type Achievement } from './lib/achievements'
 import { pointsState, recordDailyResult, dailyResult } from './lib/points'
 import { dayKey, recordLadderComplete } from './lib/daily'
 import { dailyLadderSeeds, ladderProgress, saveLadderProgress, clearLadderProgress } from './lib/dailyLadder'
@@ -165,6 +165,9 @@ export default function App() {
     setSyncing(true)
     try {
       await syncNow(user.id)
+      // a sync pulls in a whole history at once; fold those already-earned
+      // achievements into the "seen" set so they don't re-pop ("+PP" each login)
+      await markAchievementsSeen()
       setLastSynced(Date.now())
       setProgress((p) => p + 1) // refresh screens that read merged data
     } finally {

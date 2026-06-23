@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Coins, Lock, Sparkles, UserPlus, UserCheck, Search, ChevronDown } from 'lucide-react'
+import { Check, Coins, Lock, Sparkles, UserPlus, UserCheck, Search, ChevronDown, Pencil } from 'lucide-react'
 import { getAchievements, type Achievement } from '../lib/achievements'
 import { pointsState, owned, equipped, equip, buyItem } from '../lib/points'
 import { itemsOfType, type ShopItem, type CosmeticType } from '../lib/shop'
@@ -7,6 +7,7 @@ import {
   getHandle,
   setHandle,
   upsertProfile,
+  syncDailyScores,
   fetchDailyLeaderboard,
   fetchAllTimeLeaderboard,
   fetchFriendsLeaderboard,
@@ -95,6 +96,8 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
     setHandleState(getHandle())
     if (userId) {
       await upsertProfile(userId, await gatherLocal())
+      // refresh the denormalised name on today's daily-leaderboard row too
+      await syncDailyScores(userId)
       onChanged()
     }
   }
@@ -102,7 +105,13 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
   async function onEquip(slot: CosmeticType, id: string) {
     equip(slot, id)
     setEq(equipped())
-    if (userId) await upsertProfile(userId, await gatherLocal())
+    if (userId) {
+      await upsertProfile(userId, await gatherLocal())
+      // the daily leaderboard renders a *denormalised* avatar/flair/background
+      // copied onto each daily_scores row, so re-skinning must re-publish it or
+      // the board keeps showing the old look until the next ladder run.
+      await syncDailyScores(userId)
+    }
     onChanged()
   }
 
@@ -137,9 +146,14 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
                 placeholder="Player"
                 maxLength={24}
                 size={Math.max((handle || 'Player').length, 4)}
-                className="min-w-0 max-w-full border-b border-transparent bg-transparent py-0.5 text-lg font-semibold text-white outline-none placeholder:text-white/60 focus:border-white/50"
+                aria-label="Your display name"
+                title="Tap to rename"
+                // dashed underline + pencil hint so it reads as editable, not a label;
+                // firms up to a solid line on focus
+                className="min-w-0 max-w-full border-b border-dashed border-white/40 bg-transparent py-0.5 text-lg font-semibold text-white outline-none placeholder:text-white/60 focus:border-solid focus:border-white/70"
                 style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}
               />
+              <Pencil size={13} className="shrink-0 text-white/55" aria-hidden />
               <Flair id={eq.flair} size={18} />
             </div>
             <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-black/25 px-2.5 py-1 text-sm font-bold tabular-nums text-white backdrop-blur">
