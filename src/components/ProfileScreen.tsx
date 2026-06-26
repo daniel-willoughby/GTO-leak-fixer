@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Check, Coins, Lock, Sparkles, UserPlus, UserCheck, Search, ChevronDown, Pencil, X } from 'lucide-react'
 import { getAchievements, type Achievement } from '../lib/achievements'
-import { pointsState, owned, equipped, equip, buyItem } from '../lib/points'
+import { pointsState, owned, equipped, equip, buyItem, claimNamedBonus } from '../lib/points'
 import { itemsOfType, type ShopItem, type CosmeticType } from '../lib/shop'
 import {
   getHandle,
   setHandle,
+  sanitizeHandle,
   upsertProfile,
   syncDailyScores,
   fetchDailyLeaderboard,
   fetchAllTimeLeaderboard,
+  fetchCrownsLeaderboard,
   fetchFriendsLeaderboard,
   searchByHandle,
   getFriends,
@@ -43,11 +45,12 @@ const SECTIONS: { id: Section; label: string }[] = [
   { id: 'shop', label: 'Shop' },
 ]
 
-// the Leaderboards tab switches between these two boards with a sub-toggle
-type BoardMode = 'daily' | 'alltime'
+// the Leaderboards tab switches between these boards with a sub-toggle
+type BoardMode = 'daily' | 'alltime' | 'crowns'
 const BOARD_MODES: { id: BoardMode; label: string }[] = [
   { id: 'daily', label: 'Daily' },
   { id: 'alltime', label: 'All-time' },
+  { id: 'crowns', label: 'Crowns' },
 ]
 
 const GROUPS: Achievement['group'][] = ['Volume', 'Accuracy', 'Streaks', 'Learning', 'Collection']
@@ -62,6 +65,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
   const [handle, setHandleState] = useState(getHandle())
   const [daily, setDaily] = useState<DailyRow[] | null>(null)
   const [allTime, setAllTime] = useState<LeaderRow[] | null>(null)
+  const [crowns, setCrowns] = useState<LeaderRow[] | null>(null)
   const [friendIds, setFriendIds] = useState<string[]>(getFriends())
   const [friendRows, setFriendRows] = useState<LeaderRow[] | null>(null)
   const [friendSearch, setFriendSearch] = useState('')
@@ -96,6 +100,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
     // leaderboard.ts coalesces the rest.
     if (section === 'leaderboards' && boardMode === 'daily') fetchDailyLeaderboard(dayKey()).then(setDaily)
     if (section === 'leaderboards' && boardMode === 'alltime') fetchAllTimeLeaderboard().then(setAllTime)
+    if (section === 'leaderboards' && boardMode === 'crowns') fetchCrownsLeaderboard().then(setCrowns)
     if (section === 'friends') {
       fetchFriendsLeaderboard(friendIds).then(setFriendRows)
       loadRequests()
@@ -139,6 +144,8 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
   async function saveHandle() {
     setHandle(handle)
     setHandleState(getHandle())
+    // picking up a qualifying name (e.g. George) claims its one-off PP gift
+    if (claimNamedBonus(getHandle())) refreshLocal()
     if (userId) {
       await upsertProfile(userId, await gatherLocal())
       // refresh the denormalised name on today's daily-leaderboard row too
@@ -186,7 +193,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
             <div className="flex items-center gap-1.5">
               <input
                 value={handle}
-                onChange={(e) => setHandleState(e.target.value)}
+                onChange={(e) => setHandleState(sanitizeHandle(e.target.value))}
                 onBlur={saveHandle}
                 placeholder="Player"
                 maxLength={24}
@@ -208,13 +215,13 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
         </div>
       </div>
 
-      {/* section switch — scrollable so 5 tabs fit on narrow screens */}
-      <div className="flex gap-1 overflow-x-auto rounded-2xl border border-line bg-ink/[0.06] p-1 text-sm [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      {/* section switch — four tabs share the bar evenly (flex-1 each) */}
+      <div className="flex gap-1 rounded-2xl border border-line bg-ink/[0.06] p-1 text-sm">
         {SECTIONS.map((s) => (
           <button
             key={s.id}
             onClick={() => setSection(s.id)}
-            className={`shrink-0 rounded-xl px-3 py-2 text-xs font-semibold transition ${
+            className={`flex-1 rounded-xl px-1 py-2 text-center text-xs font-semibold transition ${
               section === s.id ? 'bg-sage text-white shadow-[0_4px_12px_-4px_rgba(67,84,72,0.6)]' : 'text-ink2 hover:text-ink'
             }`}
           >
@@ -288,7 +295,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
                 )
               }}
             />
-          ) : (
+          ) : boardMode === 'alltime' ? (
             <LeaderboardPanel
               configured={configured}
               userId={userId}
@@ -311,6 +318,35 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
                   >
                     <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-clay">
                       <Coins size={13} /> {r.pp_earned}
+                    </span>
+                    {!me && <FriendToggle isFriend={isFriend} />}
+                  </Row>
+                )
+              }}
+            />
+          ) : (
+            <LeaderboardPanel
+              configured={configured}
+              userId={userId}
+              onSignIn={onSignIn}
+              empty="No crowns yet — top the daily ladder to win one at reset."
+              rows={crowns}
+              render={(r: LeaderRow, i) => {
+                const me = r.user_id === userId
+                const isFriend = friendIds.includes(r.user_id)
+                return (
+                  <Row
+                    key={r.user_id}
+                    rank={i + 1}
+                    me={me}
+                    avatar={r.avatar}
+                    flair={r.flair}
+                    name={r.handle}
+                    background={r.background}
+                    onClick={me || isFriend ? undefined : () => addOnly(r.user_id)}
+                  >
+                    <span className="flex shrink-0 items-center gap-1 text-sm font-bold tabular-nums text-clay">
+                      👑 {r.crowns}
                     </span>
                     {!me && <FriendToggle isFriend={isFriend} />}
                   </Row>

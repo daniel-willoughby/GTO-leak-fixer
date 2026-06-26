@@ -2,7 +2,7 @@
 // `daily_scores` (today's ladder) tables. Each user publishes a shareable
 // summary that everyone can read. Dormant until Supabase is configured.
 import { supabase, supabaseConfigured } from './supabase'
-import { equipped, earnedPoints, grantDailyWin, hasClaimedDailyWin, dailyResults, type DailyResult } from './points'
+import { equipped, earnedPoints, grantDailyWin, hasClaimedDailyWin, dailyWinsClaimed, dailyResults, type DailyResult } from './points'
 import { dayKey, prevDay } from './daily'
 import type { SyncSnapshot } from './sync'
 
@@ -16,13 +16,15 @@ export interface LeaderRow {
   pre_acc: number
   post_acc: number
   pp_earned: number
+  /** Times this player topped the daily ladder at reset (daily-win crowns). */
+  crowns: number
   avatar: string
   flair: string
   /** Equipped background id, used to tint this player's leaderboard row. */
   background: string
 }
 
-const COLS = 'user_id,handle,hands_played,best_streak,accuracy,pre_acc,post_acc,pp_earned,avatar,flair,background'
+const COLS = 'user_id,handle,hands_played,best_streak,accuracy,pre_acc,post_acc,pp_earned,crowns,avatar,flair,background'
 
 export interface DailyRow {
   user_id: string
@@ -50,8 +52,26 @@ async function cachedRead<T>(key: string, fn: () => Promise<T>): Promise<T> {
 const bustLeaderboardCache = () => readCache.clear()
 
 const HANDLE_KEY = 'lt-handle'
+
+/**
+ * Strip emoji / pictographs from a username, leaving plain text. Keeps letters,
+ * digits, spaces and punctuation; removes pictographic emoji, flag pairs, skin
+ * tones and the zero-width joiner / variation selectors that compose them.
+ * `\p{Extended_Pictographic}` excludes ASCII alphanumerics, so digits survive.
+ */
+export function sanitizeHandle(raw: string): string {
+  return raw
+    .replace(/\p{Extended_Pictographic}/gu, '')
+    .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '') // regional-indicator flag letters
+    .replace(/[\u{1F3FB}-\u{1F3FF}]/gu, '') // skin-tone modifiers
+    .replace(/[‍︎️⃣]/g, '') // ZWJ, VS15/16, keycap combiner
+    .replace(/\s{2,}/g, ' ')
+    .slice(0, 24)
+}
+
 export const getHandle = (): string => localStorage.getItem(HANDLE_KEY) ?? ''
-export const setHandle = (h: string): void => localStorage.setItem(HANDLE_KEY, h.trim().slice(0, 24))
+export const setHandle = (h: string): void =>
+  localStorage.setItem(HANDLE_KEY, sanitizeHandle(h).trim())
 const displayName = (userId: string): string => getHandle() || `Player ${userId.slice(0, 4)}`
 
 function longestRun(flags: boolean[]): number {
@@ -95,6 +115,7 @@ export async function upsertProfile(userId: string, snap: SyncSnapshot): Promise
     handle: displayName(userId),
     ...profileStats(snap),
     pp_earned: await earnedPoints(),
+    crowns: dailyWinsClaimed().length,
     avatar: eq.avatar,
     flair: eq.flair,
     background: eq.background,
@@ -154,6 +175,21 @@ export async function fetchAllTimeLeaderboard(limit = 50): Promise<LeaderRow[]> 
 
 /** Back-compat alias used by older callers (streak board → all-time board). */
 export const fetchLeaderboard = fetchAllTimeLeaderboard
+
+/** Crowns leaderboard: most daily-ladder wins (times topping the board at reset). */
+export async function fetchCrownsLeaderboard(limit = 50): Promise<LeaderRow[]> {
+  if (!supabaseConfigured || !supabase) return []
+  return cachedRead(`crowns:${limit}`, async () => {
+    const { data, error } = await supabase!
+      .from('profiles')
+      .select(COLS)
+      .order('crowns', { ascending: false })
+      .order('pp_earned', { ascending: false })
+      .limit(limit)
+    if (error || !data) return []
+    return data as unknown as LeaderRow[]
+  })
+}
 
 // ---- daily leaderboard -----------------------------------------------------
 

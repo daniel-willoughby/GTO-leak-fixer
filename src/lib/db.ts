@@ -145,22 +145,23 @@ export function boardTextureLabel(board: string): string {
 /** A friendly "when the solver wants X" bucket, so a player sees whether they
  *  over-check, over-fold, or misvalue their bets, not just a board string. */
 export function decisionLabel(correct: Action): string {
+  // Kept short so the leak rows don't truncate ("When you should bet" → "Should bet").
   switch (correct) {
     case 'bet':
     case 'bet33':
     case 'bet75':
-      return 'When you should bet'
+      return 'Should bet'
     case 'check':
-      return 'When you should check'
+      return 'Should check'
     case 'fold':
-      return 'When you should fold'
+      return 'Should fold'
     case 'call':
-      return 'When you should call'
+      return 'Should call'
     case 'raise':
     case '3bet':
     case 'squeeze':
     case 'cold-4bet':
-      return 'When you should raise'
+      return 'Should raise'
     default:
       return 'Other'
   }
@@ -329,6 +330,40 @@ export async function exportMistakes(): Promise<MistakeRecord[]> {
 export async function replaceDecisions(rows: DecisionRecord[]): Promise<void> {
   await db.decisions.clear()
   await db.decisions.bulkAdd(rows.map((r) => ({ ...r, id: undefined })))
+}
+
+// A held or double-tapped key can log one answer twice (the React `result`
+// guard updates a tick too late), and those near-duplicates — a few ms apart,
+// so a different `ts` slips past content-dedup — inflate the count and PP,
+// compounding when unioned across devices. Collapse decisions that are the same
+// spot+action within this window; a genuine replay is always seconds apart
+// (you must read the feedback and advance), so real plays are never removed.
+const RAPID_DUP_MS = 700
+const spotSig = (d: DecisionRecord) => `${d.mode}|${d.context}|${d.label}|${d.chosen}|${d.correct}`
+
+/** Drop rapid-fire duplicate decisions (same spot+action < 700ms apart). Pure. */
+export function dropRapidDupes(rows: DecisionRecord[]): DecisionRecord[] {
+  const sorted = [...rows].sort((a, b) => a.ts - b.ts)
+  const out: DecisionRecord[] = []
+  const lastKept = new Map<string, number>()
+  for (const d of sorted) {
+    const k = spotSig(d)
+    const prev = lastKept.get(k)
+    if (prev !== undefined && d.ts - prev < RAPID_DUP_MS) continue
+    lastKept.set(k, d.ts)
+    out.push(d)
+  }
+  return out
+}
+
+/** One-time local cleanup of any rapid-duplicate decisions. Returns how many
+ *  were removed (0 when the log is already clean). */
+export async function compactDecisions(): Promise<number> {
+  const all = await db.decisions.toArray()
+  const clean = dropRapidDupes(all)
+  if (clean.length === all.length) return 0
+  await replaceDecisions(clean)
+  return all.length - clean.length
 }
 export async function replaceMistakes(rows: MistakeRecord[]): Promise<void> {
   await db.mistakes.clear()

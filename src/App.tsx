@@ -16,11 +16,12 @@ import { getLevel, setLevel, type Level } from './lib/level'
 import { supabaseConfigured } from './lib/supabase'
 import { useAuth } from './lib/useAuth'
 import { syncNow, pushLocal } from './lib/sync'
+import { compactDecisions } from './lib/db'
 import { newlyEarned, markAchievementsSeen, type Achievement } from './lib/achievements'
-import { pointsState, recordDailyResult, dailyResult } from './lib/points'
+import { pointsState, recordDailyResult, dailyResult, claimNamedBonus, verifyEconomyState } from './lib/points'
 import { dayKey, recordLadderComplete } from './lib/daily'
 import { dailyLadderSeeds, ladderProgress, saveLadderProgress, clearLadderProgress } from './lib/dailyLadder'
-import { submitDailyScore, fetchIncomingRequests } from './lib/leaderboard'
+import { submitDailyScore, fetchIncomingRequests, getHandle } from './lib/leaderboard'
 import type { Difficulty, FocusRequest } from './lib/spot'
 
 type Tab = 'drill' | 'daily' | 'lessons' | 'leaks' | 'profile'
@@ -62,11 +63,25 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('lt-theme') as Theme) || 'auto')
   // celebratory pop-up queue for freshly unlocked achievements
   const [toasts, setToasts] = useState<Achievement[]>([])
+  // Tamper check: drop any hand-edited economy value *before* PP is derived.
+  // A lazy initializer runs once, during the first render, ahead of all effects.
+  useState(() => verifyEconomyState())
   // Poker Points balance, refreshed whenever progress changes
   const [pp, setPp] = useState<number | null>(null)
   useEffect(() => {
     pointsState().then((s) => setPp(s.balance))
   }, [progress])
+
+  // claim any one-off PP gift this handle qualifies for (e.g. George's bonus)
+  useEffect(() => {
+    if (claimNamedBonus(getHandle())) setProgress((p) => p + 1)
+  }, [])
+
+  // one-time heal: remove any rapid-fire duplicate decisions a double-firing
+  // key logged in the past, which had been inflating the decision count + PP
+  useEffect(() => {
+    compactDecisions().then((removed) => removed && setProgress((p) => p + 1))
+  }, [])
 
   // daily ladder run + results
   const [ladderRun, setLadderRun] = useState<LadderRun | null>(null)

@@ -2,11 +2,11 @@
 // streaks + lesson progress. Pure read; no new tracking needed (the best
 // streak is derived from the full decision log).
 
-import { Spade, Target, Flame, GraduationCap, CalendarCheck, Zap, TrendingUp, Trophy, Shirt, type LucideIcon } from 'lucide-react'
+import { Spade, Target, Flame, GraduationCap, CalendarCheck, Zap, TrendingUp, Trophy, Shirt, Crown, type LucideIcon } from 'lucide-react'
 import { db } from './db'
 import { getDaily, liveStreak } from './daily'
 import { lessonProgress } from './level'
-import { equipped, dailyResults } from './points'
+import { equipped, dailyResults, dailyWinsClaimed } from './points'
 import { DEFAULT_AVATAR, DEFAULT_FLAIR, DEFAULT_BACKGROUND } from './shop'
 import { CURRICULUM } from '../data/curriculum'
 
@@ -44,7 +44,13 @@ export const ACHIEVEMENT_REWARD: Record<string, number> = {
   fashionista: 200,
   daily3: 30,
   daily7: 75,
-  scholar: 150,
+  crown1: 100,
+  crown5: 350,
+  crown10: 800,
+  lessons1: 25,
+  lessons5: 75,
+  lessons10: 150,
+  scholar: 300,
 }
 
 /** Largest run of consecutive-correct decisions that fits inside `windowMs`.
@@ -81,6 +87,7 @@ export async function getAchievements(): Promise<Achievement[]> {
   const accPct = last100.length ? Math.round((last100.filter((d) => d.isCorrect).length / last100.length) * 100) : 0
   const best = longestRun(all.map((d) => d.isCorrect))
   const dayStreak = liveStreak(getDaily())
+  const crownCount = dailyWinsClaimed().length // times you topped the daily at reset
   const lessonsDone = CURRICULUM.filter((l) => lessonProgress(l.id).done).length
   const fastRun = bestSpeedRun(all) // best correct streak inside a 10s window
 
@@ -182,6 +189,12 @@ export async function getAchievements(): Promise<Achievement[]> {
     },
     count('daily3', 'Streaks', 'Daily habit', 'Keep a 3-day streak', CalendarCheck, dayStreak, 3),
     count('daily7', 'Streaks', 'Week strong', 'Keep a 7-day streak', CalendarCheck, dayStreak, 7),
+    count('crown1', 'Streaks', 'Crowned', 'Top the daily ladder once', Crown, crownCount, 1),
+    count('crown5', 'Streaks', 'Daily royalty', 'Top the daily ladder 5 times', Crown, crownCount, 5),
+    count('crown10', 'Streaks', 'Daily dynasty', 'Top the daily ladder 10 times', Crown, crownCount, 10),
+    count('lessons1', 'Learning', 'First lesson', 'Finish your first lesson', GraduationCap, lessonsDone, 1),
+    count('lessons5', 'Learning', 'Bookworm', 'Finish 5 lessons', GraduationCap, lessonsDone, 5),
+    count('lessons10', 'Learning', 'Honor roll', 'Finish 10 lessons', GraduationCap, lessonsDone, 10),
     count('scholar', 'Learning', 'Scholar', `Finish all ${CURRICULUM.length} lessons`, GraduationCap, lessonsDone, CURRICULUM.length),
     {
       id: 'fashionista',

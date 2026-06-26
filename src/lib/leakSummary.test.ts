@@ -20,15 +20,15 @@ describe('postflop board-texture buckets', () => {
 
 describe('postflop decision buckets', () => {
   it('maps every bet size to a single "should bet" bucket', () => {
-    expect(decisionLabel('bet')).toBe('When you should bet')
-    expect(decisionLabel('bet33')).toBe('When you should bet')
-    expect(decisionLabel('bet75')).toBe('When you should bet')
+    expect(decisionLabel('bet')).toBe('Should bet')
+    expect(decisionLabel('bet33')).toBe('Should bet')
+    expect(decisionLabel('bet75')).toBe('Should bet')
   })
 
   it('labels check, fold, call and raise distinctly', () => {
-    expect(decisionLabel('check')).toBe('When you should check')
-    expect(decisionLabel('fold')).toBe('When you should fold')
-    expect(decisionLabel('call')).toBe('When you should call')
-    expect(decisionLabel('raise')).toBe('When you should raise')
+    expect(decisionLabel('check')).toBe('Should check')
+    expect(decisionLabel('fold')).toBe('Should fold')
+    expect(decisionLabel('call')).toBe('Should call')
+    expect(decisionLabel('raise')).toBe('Should raise')
   })
 })

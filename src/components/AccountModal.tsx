@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { X, Cloud, CloudOff, LogOut, RefreshCw, Mail, Check } from 'lucide-react'
 import { useAuth } from '../lib/useAuth'
-import { getHandle, setHandle } from '../lib/leaderboard'
+import { getHandle, setHandle, sanitizeHandle } from '../lib/leaderboard'
 
 interface Props {
   onClose: () => void
@@ -116,7 +116,7 @@ export default function AccountModal({ onClose, onSyncNow, syncing, lastSynced }
                   type="text"
                   required
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => setUsername(sanitizeHandle(e.target.value))}
                   placeholder="Username (shown on leaderboards)"
                   maxLength={24}
                   style={{ fontSize: '16px' }}

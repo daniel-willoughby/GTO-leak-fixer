@@ -73,6 +73,12 @@ const SEAT_CLASS: Record<Status, string> = {
 export default function PokerTable({ heroPos, heroCards, raiserPos, activePots = [], chips = [], pot, board, villain, heroAnim }: Props) {
   const heroIdx = actionIndex(heroPos)
   const postflop = !!board
+  // When a player still in the pot sits AFTER the hero in betting order, the
+  // hand has been (re-)raised and folded back around to the hero — so the hero
+  // is closing the action and everyone not still in has folded, the blinds
+  // included. Otherwise the seats behind the hero are simply yet to act.
+  const stillIn = [raiserPos, ...activePots].filter(Boolean) as Position[]
+  const actionClosed = stillIn.some((p) => actionIndex(p) > heroIdx)
   const seats = SEATS.map((coord, i) => {
     const pos = POSITION_ORDER[(heroIdx + i) % POSITION_ORDER.length]
     let status: Status = 'waiting'
@@ -80,7 +86,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
     else if (postflop) status = pos === villain?.pos ? 'active' : 'folded'
     else if (pos === raiserPos) status = 'raiser'
     else if (activePots.includes(pos)) status = 'active'
-    else if (actionIndex(pos) < heroIdx) status = 'folded'
+    else if (actionIndex(pos) < heroIdx || actionClosed) status = 'folded'
     return { pos, coord, status }
   })
 

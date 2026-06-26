@@ -266,6 +266,11 @@ export default function DrillScreen({
   const [ladderScore, setLadderScore] = useState(() => ladder?.startScore ?? 0)
   const ladderTime = useRef(ladder?.baseTimeMs ?? 0)
   const qShownAt = useRef(Date.now())
+  // synchronous "already answered this spot" guard against double-logging
+  const judgedRef = useRef(false)
+  useEffect(() => {
+    judgedRef.current = false
+  }, [spot])
 
   // load weak categories + mistake count once (skipped in the focused ladder run)
   useEffect(() => {
@@ -447,7 +452,11 @@ export default function DrillScreen({
   }
 
   async function answer(action: Action) {
-    if (result || !spot.actions.includes(action)) return
+    // `result` is React state and updates a tick late, so a held/repeated key
+    // can re-enter this before it flips and log the same answer twice. A ref
+    // flips synchronously, so it blocks the double-fire (reset on each new spot).
+    if (judgedRef.current || result || !spot.actions.includes(action)) return
+    judgedRef.current = true
     const j = judge(spot, action, level)
     setResult(j)
     // table animation: chips in for bets/raises/calls, cards mucked for folds

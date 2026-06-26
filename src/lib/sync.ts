@@ -7,12 +7,13 @@ import {
   exportMistakes,
   replaceDecisions,
   replaceMistakes,
+  dropRapidDupes,
   type DecisionRecord,
   type MistakeRecord,
 } from './db'
 import type { DailyState } from './daily'
 import type { LessonState } from './level'
-import type { Equipped, DailyResult } from './points'
+import { signEconomyState, type Equipped, type DailyResult } from './points'
 import { upsertProfile, syncDailyScores } from './leaderboard'
 
 type LessonMap = Record<string, LessonState>
@@ -32,6 +33,7 @@ export interface SyncSnapshot {
   equipped?: Equipped | null
   dailyResults?: DailyResults | null
   dailyWins?: string[] | null
+  bonuses?: string[] | null
   handle?: string | null
   friends?: string[] | null
 }
@@ -62,6 +64,7 @@ export async function gatherLocal(): Promise<SyncSnapshot> {
     equipped: lsParse<Equipped>('lt-equip'),
     dailyResults: lsParse<DailyResults>('lt-daily-results'),
     dailyWins: lsParse<string[]>('lt-daily-wins'),
+    bonuses: lsParse<string[]>('lt-bonus'),
     handle: localStorage.getItem('lt-handle'),
     friends: lsParse<string[]>('lt-friends'),
   }
@@ -78,6 +81,8 @@ export async function applySnapshot(snap: SyncSnapshot): Promise<void> {
   if (snap.equipped) lsWrite('lt-equip', snap.equipped)
   if (snap.dailyResults) lsWrite('lt-daily-results', snap.dailyResults)
   if (snap.dailyWins) lsWrite('lt-daily-wins', snap.dailyWins)
+  if (snap.bonuses) lsWrite('lt-bonus', snap.bonuses)
+  signEconomyState() // re-sign the merged economy keys so they pass the load-time check
   if (snap.handle) localStorage.setItem('lt-handle', snap.handle)
   if (snap.friends) lsWrite('lt-friends', snap.friends)
 }
@@ -95,7 +100,9 @@ function mergeDecisions(a: DecisionRecord[], b: DecisionRecord[]): DecisionRecor
     seen.add(k)
     out.push({ ...d, id: undefined })
   }
-  return out.sort((x, y) => x.ts - y.ts)
+  // also collapse rapid-fire double-logs (a few ms apart, so the exact-content
+  // dedup above misses them) so they can't accumulate across device syncs
+  return dropRapidDupes(out.sort((x, y) => x.ts - y.ts))
 }
 
 function mergeMistakes(a: MistakeRecord[], b: MistakeRecord[]): MistakeRecord[] {
@@ -160,6 +167,7 @@ export function mergeSnapshots(a: SyncSnapshot, b: SyncSnapshot): SyncSnapshot {
     equipped: newer.equipped ?? a.equipped ?? b.equipped ?? null,
     dailyResults: mergeDailyResults(a.dailyResults, b.dailyResults),
     dailyWins: mergeOwned(a.dailyWins, b.dailyWins),
+    bonuses: mergeOwned(a.bonuses, b.bonuses),
     handle: (newer.handle || a.handle || b.handle) ?? null,
     friends: mergeOwned(a.friends, b.friends),
   }
@@ -204,6 +212,7 @@ function snapSig(s: SyncSnapshot): string {
     JSON.stringify(s.equipped),
     JSON.stringify(s.dailyResults),
     JSON.stringify(s.dailyWins),
+    JSON.stringify(s.bonuses),
     JSON.stringify(s.friends),
     s.handle,
     s.level,

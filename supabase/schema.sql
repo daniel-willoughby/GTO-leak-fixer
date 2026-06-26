@@ -74,6 +74,8 @@ alter table public.profiles add column if not exists background text;
 -- accuracy split by street (percent; -1 = no hands yet on that street)
 alter table public.profiles add column if not exists pre_acc    integer not null default -1;
 alter table public.profiles add column if not exists post_acc   integer not null default -1;
+-- daily "crowns": how many times this player topped the daily ladder at reset
+alter table public.profiles add column if not exists crowns     integer not null default 0;
 
 create table if not exists public.daily_scores (
   user_id    uuid not null references auth.users (id) on delete cascade,
