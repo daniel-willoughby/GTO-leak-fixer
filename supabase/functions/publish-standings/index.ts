@@ -75,12 +75,27 @@ Deno.serve(async (req) => {
     if (body.profile) {
       const p = body.profile
       const hands = Math.max(0, Math.floor(num(p.hands_played)))
-      // PP can't exceed what play could produce: 2 per correct hand, plus a
-      // generous allowance for daily-complete bonuses, daily wins and grants.
-      const ppCeiling = hands * 2 + 60000
 
       // Crowns are authoritative: recount how many closed days this user topped.
       const { data: crownCount } = await admin.rpc('count_crowns', { uid })
+      const crowns = Math.max(0, Math.floor(num(crownCount)))
+
+      // The number of days this user actually has a daily-ladder score on file.
+      // The server owns this history, so it bounds the 100-PP daily-completion
+      // bonuses the player could legitimately have earned.
+      const { count: dailyDays } = await admin
+        .from('daily_scores')
+        .select('day', { count: 'exact', head: true })
+        .eq('user_id', uid)
+
+      // PP can't exceed what play could actually produce, and almost every term
+      // is server-verifiable rather than a blanket allowance:
+      //   • 2 PP per correct hand            → ≤ hands * 2
+      //   • 100 PP per daily completion       → dailyDays * 100  (server-owned)
+      //   • 500 PP per crown                  → crowns * 500      (recomputed)
+      //   • a small fixed slack for the few sources the server can't see
+      //     (one-off grants, net duel winnings).
+      const ppCeiling = hands * 2 + (dailyDays ?? 0) * 100 + crowns * 500 + 10000
 
       const { error } = await admin.from('profiles').upsert({
         user_id: uid,
@@ -91,7 +106,7 @@ Deno.serve(async (req) => {
         pre_acc: clampInt(p.pre_acc, -1, 100),
         post_acc: clampInt(p.post_acc, -1, 100),
         pp_earned: clampInt(p.pp_earned, 0, ppCeiling),
-        crowns: Math.max(0, Math.floor(num(crownCount))),
+        crowns,
         avatar: str(p.avatar, 64),
         flair: str(p.flair, 64),
         background: str(p.background, 64),

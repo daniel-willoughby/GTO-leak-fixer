@@ -431,7 +431,7 @@ function LootReveal({
   const sparkCount = special ? 14 : 9
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center overflow-hidden bg-ink/85 px-6 backdrop-blur-md"
+      className="fixed inset-0 z-[70] flex items-start justify-center overflow-hidden bg-ink/85 px-6 pt-20 backdrop-blur-md sm:pt-24"
       onClick={phase === 'revealed' ? onClose : undefined}
     >
       {/* ambient glow that tints the whole overlay toward the reward's rarity */}
