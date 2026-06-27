@@ -57,9 +57,9 @@ export const SHOP: ShopItem[] = [
   { id: 'avatar-eagle', type: 'avatar', name: 'Eagle', cost: 900, art: '🦅' },
   { id: 'avatar-lion', type: 'avatar', name: 'Lion', cost: 1000, art: '🦁' },
   { id: 'avatar-croc', type: 'avatar', name: 'Croc', cost: 1100, art: '🐊' },
-  { id: 'avatar-shark', type: 'avatar', name: 'Shark', cost: 1200, art: '🦈' },
+  { id: 'avatar-shark', type: 'avatar', name: 'Shark', cost: 2500, art: '🦈' },
   { id: 'avatar-dragon', type: 'avatar', name: 'Dragon', cost: 1500, art: '🐉' },
-  { id: 'avatar-unicorn', type: 'avatar', name: 'Unicorn', cost: 2500, art: '🦄' },
+  { id: 'avatar-unicorn', type: 'avatar', name: 'Unicorn', cost: 1200, art: '🦄' },
 ]
 
 const BY_ID = new Map(SHOP.map((i) => [i.id, i]))
