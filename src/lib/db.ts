@@ -69,6 +69,11 @@ export async function retireMistake(key: string): Promise<void> {
   await db.mistakes.delete(key)
 }
 
+/** Empty the entire review queue (the "clear all" action). */
+export async function clearMistakes(): Promise<void> {
+  await db.mistakes.clear()
+}
+
 export async function touchMistake(key: string): Promise<void> {
   const existing = await db.mistakes.get(key)
   if (existing) await db.mistakes.put({ ...existing, ts: Date.now() })

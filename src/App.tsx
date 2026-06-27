@@ -433,7 +433,7 @@ export default function App() {
     <div className="min-h-full flex flex-col">
       <header className="safe-top sticky top-0 z-30 relative text-center py-3 border-b border-line bg-paper/80 backdrop-blur-md">
         <h1 className="flex items-center justify-center text-ink">
-          <Wordmark className="h-9" />
+          <Wordmark className="h-9 translate-y-[2px]" />
         </h1>
         <button
           onClick={() => setTab('profile')}

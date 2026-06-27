@@ -10,6 +10,7 @@ import {
   Zap,
   Repeat2,
   X,
+  Trash2,
   Lightbulb,
   Sparkles,
   ChevronDown,
@@ -55,6 +56,7 @@ import {
   logDecision,
   mistakeCount,
   retireMistake,
+  clearMistakes,
   touchMistake,
   weakCategories,
   type MistakeRecord,
@@ -271,6 +273,7 @@ export default function DrillScreen({
   const [reviewQueue, setReviewQueue] = useState<MistakeRecord[]>([])
   const [reviewMode, setReviewMode] = useState(false)
   const [mistakeBadge, setMistakeBadge] = useState(0)
+  const [confirmClear, setConfirmClear] = useState(false) // two-tap guard for "clear all"
   // daily ladder run state
   const [ladderIndex, setLadderIndex] = useState(() => ladder?.startIndex ?? 0)
   const [ladderScore, setLadderScore] = useState(() => ladder?.startScore ?? 0)
@@ -437,6 +440,17 @@ export default function DrillScreen({
   }
 
   function exitReview() {
+    setReviewMode(false)
+    setConfirmClear(false)
+    dealNormal(mode)
+  }
+
+  // Wipe the whole review queue. Two-tap to confirm so it isn't fired by accident.
+  async function clearAllMistakes() {
+    await clearMistakes()
+    setReviewQueue([])
+    setMistakeBadge(0)
+    setConfirmClear(false)
     setReviewMode(false)
     dealNormal(mode)
   }
@@ -676,13 +690,24 @@ export default function DrillScreen({
           </div>
         </div>
       ) : reviewMode ? (
-        <div className="flex items-center justify-between w-full lg:max-w-2xl lg:mx-auto rounded-2xl bg-sage/12 border border-sage/30 px-3 py-2">
-          <span className="flex items-center gap-2 text-sage-dark font-semibold text-sm">
-            <Repeat2 size={16} /> Reviewing mistakes · {reviewQueue.length} left
+        <div className="flex items-center justify-between gap-2 w-full lg:max-w-2xl lg:mx-auto rounded-2xl bg-sage/12 border border-sage/30 px-3 py-2">
+          <span className="flex min-w-0 items-center gap-2 text-sage-dark font-semibold text-sm">
+            <Repeat2 size={16} className="shrink-0" /> <span className="truncate">Reviewing mistakes · {reviewQueue.length} left</span>
           </span>
-          <button onClick={exitReview} className="text-ink2 hover:text-ink p-1 rounded-lg hover:bg-ink/5">
-            <X size={16} />
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              onClick={() => (confirmClear ? clearAllMistakes() : setConfirmClear(true))}
+              onBlur={() => setConfirmClear(false)}
+              className={`flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold transition ${
+                confirmClear ? 'bg-clay text-white' : 'text-ink2 hover:text-clay hover:bg-clay/10'
+              }`}
+            >
+              <Trash2 size={14} /> {confirmClear ? 'Clear all?' : 'Clear all'}
+            </button>
+            <button onClick={exitReview} className="text-ink2 hover:text-ink p-1 rounded-lg hover:bg-ink/5">
+              <X size={16} />
+            </button>
+          </div>
         </div>
       ) : (
         <div className="flex w-full flex-col gap-1.5 lg:max-w-2xl lg:mx-auto">
