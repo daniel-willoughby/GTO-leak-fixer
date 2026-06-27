@@ -178,3 +178,56 @@ create index if not exists friend_requests_to_idx
 
 -- Friend requests are private to the two parties (no anon read).
 grant select, insert, delete on public.friend_requests to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Duels: a head-to-head 10-question challenge between two friends, optionally
+-- for a PP wager. Both play the *same* 10 spots (seeded from `seed`). The
+-- challenger creates the row already holding their score; the opponent accepts
+-- and plays, which fills their score and flips status to 'done'. Denormalised
+-- handles/avatars for cheap render. Wager settlement is client-side for now.
+-- ---------------------------------------------------------------------------
+create table if not exists public.duels (
+  id                uuid primary key default gen_random_uuid(),
+  challenger        uuid not null references auth.users (id) on delete cascade,
+  challenger_handle text,
+  challenger_avatar text,
+  opponent          uuid not null references auth.users (id) on delete cascade,
+  opponent_handle   text,
+  opponent_avatar   text,
+  wager             integer not null default 0,
+  seed              text not null,
+  status            text not null default 'pending', -- pending | done | declined
+  challenger_score  integer,
+  challenger_time   integer,
+  opponent_score    integer,
+  opponent_time     integer,
+  created_at        timestamptz not null default now()
+);
+
+alter table public.duels enable row level security;
+
+drop policy if exists "duels read involved"   on public.duels;
+drop policy if exists "duels insert own"       on public.duels;
+drop policy if exists "duels update involved"  on public.duels;
+
+-- both players can see a duel they're in
+create policy "duels read involved"
+  on public.duels for select
+  using (auth.uid() = challenger or auth.uid() = opponent);
+
+-- you can only create a duel *as* the challenger
+create policy "duels insert own"
+  on public.duels for insert
+  with check (auth.uid() = challenger);
+
+-- either player can update (opponent submits their score / declines)
+create policy "duels update involved"
+  on public.duels for update
+  using (auth.uid() = challenger or auth.uid() = opponent)
+  with check (auth.uid() = challenger or auth.uid() = opponent);
+
+create index if not exists duels_opponent_idx on public.duels (opponent, created_at desc);
+create index if not exists duels_challenger_idx on public.duels (challenger, created_at desc);
+
+-- Duels are private to the two players.
+grant select, insert, update on public.duels to authenticated;

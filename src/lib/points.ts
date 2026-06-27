@@ -65,7 +65,7 @@ const writeJSON = (key: string, v: unknown) => localStorage.setItem(key, JSON.st
 // the secret ships in the (minified) bundle, so a determined user reads it —
 // but it stops the common "just edit the number" cheat. True enforcement needs
 // server-side authority (see the planned Edge-Function task).
-const ECON_KEYS = ['lt-owned', 'lt-daily-results', 'lt-daily-wins', 'lt-bonus']
+const ECON_KEYS = ['lt-owned', 'lt-daily-results', 'lt-daily-wins', 'lt-bonus', 'lt-duel-ledger']
 const SIG_KEY = 'lt-econ-sig'
 const SECRET = 'pk7c-econ-v1'
 
@@ -207,6 +207,28 @@ export function claimNamedBonus(handle: string): number {
   return granted
 }
 
+// ---- duel wagers -----------------------------------------------------------
+
+const DUEL_LEDGER_KEY = 'lt-duel-ledger'
+type DuelLedger = Record<string, number> // duelId -> PP delta (+win / -loss / 0)
+
+const duelLedger = (): DuelLedger => readJSON<DuelLedger>(DUEL_LEDGER_KEY, {})
+
+/** Net PP won (negative if down) across all settled duels. A per-duel ledger so
+ *  it merges cleanly across devices (union of {id: delta}). */
+export const duelNet = (): number => Object.values(duelLedger()).reduce((s, v) => s + v, 0)
+
+/** Record a finished duel's wager outcome once. `delta` is +wager (win),
+ *  -wager (loss) or 0 (push). Returns true if it was newly settled. */
+export function settleDuel(duelId: string, delta: number): boolean {
+  const led = duelLedger()
+  if (duelId in led) return false
+  led[duelId] = Math.round(delta)
+  writeJSON(DUEL_LEDGER_KEY, led)
+  signEconomyState()
+  return true
+}
+
 // ---- derivation ------------------------------------------------------------
 
 /**
@@ -219,7 +241,7 @@ export function derivedEarned(correctCount: number, achievementReward: number): 
   const completes = Object.values(dailyResults()).filter((r) => r.completed).length
   const fromDailyComplete = completes * DAILY_COMPLETE_BONUS
   const fromDailyWins = dailyWinsClaimed().length * DAILY_WIN_BONUS
-  return fromPlay + achievementReward + fromDailyComplete + fromDailyWins + bonusPoints()
+  return fromPlay + achievementReward + fromDailyComplete + fromDailyWins + bonusPoints() + duelNet()
 }
 
 /** Total PP ever earned (the all-time leaderboard figure). */
@@ -254,5 +276,6 @@ export async function buyItem(id: string): Promise<{ ok: boolean; reason?: strin
 }
 
 export function resetPoints(): void {
-  for (const k of [OWNED_KEY, EQUIP_KEY, RESULTS_KEY, WINS_KEY, BONUS_KEY, SIG_KEY]) localStorage.removeItem(k)
+  for (const k of [OWNED_KEY, EQUIP_KEY, RESULTS_KEY, WINS_KEY, BONUS_KEY, DUEL_LEDGER_KEY, SIG_KEY])
+    localStorage.removeItem(k)
 }

@@ -34,6 +34,7 @@ export interface SyncSnapshot {
   dailyResults?: DailyResults | null
   dailyWins?: string[] | null
   bonuses?: string[] | null
+  duelLedger?: Record<string, number> | null
   handle?: string | null
   friends?: string[] | null
 }
@@ -65,6 +66,7 @@ export async function gatherLocal(): Promise<SyncSnapshot> {
     dailyResults: lsParse<DailyResults>('lt-daily-results'),
     dailyWins: lsParse<string[]>('lt-daily-wins'),
     bonuses: lsParse<string[]>('lt-bonus'),
+    duelLedger: lsParse<Record<string, number>>('lt-duel-ledger'),
     handle: localStorage.getItem('lt-handle'),
     friends: lsParse<string[]>('lt-friends'),
   }
@@ -82,6 +84,7 @@ export async function applySnapshot(snap: SyncSnapshot): Promise<void> {
   if (snap.dailyResults) lsWrite('lt-daily-results', snap.dailyResults)
   if (snap.dailyWins) lsWrite('lt-daily-wins', snap.dailyWins)
   if (snap.bonuses) lsWrite('lt-bonus', snap.bonuses)
+  if (snap.duelLedger) lsWrite('lt-duel-ledger', snap.duelLedger)
   signEconomyState() // re-sign the merged economy keys so they pass the load-time check
   if (snap.handle) localStorage.setItem('lt-handle', snap.handle)
   if (snap.friends) lsWrite('lt-friends', snap.friends)
@@ -168,6 +171,9 @@ export function mergeSnapshots(a: SyncSnapshot, b: SyncSnapshot): SyncSnapshot {
     dailyResults: mergeDailyResults(a.dailyResults, b.dailyResults),
     dailyWins: mergeOwned(a.dailyWins, b.dailyWins),
     bonuses: mergeOwned(a.bonuses, b.bonuses),
+    // union of per-duel deltas; a given duel id resolves to the same delta on
+    // both devices, so a plain merge is correct
+    duelLedger: a.duelLedger || b.duelLedger ? { ...(a.duelLedger ?? {}), ...(b.duelLedger ?? {}) } : null,
     handle: (newer.handle || a.handle || b.handle) ?? null,
     friends: mergeOwned(a.friends, b.friends),
   }
@@ -213,6 +219,7 @@ function snapSig(s: SyncSnapshot): string {
     JSON.stringify(s.dailyResults),
     JSON.stringify(s.dailyWins),
     JSON.stringify(s.bonuses),
+    JSON.stringify(s.duelLedger),
     JSON.stringify(s.friends),
     s.handle,
     s.level,

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Spade, Target, GraduationCap, User, CalendarCheck, Volume2, VolumeX, SlidersHorizontal, Cloud, X, Coins, type LucideIcon } from 'lucide-react'
+import { Spade, Target, GraduationCap, User, CalendarCheck, Swords, Volume2, VolumeX, SlidersHorizontal, Cloud, X, Coins, type LucideIcon } from 'lucide-react'
 import DrillScreen, { type LadderRun } from './components/DrillScreen'
 import { Wordmark } from './components/Wordmark'
 import DailyChallengeCard from './components/DailyChallengeCard'
@@ -8,6 +8,8 @@ import LessonsScreen from './components/LessonsScreen'
 import OnboardingScreen from './components/OnboardingScreen'
 import LeaksScreen from './components/LeaksScreen'
 import ProfileScreen from './components/ProfileScreen'
+import DuelsScreen from './components/DuelsScreen'
+import { Avatar } from './components/Avatar'
 import AccountModal from './components/AccountModal'
 import PwaUpdater from './components/PwaUpdater'
 import { isMuted, setMuted } from './lib/sound'
@@ -18,17 +20,28 @@ import { useAuth } from './lib/useAuth'
 import { syncNow, pushLocal } from './lib/sync'
 import { compactDecisions } from './lib/db'
 import { newlyEarned, markAchievementsSeen, type Achievement } from './lib/achievements'
-import { pointsState, recordDailyResult, dailyResult, claimNamedBonus, verifyEconomyState } from './lib/points'
+import { pointsState, recordDailyResult, dailyResult, claimNamedBonus, verifyEconomyState, equipped } from './lib/points'
 import { dayKey, recordLadderComplete } from './lib/daily'
 import { dailyLadderSeeds, ladderProgress, saveLadderProgress, clearLadderProgress } from './lib/dailyLadder'
 import { submitDailyScore, fetchIncomingRequests, getHandle } from './lib/leaderboard'
+import {
+  createDuel,
+  answerDuel,
+  declineDuel,
+  duelSeeds,
+  newDuelSeed,
+  fetchDuels,
+  incomingDuels,
+  type DuelRow,
+} from './lib/duel'
 import type { Difficulty, FocusRequest } from './lib/spot'
 
-type Tab = 'drill' | 'daily' | 'lessons' | 'leaks' | 'profile'
+type Tab = 'drill' | 'daily' | 'duels' | 'lessons' | 'leaks' | 'profile'
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'drill', label: 'Drill', icon: Spade },
   { id: 'daily', label: 'Daily', icon: CalendarCheck },
+  { id: 'duels', label: 'Duels', icon: Swords },
   { id: 'lessons', label: 'Lessons', icon: GraduationCap },
   { id: 'leaks', label: 'Leaks', icon: Target },
   { id: 'profile', label: 'Profile', icon: User },
@@ -207,6 +220,81 @@ export default function App() {
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, progress])
+
+  // ---- duels ----
+  const [duelsVersion, setDuelsVersion] = useState(0)
+  const [duelReqCount, setDuelReqCount] = useState(0)
+  // brief "VS" splash shown before a duel's 10 questions begin
+  const [duelIntro, setDuelIntro] = useState<{ me: string; them: string; handle: string } | null>(null)
+
+  // incoming-duel count → notification badge on the Duels tab
+  useEffect(() => {
+    if (!user) return setDuelReqCount(0)
+    fetchDuels(user.id).then((d) => setDuelReqCount(incomingDuels(d, user.id).length))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, duelsVersion, progress])
+
+  /** Run a duel's 10 seeded spots, then hand the score to `onDone`. */
+  function runDuel(seeds: ReturnType<typeof duelSeeds>, onDone: (score: number, timeMs: number) => void) {
+    setLadderResult(null)
+    setLadderRun({
+      seeds,
+      startIndex: 0,
+      startScore: 0,
+      baseTimeMs: 0,
+      onProgress: () => {},
+      onComplete: (score, timeMs) => {
+        setLadderRun(null)
+        onDone(score, timeMs)
+        setProgress((p) => p + 1)
+        setDuelsVersion((v) => v + 1)
+      },
+      onExit: () => setLadderRun(null),
+    })
+  }
+
+  /** Show the VS splash, then start the run. */
+  function withDuelIntro(themAvatar: string, themHandle: string, start: () => void) {
+    setDuelIntro({ me: equipped().avatar, them: themAvatar, handle: themHandle })
+    setTimeout(() => {
+      setDuelIntro(null)
+      start()
+    }, 1500)
+  }
+
+  function challengeFriend(opponent: { user_id: string; handle: string; avatar: string }, wager: number) {
+    setTab('duels')
+    const seed = newDuelSeed()
+    const seeds = duelSeeds(seed)
+    withDuelIntro(opponent.avatar, opponent.handle, () =>
+      runDuel(seeds, (score, timeMs) => {
+        if (user)
+          createDuel({
+            userId: user.id,
+            opponentId: opponent.user_id,
+            opponentHandle: opponent.handle,
+            opponentAvatar: opponent.avatar,
+            wager,
+            seed,
+            score,
+            timeMs,
+          })
+      }),
+    )
+  }
+
+  function playDuel(duel: DuelRow) {
+    const seeds = duelSeeds(duel.seed)
+    withDuelIntro(duel.challenger_avatar, duel.challenger_handle, () =>
+      runDuel(seeds, (score, timeMs) => {
+        answerDuel(duel.id, score, timeMs)
+      }),
+    )
+  }
+
+  function onDeclineDuel(duel: DuelRow) {
+    declineDuel(duel.id).then(() => setDuelsVersion((v) => v + 1))
+  }
 
   // debounced background push after activity
   useEffect(() => {
@@ -421,6 +509,22 @@ export default function App() {
                 <DailyChallengeCard day={dayKey()} version={dailyVersion} onPlay={startLadder} />
               </div>
             ))}
+          {tab === 'duels' &&
+            (ladderRun ? (
+              <DrillScreen level={level} onProgress={() => setProgress((p) => p + 1)} ladder={ladderRun} />
+            ) : (
+              <DuelsScreen
+                configured={supabaseConfigured}
+                userId={user?.id ?? null}
+                balance={pp ?? 0}
+                version={duelsVersion}
+                onSignIn={() => setAccountOpen(true)}
+                onChallenge={challengeFriend}
+                onPlay={playDuel}
+                onDecline={onDeclineDuel}
+                onChanged={() => setProgress((p) => p + 1)}
+              />
+            ))}
           {tab === 'lessons' && (
             <LessonsScreen
               onProgress={() => setProgress((p) => p + 1)}
@@ -456,12 +560,11 @@ export default function App() {
               {active && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-sage" />}
               <span className="relative">
                 <Icon size={22} strokeWidth={active ? 2.4 : 1.9} />
-                {t.id === 'profile' && friendReqCount > 0 && (
+                {((t.id === 'profile' && friendReqCount > 0) || (t.id === 'duels' && duelReqCount > 0)) && (
                   <span
                     className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-clay px-1 text-[10px] font-bold leading-none text-white"
-                    aria-label={`${friendReqCount} friend requests`}
                   >
-                    {friendReqCount}
+                    {t.id === 'profile' ? friendReqCount : duelReqCount}
                   </span>
                 )}
               </span>
@@ -470,6 +573,18 @@ export default function App() {
           )
         })}
       </nav>
+
+      {duelIntro && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/80 backdrop-blur-sm">
+          <div className="flex items-center gap-5">
+            <div className="animate-deal"><Avatar id={duelIntro.me} size={72} /></div>
+            <span className="serif animate-spring text-5xl font-bold text-clay" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.5)' }}>
+              VS
+            </span>
+            <div className="animate-deal" style={{ animationDelay: '120ms' }}><Avatar id={duelIntro.them} size={72} /></div>
+          </div>
+        </div>
+      )}
 
       {accountOpen && (
         <AccountModal
