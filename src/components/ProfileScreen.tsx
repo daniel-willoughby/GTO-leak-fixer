@@ -729,9 +729,25 @@ function Shop({
   ]
   // these render their gradient `art` as the swatch fill (vs an emoji glyph)
   const isGradient = (t: CosmeticType) => t === 'background' || t === 'cardback' || t === 'felt'
+  // category filter — "All" (view all) or a single type, like the leaderboard toggle
+  const [filter, setFilter] = useState<'all' | CosmeticType>('all')
+  const shown = filter === 'all' ? groups : groups.filter((g) => g.type === filter)
   return (
     <div className="flex flex-col gap-5">
-      {groups.map((g) => (
+      <div className="flex gap-1 overflow-x-auto rounded-2xl border border-line bg-ink/[0.06] p-1 text-sm [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        {[{ type: 'all' as const, label: 'View all' }, ...groups].map((f) => (
+          <button
+            key={f.type}
+            onClick={() => setFilter(f.type)}
+            className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+              filter === f.type ? 'bg-sage text-white shadow-[0_4px_12px_-4px_rgba(67,84,72,0.6)]' : 'text-ink2 hover:text-ink'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+      {shown.map((g) => (
         <section key={g.type} className="flex flex-col gap-2.5">
           <h2 className="px-1 text-xs uppercase tracking-wide text-ink3">{g.label}</h2>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
