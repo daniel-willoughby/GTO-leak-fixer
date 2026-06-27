@@ -42,30 +42,30 @@ describe('ownership and spending', () => {
 
   it('buying records the item and counts its cost as spent', () => {
     // simulate a purchase by writing to owned via equip path is not allowed; use the store directly
-    localStorage.setItem('lt-owned', JSON.stringify(['avatar-fox']))
-    expect(isOwned('avatar-fox')).toBe(true)
+    localStorage.setItem('lt-owned', JSON.stringify(['avatar-owl']))
+    expect(isOwned('avatar-owl')).toBe(true)
     expect(spentPoints()).toBe(400)
   })
 
   it('loot-won items are owned for free; only the box price is spent', () => {
-    // an opened box: paid 250 for the Lion (worth 1000) — it counts as owned but
+    // an opened box: paid 250 for the Wolf (worth 800), it counts as owned but
     // its own cost must NOT add to spend; only the 250 box price does.
-    localStorage.setItem('lt-loot', JSON.stringify({ open1: { item: 'avatar-lion', cost: 250 } }))
-    expect(lootOwnedIds()).toEqual(['avatar-lion'])
-    expect(isOwned('avatar-lion')).toBe(true)
+    localStorage.setItem('lt-loot', JSON.stringify({ open1: { item: 'avatar-wolf', cost: 250 } }))
+    expect(lootOwnedIds()).toEqual(['avatar-wolf'])
+    expect(isOwned('avatar-wolf')).toBe(true)
     expect(lootSpend()).toBe(250)
-    expect(spentPoints()).toBe(250) // not 250 + 1000
+    expect(spentPoints()).toBe(250) // not 250 + 800
   })
 })
 
 describe('equipping cosmetics', () => {
   it('defaults to the free avatar and only equips owned items', () => {
     expect(equipped().avatar).toBe(DEFAULT_AVATAR)
-    equip('avatar', 'avatar-lion') // not owned → ignored
+    equip('avatar', 'avatar-wolf') // not owned → ignored
     expect(equipped().avatar).toBe(DEFAULT_AVATAR)
-    localStorage.setItem('lt-owned', JSON.stringify(['avatar-lion']))
-    equip('avatar', 'avatar-lion')
-    expect(equipped().avatar).toBe('avatar-lion')
+    localStorage.setItem('lt-owned', JSON.stringify(['avatar-wolf']))
+    equip('avatar', 'avatar-wolf')
+    expect(equipped().avatar).toBe('avatar-wolf')
   })
 
   it('allows clearing the flair slot with empty string', () => {

@@ -1,4 +1,4 @@
-// Poker Points: the spendable currency. PP is *derived*, not a stored balance —
+// Poker Points: the spendable currency. PP is *derived*, not a stored balance:
 // it recomputes from the decision log, unlocked achievements, and a little
 // persisted state (daily ladder results + claimed daily wins). Only purchases
 // and equipped cosmetics are mutable state. This keeps sync trivial (the
@@ -68,9 +68,9 @@ const writeJSON = (key: string, v: unknown) => localStorage.setItem(key, JSON.st
 // PP is derived from these localStorage keys, so the easy cheat is to open
 // devtools and edit one (e.g. set `lt-daily-wins` to 30 days for +15000 PP).
 // We keep a sidecar of signatures over them: an edited value no longer matches
-// its signature and is discarded on the next load. This is NOT real security —
-// the secret ships in the (minified) bundle, so a determined user reads it —
-// but it stops the common "just edit the number" cheat. True enforcement needs
+// its signature and is discarded on the next load. This is NOT real security:
+// the secret ships in the (minified) bundle, so a determined user reads it.
+// But it stops the common "just edit the number" cheat. True enforcement needs
 // server-side authority (see the planned Edge-Function task).
 const ECON_KEYS = ['lt-owned', 'lt-daily-results', 'lt-daily-wins', 'lt-bonus', 'lt-duel-ledger', 'lt-duel-record', 'lt-loot']
 const SIG_KEY = 'lt-econ-sig'
@@ -96,8 +96,8 @@ export function signEconomyState(): void {
 }
 
 /** Discard any economy value that was hand-edited (its signature no longer
- *  matches). Fail-safe: only resets on a *definite* mismatch — unsigned/legacy
- *  values are accepted and signed, never wiped — so legit data is never lost.
+ *  matches). Fail-safe: only resets on a *definite* mismatch, unsigned/legacy
+ *  values are accepted and signed, never wiped, so legit data is never lost.
  *  Returns true if something was reset. */
 export function verifyEconomyState(): boolean {
   const sigs = readSigs()
@@ -182,7 +182,7 @@ const BONUS_KEY = 'lt-bonus'
 // Hand-granted, one-time PP gifts keyed by the player's handle (case-insensitive).
 // Once a matching handle claims it the id is stored, so the balance keeps the
 // bonus even after a later rename. Keyed on the username, so it's exactly as
-// trustworthy as that name — fine for a personal gift, not anti-cheat.
+// trustworthy as that name, fine for a personal gift, not anti-cheat.
 const NAMED_BONUSES: { handle: string; id: string; pp: number }[] = [
   { handle: 'george', id: 'george-grant-5000', pp: 5000 },
 ]
@@ -230,7 +230,7 @@ const duelRecord = (): DuelRecord => readJSON<DuelRecord>(DUEL_RECORD_KEY, {})
  *  it merges cleanly across devices (union of {id: delta}). */
 export const duelNet = (): number => Object.values(duelLedger()).reduce((s, v) => s + v, 0)
 
-/** Win/play tallies across all settled duels — used by the duel achievements. */
+/** Win/play tallies across all settled duels, used by the duel achievements. */
 export function duelStats(): { played: number; won: number; lost: number; net: number } {
   const vals = Object.values(duelRecord())
   return {

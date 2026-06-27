@@ -39,7 +39,7 @@ describe('duel outcome', () => {
     expect(duelWinnerSide(d)).toBe('challenger')
   })
 
-  it('a tie is a push for both — no time tiebreak, no winner', () => {
+  it('a tie is a push for both, no time tiebreak, no winner', () => {
     const d = duel({ challenger_score: 5, opponent_score: 5, challenger_time: 1000, opponent_time: 9000 })
     expect(duelOutcome(d, ME)).toBe('push')
     expect(duelOutcome(d, THEM)).toBe('push')

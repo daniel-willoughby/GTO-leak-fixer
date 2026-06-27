@@ -333,8 +333,8 @@ export async function replaceDecisions(rows: DecisionRecord[]): Promise<void> {
 }
 
 // A held or double-tapped key can log one answer twice (the React `result`
-// guard updates a tick too late), and those near-duplicates — a few ms apart,
-// so a different `ts` slips past content-dedup — inflate the count and PP,
+// guard updates a tick too late), and those near-duplicates, a few ms apart,
+// so a different `ts` slips past content-dedup, inflate the count and PP,
 // compounding when unioned across devices. Collapse decisions that are the same
 // spot+action within this window; a genuine replay is always seconds apart
 // (you must read the feedback and advance), so real plays are never removed.

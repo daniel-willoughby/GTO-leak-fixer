@@ -5,7 +5,7 @@
 //   • Native (Capacitor iOS/Android): real Taptic Engine via @capacitor/haptics.
 //   • Android / Chrome web: the Vibration API works, including in silent mode.
 //   • iOS Safari + standalone PWA: navigator.vibrate is NOT supported. We fall
-//     back to the iOS 17.4+ "switch" haptic trick — toggling a hidden
+//     back to the iOS 17.4+ "switch" haptic trick, toggling a hidden
 //     <input type="checkbox" switch> inside a label triggers the system tap.
 //     This only fires inside a user gesture and is best-effort, but it's the
 //     only web haptic iOS exposes. (Native wrapper avoids all this.)
@@ -32,7 +32,7 @@ function nativeHaptic(kind: HapticKind): Promise<void> {
 }
 
 // Lazily-created hidden <label><input type="checkbox" switch></label>. Clicking
-// the *label* toggles the switch, which is what fires the iOS system haptic —
+// the *label* toggles the switch, which is what fires the iOS system haptic;
 // this is the canonical form used by web haptic libraries.
 let iosLabel: HTMLLabelElement | null = null
 function iosHapticEl(): HTMLLabelElement | null {

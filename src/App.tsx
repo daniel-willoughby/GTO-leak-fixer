@@ -271,7 +271,7 @@ export default function App() {
                     ? `You beat ${name}${x.wager > 0 ? ` · +${x.wager} PP` : ''}`
                     : out === 'loss'
                       ? `${name} won${x.wager > 0 ? ` · −${x.wager} PP` : ''}`
-                      : `Tied with ${name} — no PP changes hands`,
+                      : `Tied with ${name}, no PP changes hands`,
               }
             }),
           ])
@@ -738,7 +738,7 @@ export default function App() {
             </span>
             <div className="min-w-0 flex-1 leading-tight">
               <p className="text-sm font-semibold text-ink">Today's challenge is live</p>
-              <p className="text-xs text-ink2">20 spots, one shot — climb the daily board.</p>
+              <p className="text-xs text-ink2">20 spots, one shot, climb the daily board.</p>
             </div>
             <button
               onClick={() => { setDailyInvite(false); setTab('daily') }}

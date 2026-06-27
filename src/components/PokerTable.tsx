@@ -81,7 +81,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
   const heroIdx = actionIndex(heroPos)
   const postflop = !!board
   // When a player still in the pot sits AFTER the hero in betting order, the
-  // hand has been (re-)raised and folded back around to the hero — so the hero
+  // hand has been (re-)raised and folded back around to the hero, so the hero
   // is closing the action and everyone not still in has folded, the blinds
   // included. Otherwise the seats behind the hero are simply yet to act.
   const stillIn = [raiserPos, ...activePots].filter(Boolean) as Position[]

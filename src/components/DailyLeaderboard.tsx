@@ -32,7 +32,7 @@ export default function DailyLeaderboard({ configured, userId, version }: Props)
         {rows === null ? (
           <p className="p-4 text-center text-sm text-ink3">Loading…</p>
         ) : rows.length === 0 ? (
-          <p className="p-4 text-center text-sm text-ink3">No scores yet today — be the first to climb.</p>
+          <p className="p-4 text-center text-sm text-ink3">No scores yet today. Be the first to climb.</p>
         ) : (
           rows.slice(0, 10).map((r, i) => {
             const me = r.user_id === userId

@@ -95,7 +95,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
   }, [configured, userId])
 
   useEffect(() => {
-    // Refetch only when the viewed section or friend set changes — not on every
+    // Refetch only when the viewed section or friend set changes, not on every
     // `version` bump (which fires on each answered hand). The 30s read cache in
     // leaderboard.ts coalesces the rest.
     if (section === 'leaderboards' && boardMode === 'daily') fetchDailyLeaderboard(dayKey()).then(setDaily)
@@ -114,7 +114,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
-  // Friends are permanent once added — adding is idempotent, with no un-add.
+  // Friends are permanent once added, adding is idempotent, with no un-add.
   // Adding also pings the other player so they're notified and can add back.
   const addOnly = (id: string) => {
     if (getFriends().includes(id)) return
@@ -234,7 +234,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
         </div>
       </div>
 
-      {/* section switch — four tabs share the bar evenly (flex-1 each) */}
+      {/* section switch, four tabs share the bar evenly (flex-1 each) */}
       <div className="flex gap-1 rounded-2xl border border-line bg-ink/[0.06] p-1 text-sm">
         {SECTIONS.map((s) => (
           <button
@@ -289,7 +289,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
               configured={configured}
               userId={userId}
               onSignIn={onSignIn}
-              empty="No scores yet today — be the first to climb the ladder."
+              empty="No scores yet today. Be the first to climb the ladder."
               rows={daily}
               render={(r: DailyRow, i) => {
                 const me = r.user_id === userId
@@ -319,7 +319,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
               configured={configured}
               userId={userId}
               onSignIn={onSignIn}
-              empty="No players yet — earn some Poker Points to appear here."
+              empty="No players yet. Earn some Poker Points to appear here."
               rows={allTime}
               render={(r: LeaderRow, i) => {
                 const me = r.user_id === userId
@@ -348,7 +348,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
               configured={configured}
               userId={userId}
               onSignIn={onSignIn}
-              empty="No crowns yet — top the daily ladder to win one at reset."
+              empty="No crowns yet. Top the daily ladder to win one at reset."
               rows={crowns}
               render={(r: LeaderRow, i) => {
                 const me = r.user_id === userId
@@ -455,7 +455,7 @@ function LootReveal({
         </div>
       ) : (
         <div className="relative flex items-center justify-center">
-          {/* light burst — sits behind the card, its halo flares past the edges */}
+          {/* light burst, sits behind the card, its halo flares past the edges */}
           <span
             className="animate-lootburst pointer-events-none absolute left-1/2 top-1/2 z-0 h-72 w-72 rounded-full"
             style={{ background: `radial-gradient(circle, ${accent}, transparent 62%)` }}
@@ -504,7 +504,7 @@ function LootReveal({
                 {special ? '★ 1-in-50 special' : item.type.replace('cardback', 'card back')}
               </p>
             </div>
-            <p className="text-xs text-ink2">Added to your collection — equip it from the shop grid.</p>
+            <p className="text-xs text-ink2">Added to your collection, equip it from the shop grid.</p>
             <button onClick={onClose} className="btn btn-primary w-full py-2.5 text-sm">Nice!</button>
           </div>
         </div>
@@ -566,7 +566,7 @@ function Row({
   avatar: string
   flair: string
   name: string
-  /** Equipped background id — tints the row with that player's colour. */
+  /** Equipped background id, tints the row with that player's colour. */
   background?: string
   children: React.ReactNode
   /** When set, the row is tappable (used to expand a friend's stats). */
@@ -706,7 +706,7 @@ function FriendsPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* incoming friend requests — the "you've been added" notification */}
+      {/* incoming friend requests, the "you've been added" notification */}
       {requests.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <p className="px-1 text-xs uppercase tracking-wide text-ink3">
@@ -859,7 +859,7 @@ function Shop({
   ]
   // these render their gradient `art` as the swatch fill (vs an emoji glyph)
   const isGradient = (t: CosmeticType) => t === 'background' || t === 'cardback' || t === 'felt'
-  // category filter — "All" (view all), Loot boxes, or a single cosmetic type
+  // category filter, "All" (view all), Loot boxes, or a single cosmetic type
   const [filter, setFilter] = useState<'all' | 'loot' | CosmeticType>('all')
   const shown = filter === 'all' ? groups : filter === 'loot' ? [] : groups.filter((g) => g.type === filter)
   const showLoot = filter === 'all' || filter === 'loot'
@@ -902,7 +902,7 @@ function Shop({
               </div>
               <p className="text-[11px] text-ink3">
                 {soldOut ? (
-                  'You own every cosmetic — nothing left to win'
+                  'You own every cosmetic, nothing left to win'
                 ) : (
                   <>
                     <span className="font-semibold text-ink2">{remaining}</span> possible drops · rare{' '}

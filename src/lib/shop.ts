@@ -1,5 +1,5 @@
-// Cosmetic shop catalog. Three kinds of item — background colours, flairs, and
-// animal avatars — bought with Poker Points and shown on your profile and the
+// Cosmetic shop catalog. Three kinds of item, background colours, flairs, and
+// animal avatars, bought with Poker Points and shown on your profile and the
 // leaderboards. Avatar artwork comes later; for now each avatar renders an emoji
 // placeholder (the `art` field), so the economy and UI work end-to-end today.
 
@@ -12,7 +12,7 @@ export interface ShopItem {
   cost: number
   /** Render payload: a CSS colour for backgrounds, an emoji for flairs/avatars. */
   art: string
-  /** Ultra-rare: never buyable and never in a normal loot pool — only obtainable
+  /** Ultra-rare: never buyable and never in a normal loot pool, only obtainable
    *  via the rare loot-box pull (see SPECIAL_PULL_RATE). */
   special?: boolean
 }
@@ -44,23 +44,18 @@ export const SHOP: ShopItem[] = [
   { id: 'flair-clover', type: 'flair', name: 'Lucky clover', cost: 250, art: '🍀' },
   { id: 'flair-spade', type: 'flair', name: 'Spade', cost: 250, art: '♠️' },
   { id: 'flair-target', type: 'flair', name: 'Sharpshooter', cost: 350, art: '🎯' },
-  { id: 'flair-ice', type: 'flair', name: 'Ice cold', cost: 400, art: '🧊' },
-  { id: 'flair-joker', type: 'flair', name: 'Wildcard', cost: 450, art: '🃏' },
   { id: 'flair-crown', type: 'flair', name: 'Crown', cost: 500, art: '👑' },
   { id: 'flair-rocket', type: 'flair', name: 'Rocket', cost: 500, art: '🚀' },
-  { id: 'flair-brain', type: 'flair', name: 'Big brain', cost: 600, art: '🧠' },
   { id: 'flair-diamond', type: 'flair', name: 'Diamond', cost: 800, art: '💎' },
   { id: 'flair-goat', type: 'flair', name: 'GOAT', cost: 1500, art: '🐐' },
 
   // ---- avatars (animal placeholders; real art later) ----
   { id: 'avatar-chip', type: 'avatar', name: 'House chip', cost: 0, art: '🎰' },
-  { id: 'avatar-fox', type: 'avatar', name: 'Fox', cost: 400, art: '🦊' },
   { id: 'avatar-owl', type: 'avatar', name: 'Owl', cost: 400, art: '🦉' },
   { id: 'avatar-octopus', type: 'avatar', name: 'Kraken', cost: 550, art: '🐙' },
   { id: 'avatar-snake', type: 'avatar', name: 'Cobra', cost: 600, art: '🐍' },
   { id: 'avatar-wolf', type: 'avatar', name: 'Wolf', cost: 800, art: '🐺' },
   { id: 'avatar-eagle', type: 'avatar', name: 'Eagle', cost: 900, art: '🦅' },
-  { id: 'avatar-lion', type: 'avatar', name: 'Lion', cost: 1000, art: '🦁' },
   { id: 'avatar-croc', type: 'avatar', name: 'Croc', cost: 1100, art: '🐊' },
   { id: 'avatar-shark', type: 'avatar', name: 'Shark', cost: 2500, art: '🦈' },
   { id: 'avatar-dragon', type: 'avatar', name: 'Dragon', cost: 1500, art: '🐉' },
@@ -92,15 +87,15 @@ export const SHOP: ShopItem[] = [
 const BY_ID = new Map(SHOP.map((i) => [i.id, i]))
 export const shopItem = (id: string | undefined | null): ShopItem | undefined => (id ? BY_ID.get(id) : undefined)
 
-/** Items free for everyone — never need buying, always "owned". */
+/** Items free for everyone, never need buying, always "owned". */
 export const FREE_IDS: string[] = SHOP.filter((i) => i.cost === 0).map((i) => i.id)
 
 export const itemsOfType = (type: CosmeticType): ShopItem[] => SHOP.filter((i) => i.type === type)
 
 // ---- loot box --------------------------------------------------------------
-// One Mystery Box: a flat 300 PP gamble for a random cosmetic you don't own yet
-// — anything in the shop is on the table, from a 150 PP background up to the
-// 2500 Shark — plus a rare 2% shot at an ultra-rare special. Free items are
+// One Mystery Box: a flat 300 PP gamble for a random cosmetic you don't own
+// yet. Anything in the shop is on the table, from a 150 PP background up to the
+// 2500 Shark, plus a rare 2% shot at an ultra-rare special. Free items are
 // never in the pool (you already own them) and specials never appear here (they
 // only arrive via the 2% pull), so the box always yields something you'd buy.
 export interface LootBox {
@@ -126,7 +121,7 @@ export const LOOT_BOXES: LootBox[] = [
     id: 'box-mystery',
     name: 'Mystery Box',
     cost: 300,
-    blurb: 'A random item you don’t own — anything in the shop, common to legendary',
+    blurb: 'A random item you don’t own, anything in the shop, common to legendary',
     art: '🎁',
     tint: '#c79a4a',
     pool: () => SHOP.filter((i) => !i.special && i.cost > 0).map((i) => i.id),

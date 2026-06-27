@@ -67,7 +67,7 @@ export default function DuelsScreen({
     return (
       <div className="mx-auto mt-10 max-w-sm panel flex flex-col items-center gap-3 p-5 text-center text-sm text-ink2">
         <Swords size={28} className="text-clay" />
-        <p>Sign in to challenge friends — or anyone — to a duel.</p>
+        <p>Sign in to challenge friends, or anyone, to a duel.</p>
         <button onClick={onSignIn} className="btn btn-primary px-4 py-2 text-sm">Sign in</button>
       </div>
     )
@@ -98,12 +98,12 @@ export default function DuelsScreen({
         </span>
       </div>
       <p className="-mt-2 text-sm text-ink2">
-        Best of {DUEL_LEN} questions, head to head. Wager Poker Points — the winner takes the pot, a tie is a push.
+        Best of {DUEL_LEN} questions, head to head. Wager Poker Points, the winner takes the pot, a tie is a push.
       </p>
 
       {inDebt && (
         <div className="rounded-xl border border-clay/40 bg-clay/[0.08] px-3 py-2.5 text-sm text-clay">
-          You're {Math.abs(balance)} PP in debt — win some Poker Points back before you can duel again.
+          You're {Math.abs(balance)} PP in debt, win some Poker Points back before you can duel again.
         </div>
       )}
 
@@ -253,7 +253,7 @@ export default function DuelsScreen({
               d.status === 'declined'
                 ? 'declined'
                 : d.status === 'open'
-                  ? 'open — waiting for a taker'
+                  ? 'open, waiting for a taker'
                   : d.status === 'pending'
                     ? d.opponent === userId ? 'awaiting you' : 'waiting for them'
                     : `${mineScore ?? 0}–${theirScore ?? 0}`

@@ -13,7 +13,7 @@ export default function LadderResults({ score, total, onClose, onLeaderboard }: 
   const pp = score * PP_PER_CORRECT + DAILY_COMPLETE_BONUS
   const pct = Math.round((score / total) * 100)
   const blurb =
-    pct >= 90 ? 'Outstanding — you crushed it.' : pct >= 70 ? 'Strong run.' : pct >= 50 ? 'Solid effort.' : 'Keep grinding — tomorrow’s a new board.'
+    pct >= 90 ? 'Outstanding, you crushed it.' : pct >= 70 ? 'Strong run.' : pct >= 50 ? 'Solid effort.' : 'Keep grinding, tomorrow’s a new board.'
 
   return (
     <div className="px-4 pt-10 pb-28 max-w-md mx-auto flex flex-col items-center gap-5 text-center animate-pop">

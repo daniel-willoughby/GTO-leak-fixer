@@ -242,7 +242,7 @@ function snapSig(s: SyncSnapshot): string {
 export async function pushLocal(userId: string): Promise<void> {
   const snap = await gatherLocal()
   const sig = snapSig(snap)
-  if (sig === lastPushSig) return // nothing changed since the last push — skip all 3 writes
+  if (sig === lastPushSig) return // nothing changed since the last push, skip all 3 writes
   lastPushSig = sig
   await pushRemote(userId, snap)
   await upsertProfile(userId, snap)

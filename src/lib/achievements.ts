@@ -26,7 +26,7 @@ export interface Achievement {
   reward: number
 }
 
-/** PP reward per milestone id — tougher milestones pay more. */
+/** PP reward per milestone id, tougher milestones pay more. */
 export const ACHIEVEMENT_REWARD: Record<string, number> = {
   hands25: 25,
   hands100: 50,
@@ -253,7 +253,7 @@ export async function newlyEarned(): Promise<Achievement[]> {
  * popping anything. Call this right after a sign-in sync: the sync pulls a
  * whole history in at once, and without this the next `newlyEarned()` would
  * flood the player with pops (and "+PP") for achievements they unlocked long
- * ago — which reads as re-earning the same achievement on every login.
+ * ago, which reads as re-earning the same achievement on every login.
  */
 export async function markAchievementsSeen(): Promise<void> {
   const items = await getAchievements()

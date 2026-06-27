@@ -205,7 +205,7 @@ function lessonSpot(l: Lesson, scopeOpts: GenOptions): Spot {
 }
 
 // Current correct-answer streak, kept at module scope so it survives the
-// DrillScreen unmounting when you switch tabs — only a wrong answer (or a
+// DrillScreen unmounting when you switch tabs, only a wrong answer (or a
 // deliberate mode switch) should reset it, not leaving and returning to Drill.
 let sessionStreak = 0
 

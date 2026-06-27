@@ -65,7 +65,7 @@ function withSeededRandom<T>(seed: number, fn: () => T): T {
   }
 }
 
-/** The 10 spots for a duel — identical on both players' devices. */
+/** The 10 spots for a duel, identical on both players' devices. */
 export function duelSeeds(seed: string): SpotSeed[] {
   return withSeededRandom(hashStr(`duel-${seed}`), () =>
     DUEL_PLAN.map((r) => seedOf(generateSpot(r.mode, { difficulty: r.difficulty }))),
@@ -161,7 +161,7 @@ export async function answerDuel(duelId: string, score: number, timeMs: number):
 
 /** Claim and play an open duel: stamp yourself as the opponent and submit your
  *  score atomically. The `status='open'` guard ensures only the *first* claimer
- *  wins the race — a second accept finds the row already 'done' and no-ops.
+ *  wins the race, a second accept finds the row already 'done' and no-ops.
  *  Returns true if this client successfully claimed it. */
 export async function acceptOpenDuel(duelId: string, userId: string, score: number, timeMs: number): Promise<boolean> {
   if (!supabase) return false
@@ -234,7 +234,7 @@ export async function fetchPublicLedger(sort: LedgerSort = 'recent', limit = 25)
   return data as DuelRow[]
 }
 
-/** Who won, from this user's perspective. A tie (equal score) is a push — there
+/** Who won, from this user's perspective. A tie (equal score) is a push, there
  *  is no time tiebreak, so nobody wins and no PP changes hands. */
 export function duelOutcome(d: DuelRow, userId: string): DuelOutcome {
   const cs = d.challenger_score ?? 0
@@ -244,7 +244,7 @@ export function duelOutcome(d: DuelRow, userId: string): DuelOutcome {
   return winner === userId ? 'win' : 'loss'
 }
 
-/** Who won, by side ('challenger' | 'opponent' | null-for-push) — for the
+/** Who won, by side ('challenger' | 'opponent' | null-for-push), for the
  *  public ledger, which has no single viewer. */
 export function duelWinnerSide(d: DuelRow): 'challenger' | 'opponent' | null {
   const cs = d.challenger_score ?? 0
@@ -294,7 +294,7 @@ export function markDuelPlayed(id: string): void {
 
 // ---- conclusion notifications ----------------------------------------------
 // When a duel you're in finishes (the other player submitted their score), you
-// should be told the result — even if you're not on the Duels tab. We track
+// should be told the result, even if you're not on the Duels tab. We track
 // which finished duels you've already been shown. First run seeds silently so a
 // returning player with a backlog of done duels isn't flooded with pops.
 const SEEN_KEY = 'lt-duel-seen'

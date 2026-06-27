@@ -108,7 +108,7 @@ const randOf = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.
 // Labels bucketed by hand category, so a focused drill can deal straight from
 // the target category instead of rejection-sampling random hands (which fails
 // ~11% of the time for a small category like offsuit aces and silently serves
-// an off-target hand). Built lazily — classifyHand depends on a const declared
+// an off-target hand). Built lazily, classifyHand depends on a const declared
 // later in the file, so this can't run at module-init time.
 let labelsByCat: Map<HandCategory, string[]> | null = null
 function labelsForCat(cat: HandCategory): string[] {
@@ -734,7 +734,7 @@ function explain(spot: Spot, chosen: Action, level: Level): string {
 }
 
 // Swap the embedded hand label for its "10"-spelled display form *after* the
-// text is built, so only the exact label token changes — seat names like UTG
+// text is built, so only the exact label token changes, seat names like UTG
 // and BTN (which also contain a 'T') are never touched.
 function tensInLabel(text: string, label?: string): string {
   if (!label || !label.includes('T')) return text

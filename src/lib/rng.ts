@@ -1,5 +1,5 @@
 // Tiny deterministic PRNG. Used so every client builds the *same* daily ladder
-// from the shared UTC date string — no server round-trip, identical questions
+// from the shared UTC date string, no server round-trip, identical questions
 // for everyone on a given day.
 
 /** Hash a string to a 32-bit unsigned int (xmur3-style). */

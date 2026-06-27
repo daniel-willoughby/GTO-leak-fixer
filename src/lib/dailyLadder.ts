@@ -1,5 +1,5 @@
 // The daily 20-question ladder. Everyone in the world gets the *same* twenty
-// spots on a given UTC day — fair for the leaderboard — because we seed
+// spots on a given UTC day, fair for the leaderboard, because we seed
 // Math.random from the date string while generating, so the existing spot
 // generators run deterministically. Difficulty climbs: easy opens early,
 // borderline preflop in the middle, tricky postflop at the end.
@@ -16,19 +16,19 @@ interface Rung {
 
 // The difficulty curve across the 20 rungs.
 const LADDER_PLAN: Rung[] = [
-  // 1-5 — gentle: clear-cut opens
+  // 1-5, gentle: clear-cut opens
   ...Array.from({ length: 5 }, () => ({ mode: 'rfi' as DrillMode, difficulty: 'easy' as Difficulty })),
-  // 6-8 — full-range opens
+  // 6-8, full-range opens
   ...Array.from({ length: 3 }, () => ({ mode: 'rfi' as DrillMode, difficulty: 'all' as Difficulty })),
-  // 9-10 — facing a raise
+  // 9-10, facing a raise
   ...Array.from({ length: 2 }, () => ({ mode: 'vsRfi' as DrillMode, difficulty: 'all' as Difficulty })),
-  // 11-13 — borderline defends
+  // 11-13, borderline defends
   ...Array.from({ length: 3 }, () => ({ mode: 'vsRfi' as DrillMode, difficulty: 'hard' as Difficulty })),
-  // 14-15 — multiway squeezes
+  // 14-15, multiway squeezes
   ...Array.from({ length: 2 }, () => ({ mode: 'multiway' as DrillMode, difficulty: 'all' as Difficulty })),
-  // 16-17 — postflop
+  // 16-17, postflop
   ...Array.from({ length: 2 }, () => ({ mode: 'postflop' as DrillMode, difficulty: 'all' as Difficulty })),
-  // 18-20 — trickiest postflop spots
+  // 18-20, trickiest postflop spots
   ...Array.from({ length: 3 }, () => ({ mode: 'postflop' as DrillMode, difficulty: 'hard' as Difficulty })),
 ]
 
@@ -43,7 +43,7 @@ function withSeededRandom<T>(seed: number, fn: () => T): T {
   }
 }
 
-/** The 20 seeds for a given UTC day — identical on every client. */
+/** The 20 seeds for a given UTC day, identical on every client. */
 export function dailyLadderSeeds(day: string): SpotSeed[] {
   return withSeededRandom(hashStr(`ladder-${day}`), () =>
     LADDER_PLAN.map((r) => seedOf(generateSpot(r.mode, { difficulty: r.difficulty }))),

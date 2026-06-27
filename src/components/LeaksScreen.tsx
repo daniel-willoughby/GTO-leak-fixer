@@ -172,7 +172,7 @@ function ModeSection({
       </div>
       {/* the header shows accuracy (higher = better); the rows below show miss
           rate (higher = worse), so spell that out to avoid the flipped reading */}
-      <p className="text-xs text-ink3 mb-3">Bars show your <span className="font-semibold text-clay">miss rate</span> — longer, redder bars are bigger leaks to fix.</p>
+      <p className="text-xs text-ink3 mb-3">Bars show your <span className="font-semibold text-clay">miss rate</span>, longer, redder bars are bigger leaks to fix.</p>
       <p className="text-xs uppercase tracking-wide text-ink3 mb-2">{primaryLabel}</p>
       <div className="flex flex-col gap-2 mb-4">
         {trim(primary).map((s) => (

@@ -110,7 +110,7 @@ export function profileStats(
  * Publish standings through the server-authoritative `publish-standings` Edge
  * Function (it validates the payload, clamps PP and recomputes crowns). Returns
  * true on success. When the function isn't deployed yet it returns false so the
- * caller can fall back to a direct write — keeping the app working before the
+ * caller can fall back to a direct write, keeping the app working before the
  * server-authority migration is applied.
  */
 async function publishViaFunction(body: Record<string, unknown>): Promise<boolean> {
@@ -150,7 +150,7 @@ export async function upsertProfile(userId: string, snap: SyncSnapshot): Promise
 
 /**
  * Push all locally-completed daily ladder results to the shared leaderboard.
- * Safe to call repeatedly — uses upsert so it's idempotent. This ensures
+ * Safe to call repeatedly, uses upsert so it's idempotent. This ensures
  * scores completed before sign-in are retroactively submitted on next sync.
  */
 const SUBMITTED_KEY = 'lt-daily-submitted'
