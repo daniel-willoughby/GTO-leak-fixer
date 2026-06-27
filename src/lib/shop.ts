@@ -77,7 +77,7 @@ export const SHOP: ShopItem[] = [
 
   // ---- ultra-rare specials (loot-box only, ~2% pull; never buyable) ----
   { id: 'avatar-celestial', type: 'avatar', name: 'Celestial Dragon', cost: 5000, art: '🐲', special: true },
-  { id: 'flair-fish', type: 'flair', name: 'Fish', cost: 5000, art: '🐟', special: true },
+  { id: 'avatar-fish', type: 'avatar', name: 'Fish', cost: 5000, art: '🐟', special: true },
 
   // ---- table felts (the colour of the felt you play on) ----
   { id: 'felt-classic', type: 'felt', name: 'Casino green', cost: 0, art: 'radial-gradient(circle at 50% 34%,#7e9a85 0%,#67836f 46%,#51695a 100%)' },
