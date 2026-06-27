@@ -13,6 +13,7 @@ import {
   DEFAULT_FLAIR,
   DEFAULT_BACKGROUND,
   DEFAULT_CARDBACK,
+  DEFAULT_FELT,
   type CosmeticType,
 } from './shop'
 
@@ -30,6 +31,7 @@ export interface Equipped {
   flair: string
   background: string
   cardback: string
+  felt: string
 }
 
 export interface DailyResult {
@@ -124,6 +126,7 @@ export function equipped(): Equipped {
     flair: e.flair ?? DEFAULT_FLAIR,
     background: e.background ?? DEFAULT_BACKGROUND,
     cardback: e.cardback ?? DEFAULT_CARDBACK,
+    felt: e.felt ?? DEFAULT_FELT,
   }
 }
 

@@ -838,6 +838,7 @@ export default function DrillScreen({
         heroPos={spot.heroPos}
         heroCards={spot.cards}
         cardBack={shopItem(equipped().cardback)?.art}
+        felt={shopItem(equipped().felt)?.art}
         raiserPos={spot.raiserPos}
         activePots={multiwayActive}
         chips={chipsFor(spot)}

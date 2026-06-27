@@ -26,9 +26,12 @@ interface Props {
   heroAnim?: { kind: 'chips' | 'muck'; seq: number } | null
   /** CSS gradient for the opponents' face-down card backs (equipped "deck"). */
   cardBack?: string
+  /** CSS gradient for the felt surface (equipped "felt"). */
+  felt?: string
 }
 
 const DEFAULT_CARD_BACK = 'linear-gradient(150deg, #9c4234 0%, #863a2d 48%, #6f2f25 100%)'
+const DEFAULT_FELT = 'radial-gradient(circle at 50% 34%, #7e9a85 0%, #67836f 46%, #51695a 100%)'
 
 // Seat coordinates as % of the table container, seat 0 = hero (bottom). Seats
 // trace CLOCKWISE to match POSITION_ORDER, so the player to hero's left (next
@@ -74,7 +77,7 @@ const SEAT_CLASS: Record<Status, string> = {
   waiting: 'bg-[#33423a] text-white border-[#283228] shadow-[0_2px_6px_rgba(34,31,25,0.25)]',
 }
 
-export default function PokerTable({ heroPos, heroCards, raiserPos, activePots = [], chips = [], pot, board, villain, heroAnim, cardBack = DEFAULT_CARD_BACK }: Props) {
+export default function PokerTable({ heroPos, heroCards, raiserPos, activePots = [], chips = [], pot, board, villain, heroAnim, cardBack = DEFAULT_CARD_BACK, felt = DEFAULT_FELT }: Props) {
   const heroIdx = actionIndex(heroPos)
   const postflop = !!board
   // When a player still in the pot sits AFTER the hero in betting order, the
@@ -156,7 +159,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
         <div
           className="relative w-full h-full rounded-full flex items-center justify-center"
           style={{
-            background: 'radial-gradient(circle at 50% 34%, #7e9a85 0%, #67836f 46%, #51695a 100%)',
+            background: felt,
             boxShadow: 'inset 0 3px 14px rgba(34,31,25,0.22), inset 0 0 60px rgba(34,31,25,0.16)',
           }}
         >

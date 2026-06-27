@@ -3,7 +3,7 @@
 // leaderboards. Avatar artwork comes later; for now each avatar renders an emoji
 // placeholder (the `art` field), so the economy and UI work end-to-end today.
 
-export type CosmeticType = 'background' | 'flair' | 'avatar' | 'cardback'
+export type CosmeticType = 'background' | 'flair' | 'avatar' | 'cardback' | 'felt'
 
 export interface ShopItem {
   id: string
@@ -19,6 +19,7 @@ export const DEFAULT_AVATAR = 'avatar-chip'
 export const DEFAULT_FLAIR = ''
 export const DEFAULT_BACKGROUND = 'bg-felt'
 export const DEFAULT_CARDBACK = 'deck-classic'
+export const DEFAULT_FELT = 'felt-classic'
 
 export const SHOP: ShopItem[] = [
   // ---- backgrounds (profile header wash) ----
@@ -70,6 +71,15 @@ export const SHOP: ShopItem[] = [
   { id: 'deck-plum', type: 'cardback', name: 'Plum', cost: 450, art: 'linear-gradient(150deg,#6d4a6b,#4f3450 48%,#33213a)' },
   { id: 'deck-candy', type: 'cardback', name: 'Bubblegum', cost: 600, art: 'linear-gradient(150deg,#c45a7a,#a23f60 48%,#7c2c47)' },
   { id: 'deck-gold', type: 'cardback', name: 'Gold leaf', cost: 1000, art: 'linear-gradient(150deg,#caa24c,#a8812f 48%,#7c5d1f)' },
+
+  // ---- table felts (the colour of the felt you play on) ----
+  { id: 'felt-classic', type: 'felt', name: 'Casino green', cost: 0, art: 'radial-gradient(circle at 50% 34%,#7e9a85 0%,#67836f 46%,#51695a 100%)' },
+  { id: 'felt-sapphire', type: 'felt', name: 'Sapphire', cost: 350, art: 'radial-gradient(circle at 50% 34%,#6f88a8 0%,#56708f 46%,#41566f 100%)' },
+  { id: 'felt-crimson', type: 'felt', name: 'Crimson', cost: 400, art: 'radial-gradient(circle at 50% 34%,#a86b6b 0%,#8c5050 46%,#6f3a3a 100%)' },
+  { id: 'felt-violet', type: 'felt', name: 'Violet', cost: 450, art: 'radial-gradient(circle at 50% 34%,#8a7298 0%,#6d5780 46%,#523f63 100%)' },
+  { id: 'felt-onyx', type: 'felt', name: 'Onyx', cost: 500, art: 'radial-gradient(circle at 50% 34%,#545b63 0%,#3f454c 46%,#2c3036 100%)' },
+  { id: 'felt-teal', type: 'felt', name: 'Teal', cost: 600, art: 'radial-gradient(circle at 50% 34%,#5e9a93 0%,#467a74 46%,#2f5a55 100%)' },
+  { id: 'felt-sahara', type: 'felt', name: 'Sahara', cost: 900, art: 'radial-gradient(circle at 50% 34%,#c2b08a 0%,#a89570 46%,#8a7a56 100%)' },
 ]
 
 const BY_ID = new Map(SHOP.map((i) => [i.id, i]))

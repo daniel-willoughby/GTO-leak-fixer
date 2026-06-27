@@ -716,7 +716,7 @@ function Shop({
 }: {
   balance: number
   owned: string[]
-  equipped: { avatar: string; flair: string; background: string; cardback: string }
+  equipped: { avatar: string; flair: string; background: string; cardback: string; felt: string }
   onBuy: (item: ShopItem) => void
   onEquip: (slot: CosmeticType, id: string) => void
 }) {
@@ -725,9 +725,10 @@ function Shop({
     { type: 'flair', label: 'Flairs' },
     { type: 'background', label: 'Backgrounds' },
     { type: 'cardback', label: 'Card backs' },
+    { type: 'felt', label: 'Table felts' },
   ]
   // these render their gradient `art` as the swatch fill (vs an emoji glyph)
-  const isGradient = (t: CosmeticType) => t === 'background' || t === 'cardback'
+  const isGradient = (t: CosmeticType) => t === 'background' || t === 'cardback' || t === 'felt'
   return (
     <div className="flex flex-col gap-5">
       {groups.map((g) => (
