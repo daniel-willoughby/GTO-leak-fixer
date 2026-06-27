@@ -9,6 +9,7 @@ import {
   duelWinnerSide,
   DUEL_LEN,
   type DuelRow,
+  type LedgerSort,
 } from '../lib/duel'
 import { MAX_DEBT } from '../lib/points'
 import { Avatar } from './Avatar'
@@ -45,15 +46,20 @@ export default function DuelsScreen({
   const [pick, setPick] = useState<string>('') // selected friend user_id
   const [wager, setWager] = useState<string>('0')
   const [openWager, setOpenWager] = useState<string>('0')
+  const [ledgerSort, setLedgerSort] = useState<LedgerSort>('recent')
 
   useEffect(() => {
     if (!userId) return
     fetchFriendsLeaderboard(getFriends()).then((r) => setFriends(r.filter((f) => f.user_id !== userId)))
     fetchDuels(userId).then(setDuels)
     fetchOpenDuels(userId).then(setOpen)
-    fetchPublicLedger().then(setLedger)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, version])
+
+  useEffect(() => {
+    if (!userId) return
+    fetchPublicLedger(ledgerSort).then(setLedger)
+  }, [userId, version, ledgerSort])
 
   if (!configured)
     return <p className="px-1 pt-6 text-center text-sm text-ink2">Duels need cloud sync to be configured.</p>
@@ -278,12 +284,30 @@ export default function DuelsScreen({
         </section>
       )}
 
-      {/* public ledger: recent results across everyone */}
+      {/* public ledger: past results across everyone */}
       {ledger.length > 0 && (
         <section className="flex flex-col gap-2">
-          <h2 className="flex items-center gap-1.5 px-1 text-xs uppercase tracking-wide text-ink3">
-            <Trophy size={13} className="text-clay" /> Recent duels worldwide
-          </h2>
+          <div className="flex items-center gap-2 px-1">
+            <h2 className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-ink3">
+              <Trophy size={13} className="text-clay" /> Past duels
+            </h2>
+            <div className="ml-auto flex gap-1 rounded-lg border border-line bg-ink/[0.05] p-0.5 text-xs">
+              {([
+                { id: 'recent', label: 'Recent' },
+                { id: 'wager', label: 'Wager' },
+              ] as const).map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setLedgerSort(s.id)}
+                  className={`rounded-md px-2 py-0.5 font-semibold transition ${
+                    ledgerSort === s.id ? 'bg-sage text-white' : 'text-ink3 hover:text-ink2'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="panel flex flex-col divide-y divide-line overflow-hidden">
             {ledger.map((d) => {
               const winner = duelWinnerSide(d)
@@ -302,11 +326,13 @@ export default function DuelsScreen({
                   <span className={`min-w-0 flex-1 truncate ${winner === 'opponent' ? 'font-bold text-sage-dark' : 'text-ink2'}`}>
                     {oName}
                   </span>
-                  {d.wager > 0 && (
-                    <span className="ml-1 flex shrink-0 items-center gap-0.5 text-xs font-semibold tabular-nums text-clay">
-                      <Coins size={11} /> {d.wager}
-                    </span>
-                  )}
+                  <span
+                    className={`ml-1 flex w-14 shrink-0 items-center justify-end gap-0.5 text-xs font-semibold tabular-nums ${
+                      d.wager > 0 ? 'text-clay' : 'text-ink3'
+                    }`}
+                  >
+                    <Coins size={11} /> {d.wager}
+                  </span>
                 </div>
               )
             })}

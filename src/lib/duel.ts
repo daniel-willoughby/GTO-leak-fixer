@@ -218,15 +218,18 @@ export async function fetchOpenDuels(userId: string): Promise<DuelRow[]> {
   return (data as DuelRow[]).filter((d) => !hasPlayed(d.id))
 }
 
-/** Public ledger: recently concluded duels across *all* players. */
-export async function fetchPublicLedger(limit = 25): Promise<DuelRow[]> {
+export type LedgerSort = 'recent' | 'wager'
+
+/** Public ledger: concluded duels across *all* players, newest first or by the
+ *  biggest pot, depending on `sort`. */
+export async function fetchPublicLedger(sort: LedgerSort = 'recent', limit = 25): Promise<DuelRow[]> {
   if (!supabaseConfigured || !supabase) return []
-  const { data, error } = await supabase
-    .from('duels')
-    .select('*')
-    .eq('status', 'done')
-    .order('created_at', { ascending: false })
-    .limit(limit)
+  let q = supabase.from('duels').select('*').eq('status', 'done')
+  q =
+    sort === 'wager'
+      ? q.order('wager', { ascending: false }).order('created_at', { ascending: false })
+      : q.order('created_at', { ascending: false })
+  const { data, error } = await q.limit(limit)
   if (error || !data) return []
   return data as DuelRow[]
 }

@@ -10,6 +10,8 @@ import {
   FREE_IDS,
   shopItem,
   lootBox,
+  SPECIAL_IDS,
+  SPECIAL_PULL_RATE,
   DEFAULT_AVATAR,
   DEFAULT_FLAIR,
   DEFAULT_BACKGROUND,
@@ -19,7 +21,7 @@ import {
 } from './shop'
 
 export const PP_PER_CORRECT = 2
-export const DAILY_COMPLETE_BONUS = 20
+export const DAILY_COMPLETE_BONUS = 100
 export const DAILY_WIN_BONUS = 500
 
 /** How far into the red a player is allowed to go on a duel wager. You can't
@@ -284,7 +286,18 @@ export async function openLootBox(boxId: string): Promise<{ ok: boolean; itemId?
   if (!pool.length) return { ok: false, reason: 'You already own everything in this box' }
   const { balance } = await pointsState()
   if (balance < box.cost) return { ok: false, reason: 'Not enough points' }
-  const itemId = pool[Math.floor(Math.random() * pool.length)]
+  // Any box can pull an ultra-rare special at a small per-special chance, on top
+  // of its normal price-band drop. Roll the specials first; otherwise fall back
+  // to a normal item from the band (always something, so you're never charged
+  // for nothing).
+  let itemId: string | undefined
+  for (const sid of SPECIAL_IDS) {
+    if (!own.has(sid) && Math.random() < SPECIAL_PULL_RATE) {
+      itemId = sid
+      break
+    }
+  }
+  if (!itemId) itemId = pool[Math.floor(Math.random() * pool.length)]
   const openings = lootOpenings()
   const openId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
   openings[openId] = { item: itemId, cost: box.cost }

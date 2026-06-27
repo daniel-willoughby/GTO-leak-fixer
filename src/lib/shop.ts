@@ -12,6 +12,9 @@ export interface ShopItem {
   cost: number
   /** Render payload: a CSS colour for backgrounds, an emoji for flairs/avatars. */
   art: string
+  /** Ultra-rare: never buyable and never in a normal loot pool — only obtainable
+   *  via the rare loot-box pull (see SPECIAL_PULL_RATE). */
+  special?: boolean
 }
 
 // Free defaults every player owns from the start, so profiles always render.
@@ -72,6 +75,10 @@ export const SHOP: ShopItem[] = [
   { id: 'deck-candy', type: 'cardback', name: 'Bubblegum', cost: 600, art: 'linear-gradient(150deg,#c45a7a,#a23f60 48%,#7c2c47)' },
   { id: 'deck-gold', type: 'cardback', name: 'Gold leaf', cost: 1000, art: 'linear-gradient(150deg,#caa24c,#a8812f 48%,#7c5d1f)' },
 
+  // ---- ultra-rare specials (loot-box only, ~2% pull; never buyable) ----
+  { id: 'avatar-celestial', type: 'avatar', name: 'Celestial Dragon', cost: 5000, art: '🐲', special: true },
+  { id: 'flair-galaxy', type: 'flair', name: 'Galaxy', cost: 5000, art: '🌌', special: true },
+
   // ---- table felts (the colour of the felt you play on) ----
   { id: 'felt-classic', type: 'felt', name: 'Casino green', cost: 0, art: 'radial-gradient(circle at 50% 34%,#7e9a85 0%,#67836f 46%,#51695a 100%)' },
   { id: 'felt-sapphire', type: 'felt', name: 'Sapphire', cost: 350, art: 'radial-gradient(circle at 50% 34%,#6f88a8 0%,#56708f 46%,#41566f 100%)' },
@@ -90,12 +97,12 @@ export const FREE_IDS: string[] = SHOP.filter((i) => i.cost === 0).map((i) => i.
 
 export const itemsOfType = (type: CosmeticType): ShopItem[] => SHOP.filter((i) => i.type === type)
 
-// ---- loot boxes ------------------------------------------------------------
-// A gamble for the indecisive: pay a fixed price for a random cosmetic you
-// don't own yet, drawn from a price band. The box price sits a little above the
-// band's average — you trade choice (and a small premium) for the thrill, with
-// a real shot at an item worth far more than the box (a Vault can drop the 2500
-// Shark). Free items are never in a pool — you already own them.
+// ---- loot box --------------------------------------------------------------
+// One Mystery Box: a flat 300 PP gamble for a random cosmetic you don't own yet
+// — anything in the shop is on the table, from a 150 PP background up to the
+// 2500 Shark — plus a rare 2% shot at an ultra-rare special. Free items are
+// never in the pool (you already own them) and specials never appear here (they
+// only arrive via the 2% pull), so the box always yields something you'd buy.
 export interface LootBox {
   id: string
   name: string
@@ -110,37 +117,24 @@ export interface LootBox {
   pool: () => string[]
 }
 
-const inBand = (lo: number, hi: number): string[] => SHOP.filter((i) => i.cost > lo && i.cost <= hi).map((i) => i.id)
+/** Ids of the ultra-rare specials, and the per-special drop chance on any open. */
+export const SPECIAL_IDS: string[] = SHOP.filter((i) => i.special).map((i) => i.id)
+export const SPECIAL_PULL_RATE = 0.02
 
 export const LOOT_BOXES: LootBox[] = [
   {
-    id: 'box-lucky',
-    name: 'Lucky Dip',
-    cost: 250,
-    blurb: 'A random common cosmetic',
+    id: 'box-mystery',
+    name: 'Mystery Box',
+    cost: 300,
+    blurb: 'A random item you don’t own — anything in the shop, common to legendary',
     art: '🎁',
-    tint: '#5b7461',
-    pool: () => inBand(0, 300),
-  },
-  {
-    id: 'box-chest',
-    name: 'Treasure Chest',
-    cost: 600,
-    blurb: 'A mid-tier surprise',
-    art: '🧰',
-    tint: '#b16a52',
-    pool: () => inBand(300, 800),
-  },
-  {
-    id: 'box-vault',
-    name: 'Legendary Vault',
-    cost: 1400,
-    blurb: 'A premium or rare drop',
-    art: '💰',
     tint: '#c79a4a',
-    pool: () => SHOP.filter((i) => i.cost > 800).map((i) => i.id),
+    pool: () => SHOP.filter((i) => !i.special && i.cost > 0).map((i) => i.id),
   },
 ]
+
+/** The single mystery box. */
+export const MYSTERY_BOX = LOOT_BOXES[0]
 
 export const lootBox = (id: string | undefined | null): LootBox | undefined =>
   id ? LOOT_BOXES.find((b) => b.id === id) : undefined

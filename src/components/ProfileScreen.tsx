@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Check, Coins, Lock, Sparkles, UserPlus, UserCheck, Search, ChevronDown, Pencil, X, Gift } from 'lucide-react'
 import { getAchievements, type Achievement } from '../lib/achievements'
 import { pointsState, owned, equipped, equip, buyItem, claimNamedBonus, openLootBox } from '../lib/points'
-import { itemsOfType, shopItem, LOOT_BOXES, type ShopItem, type CosmeticType, type LootBox } from '../lib/shop'
+import { itemsOfType, shopItem, MYSTERY_BOX, type ShopItem, type CosmeticType, type LootBox } from '../lib/shop'
 import {
   getHandle,
   setHandle,
@@ -426,32 +426,86 @@ function LootReveal({
 }) {
   const { box, item, phase } = reveal
   const gradient = item.type === 'background' || item.type === 'cardback' || item.type === 'felt'
+  const special = !!item.special
+  const accent = special ? '#fbbf24' : box.tint
+  const sparkCount = special ? 14 : 9
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/85 backdrop-blur-sm px-6" onClick={phase === 'revealed' ? onClose : undefined}>
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center overflow-hidden bg-ink/85 px-6 backdrop-blur-md"
+      onClick={phase === 'revealed' ? onClose : undefined}
+    >
+      {/* ambient glow that tints the whole overlay toward the reward's rarity */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{ background: `radial-gradient(circle at 50% 44%, ${accent}33, transparent 62%)` }}
+      />
+
       {phase === 'opening' ? (
-        <div className="flex flex-col items-center gap-4">
-          <span className="animate-lootshake text-7xl" style={{ filter: `drop-shadow(0 8px 24px ${box.tint})` }}>
-            {box.art}
-          </span>
-          <p className="serif animate-spring text-lg text-paper">Opening {box.name}…</p>
+        <div className="relative flex flex-col items-center gap-6">
+          <div className="relative flex h-32 w-32 items-center justify-center">
+            <span
+              className="animate-loot-aura absolute h-28 w-28 rounded-full"
+              style={{ background: `radial-gradient(circle, ${box.tint}cc, transparent 70%)` }}
+            />
+            <span className="animate-lootshake relative text-7xl" style={{ filter: `drop-shadow(0 10px 26px ${box.tint})` }}>
+              {box.art}
+            </span>
+          </div>
+          <p className="serif animate-pulse text-lg text-paper">Opening…</p>
         </div>
       ) : (
-        <div className="animate-spring flex w-full max-w-xs flex-col items-center gap-4 rounded-3xl border border-line bg-paper2 p-7 text-center shadow-2xl">
-          <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-clay">
-            <Sparkles size={13} /> You won
-          </span>
+        <div className="relative flex flex-col items-center">
+          {/* light burst */}
           <span
-            className={`flex h-24 w-24 items-center justify-center border border-line text-5xl ${item.type === 'cardback' ? 'rounded-2xl' : 'rounded-full'} animate-glow`}
-            style={{ background: gradient ? item.art : 'rgb(var(--c-paper))' }}
+            className="animate-lootburst pointer-events-none absolute left-1/2 top-[34%] h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{ background: `radial-gradient(circle, ${accent}, transparent 64%)` }}
+          />
+          {/* sparkle particles flying outward */}
+          {Array.from({ length: sparkCount }).map((_, i) => {
+            const a = (i / sparkCount) * Math.PI * 2
+            const dist = special ? 96 : 74
+            return (
+              <span
+                key={i}
+                className="animate-sparkle pointer-events-none absolute left-1/2 top-[34%] text-amber-300"
+                style={{
+                  ['--dx' as string]: `${Math.cos(a) * dist}px`,
+                  ['--dy' as string]: `${Math.sin(a) * dist}px`,
+                  animationDelay: `${(i % 5) * 45}ms`,
+                  fontSize: special ? 16 : 12,
+                }}
+              >
+                {special ? '✦' : '✧'}
+              </span>
+            )
+          })}
+
+          <div
+            className={`animate-lootrise relative flex w-full max-w-xs flex-col items-center gap-4 rounded-3xl border bg-paper2 p-7 text-center shadow-2xl ${
+              special ? 'border-amber-400/70' : 'border-line'
+            }`}
+            style={special ? { boxShadow: `0 0 46px -6px ${accent}` } : undefined}
           >
-            {!gradient && item.art}
-          </span>
-          <div>
-            <p className="serif text-xl text-ink">{item.name}</p>
-            <p className="text-xs capitalize text-ink3">{item.type.replace('cardback', 'card back')}</p>
+            <span className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide ${special ? 'text-amber-500' : 'text-clay'}`}>
+              <Sparkles size={13} /> {special ? 'Ultra-rare pull!' : 'You won'}
+            </span>
+            <span
+              className={`flex h-24 w-24 items-center justify-center border text-5xl ${item.type === 'cardback' ? 'rounded-2xl' : 'rounded-full'} ${
+                special ? 'animate-lootglow border-amber-400/70' : 'animate-glow border-line'
+              }`}
+              style={{ background: gradient ? item.art : 'rgb(var(--c-paper))' }}
+            >
+              {!gradient && item.art}
+            </span>
+            <div>
+              <p className="serif text-xl text-ink">{item.name}</p>
+              <p className={`text-xs capitalize ${special ? 'font-semibold text-amber-600 dark:text-amber-400' : 'text-ink3'}`}>
+                {special ? '★ 1-in-50 special' : item.type.replace('cardback', 'card back')}
+              </p>
+            </div>
+            <p className="text-xs text-ink2">Added to your collection — equip it from the shop grid.</p>
+            <button onClick={onClose} className="btn btn-primary w-full py-2.5 text-sm">Nice!</button>
           </div>
-          <p className="text-xs text-ink2">Added to your collection — equip it from the shop grid.</p>
-          <button onClick={onClose} className="btn btn-primary w-full py-2.5 text-sm">Nice!</button>
         </div>
       )}
     </div>
@@ -811,7 +865,7 @@ function Shop({
   return (
     <div className="flex flex-col gap-5">
       <div className="flex gap-1 overflow-x-auto rounded-2xl border border-line bg-ink/[0.06] p-1 text-sm [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-        {[{ type: 'all' as const, label: 'View all' }, { type: 'loot' as const, label: 'Loot boxes' }, ...groups].map((f) => (
+        {[{ type: 'all' as const, label: 'View all' }, { type: 'loot' as const, label: 'Mystery box' }, ...groups].map((f) => (
           <button
             key={f.type}
             onClick={() => setFilter(f.type)}
@@ -824,42 +878,53 @@ function Shop({
         ))}
       </div>
 
-      {showLoot && (
-        <section className="flex flex-col gap-2.5">
-          <h2 className="flex items-center gap-1.5 px-1 text-xs uppercase tracking-wide text-ink3">
-            <Gift size={13} className="text-clay" /> Loot boxes
-          </h2>
-          <p className="-mt-1 px-1 text-xs text-ink3">Pay the price, get a random cosmetic you don't own yet.</p>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-            {LOOT_BOXES.map((box) => {
-              const remaining = box.pool().filter((id) => !owned.includes(id)).length
-              const soldOut = remaining === 0
-              const affordable = balance >= box.cost
-              return (
-                <div
-                  key={box.id}
-                  className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-paper2 p-3 text-center"
-                >
-                  <span className="text-4xl" style={{ filter: `drop-shadow(0 4px 10px ${box.tint}66)` }}>{box.art}</span>
-                  <span className="text-sm font-semibold text-ink">{box.name}</span>
-                  <span className="text-[11px] leading-snug text-ink3">{box.blurb}</span>
-                  <span className="text-[11px] text-ink3">{soldOut ? 'All collected' : `${remaining} possible`}</span>
-                  <button
-                    onClick={() => onOpenBox(box)}
-                    disabled={!affordable || soldOut}
-                    className={`flex w-full items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-bold transition ${
-                      affordable && !soldOut ? 'bg-clay/15 text-clay hover:bg-clay/25' : 'bg-ink/[0.05] text-ink3'
-                    }`}
-                  >
-                    {soldOut ? 'Owned' : affordable ? <><Coins size={12} /> {box.cost}</> : <><Lock size={12} /> {box.cost}</>}
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-          {lootMsg && <p className="px-1 text-center text-xs text-clay">{lootMsg}</p>}
-        </section>
-      )}
+      {showLoot && (() => {
+        const box = MYSTERY_BOX
+        const remaining = box.pool().filter((id) => !owned.includes(id)).length
+        const soldOut = remaining === 0
+        const affordable = balance >= box.cost
+        return (
+          <section className="flex flex-col gap-2.5">
+            <h2 className="flex items-center gap-1.5 px-1 text-xs uppercase tracking-wide text-ink3">
+              <Gift size={13} className="text-clay" /> Mystery box
+            </h2>
+            <div
+              className="relative flex flex-col items-center gap-3 overflow-hidden rounded-3xl border border-amber-400/30 p-6 text-center"
+              style={{ background: 'radial-gradient(circle at 50% 0%, rgba(251,191,36,0.14), rgba(251,191,36,0) 70%)' }}
+            >
+              <span className="animate-loot-float text-6xl" style={{ filter: `drop-shadow(0 8px 18px ${box.tint}88)` }}>
+                {box.art}
+              </span>
+              <div>
+                <p className="serif text-xl text-ink">{box.name}</p>
+                <p className="mx-auto mt-1 max-w-xs text-xs leading-snug text-ink2">{box.blurb}</p>
+              </div>
+              <p className="text-[11px] text-ink3">
+                {soldOut ? (
+                  'You own every cosmetic — nothing left to win'
+                ) : (
+                  <>
+                    <span className="font-semibold text-ink2">{remaining}</span> possible drops · rare{' '}
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">2%</span> ultra-rare pull
+                  </>
+                )}
+              </p>
+              <button
+                onClick={() => onOpenBox(box)}
+                disabled={!affordable || soldOut}
+                className={`flex w-full max-w-xs items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold transition ${
+                  affordable && !soldOut
+                    ? 'bg-clay text-white shadow-[0_6px_18px_-6px_rgba(177,68,44,0.7)] hover:brightness-105'
+                    : 'bg-ink/[0.06] text-ink3'
+                }`}
+              >
+                {soldOut ? 'All collected' : affordable ? <><Gift size={15} /> Open · {box.cost} PP</> : <><Lock size={14} /> {box.cost} PP</>}
+              </button>
+              {lootMsg && <p className="text-xs text-clay">{lootMsg}</p>}
+            </div>
+          </section>
+        )
+      })()}
 
       {shown.map((g) => (
         <section key={g.type} className="flex flex-col gap-2.5">
@@ -873,18 +938,25 @@ function Shop({
                 <div
                   key={item.id}
                   className={`flex flex-col items-center gap-2 rounded-2xl border p-3 ${
-                    isOn ? 'border-sage/50 bg-sage/10' : 'border-line bg-paper2'
+                    isOn
+                      ? 'border-sage/50 bg-sage/10'
+                      : item.special
+                        ? 'border-amber-400/50 bg-amber-400/[0.06]'
+                        : 'border-line bg-paper2'
                   }`}
                 >
                   <span
-                    className={`flex h-12 w-12 items-center justify-center border border-line text-2xl ${
+                    className={`flex h-12 w-12 items-center justify-center border text-2xl ${
                       g.type === 'cardback' ? 'rounded-lg' : 'rounded-full'
-                    }`}
+                    } ${item.special ? 'border-amber-400/60 shadow-[0_0_14px_-2px_rgba(251,191,36,0.6)]' : 'border-line'}`}
                     style={{ background: isGradient(g.type) ? item.art : 'rgb(var(--c-paper))' }}
                   >
                     {!isGradient(g.type) && item.art}
                   </span>
-                  <span className="text-center text-xs font-semibold text-ink">{item.name}</span>
+                  <span className="flex items-center gap-1 text-center text-xs font-semibold text-ink">
+                    {item.special && <Sparkles size={11} className="text-amber-500" />}
+                    {item.name}
+                  </span>
                   {isOwned ? (
                     <button
                       onClick={() => onEquip(g.type, item.id)}
@@ -895,6 +967,10 @@ function Shop({
                     >
                       {isOn ? 'Equipped' : 'Equip'}
                     </button>
+                  ) : item.special ? (
+                    <span className="flex w-full items-center justify-center gap-1 rounded-lg bg-amber-400/15 py-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
+                      <Lock size={11} /> Loot only
+                    </span>
                   ) : (
                     <button
                       onClick={() => onBuy(item)}
