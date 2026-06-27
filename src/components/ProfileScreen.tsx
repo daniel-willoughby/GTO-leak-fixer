@@ -444,7 +444,7 @@ function LootReveal({
         <div className="relative flex flex-col items-center gap-6">
           <div className="relative flex h-32 w-32 items-center justify-center">
             <span
-              className="animate-loot-aura absolute h-28 w-28 rounded-full"
+              className="animate-loot-aura absolute left-1/2 top-1/2 h-28 w-28 rounded-full"
               style={{ background: `radial-gradient(circle, ${box.tint}cc, transparent 70%)` }}
             />
             <span className="animate-lootshake relative text-7xl" style={{ filter: `drop-shadow(0 10px 26px ${box.tint})` }}>
@@ -454,25 +454,26 @@ function LootReveal({
           <p className="serif animate-pulse text-lg text-paper">Opening…</p>
         </div>
       ) : (
-        <div className="relative flex flex-col items-center">
-          {/* light burst */}
+        <div className="relative flex items-center justify-center">
+          {/* light burst — sits behind the card, its halo flares past the edges */}
           <span
-            className="animate-lootburst pointer-events-none absolute left-1/2 top-[34%] h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full"
-            style={{ background: `radial-gradient(circle, ${accent}, transparent 64%)` }}
+            className="animate-lootburst pointer-events-none absolute left-1/2 top-1/2 z-0 h-72 w-72 rounded-full"
+            style={{ background: `radial-gradient(circle, ${accent}, transparent 62%)` }}
           />
-          {/* sparkle particles flying outward */}
+          {/* sparkle particles flying outward, in front so they're never occluded
+              (the keyframe bakes in the -50%/-50% centering offset) */}
           {Array.from({ length: sparkCount }).map((_, i) => {
             const a = (i / sparkCount) * Math.PI * 2
-            const dist = special ? 96 : 74
+            const dist = special ? 170 : 140
             return (
               <span
                 key={i}
-                className="animate-sparkle pointer-events-none absolute left-1/2 top-[34%] text-amber-300"
+                className="animate-sparkle pointer-events-none absolute left-1/2 top-1/2 z-20 text-amber-300"
                 style={{
                   ['--dx' as string]: `${Math.cos(a) * dist}px`,
                   ['--dy' as string]: `${Math.sin(a) * dist}px`,
-                  animationDelay: `${(i % 5) * 45}ms`,
-                  fontSize: special ? 16 : 12,
+                  animationDelay: `${(i % 5) * 55}ms`,
+                  fontSize: special ? 18 : 13,
                 }}
               >
                 {special ? '✦' : '✧'}
@@ -481,7 +482,7 @@ function LootReveal({
           })}
 
           <div
-            className={`animate-lootrise relative flex w-full max-w-xs flex-col items-center gap-4 rounded-3xl border bg-paper2 p-7 text-center shadow-2xl ${
+            className={`animate-lootrise relative z-10 flex w-full max-w-xs flex-col items-center gap-4 rounded-3xl border bg-paper2 p-7 text-center shadow-2xl ${
               special ? 'border-amber-400/70' : 'border-line'
             }`}
             style={special ? { boxShadow: `0 0 46px -6px ${accent}` } : undefined}
