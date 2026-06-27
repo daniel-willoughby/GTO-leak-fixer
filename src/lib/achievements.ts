@@ -2,11 +2,11 @@
 // streaks + lesson progress. Pure read; no new tracking needed (the best
 // streak is derived from the full decision log).
 
-import { Spade, Target, Flame, GraduationCap, CalendarCheck, Zap, TrendingUp, Trophy, Shirt, Crown, type LucideIcon } from 'lucide-react'
+import { Spade, Target, Flame, GraduationCap, CalendarCheck, Zap, TrendingUp, Trophy, Shirt, Crown, Swords, Coins, type LucideIcon } from 'lucide-react'
 import { db } from './db'
 import { getDaily, liveStreak } from './daily'
 import { lessonProgress } from './level'
-import { equipped, dailyResults, dailyWinsClaimed } from './points'
+import { equipped, dailyResults, dailyWinsClaimed, duelStats } from './points'
 import { DEFAULT_AVATAR, DEFAULT_FLAIR, DEFAULT_BACKGROUND } from './shop'
 import { CURRICULUM } from '../data/curriculum'
 
@@ -21,7 +21,7 @@ export interface Achievement {
   label: string
   done: boolean
   /** Grouping for the screen. */
-  group: 'Volume' | 'Accuracy' | 'Streaks' | 'Learning' | 'Collection'
+  group: 'Volume' | 'Accuracy' | 'Streaks' | 'Learning' | 'Collection' | 'Duels'
   /** Poker Points granted once when this milestone is unlocked. */
   reward: number
 }
@@ -51,6 +51,11 @@ export const ACHIEVEMENT_REWARD: Record<string, number> = {
   lessons5: 75,
   lessons10: 150,
   scholar: 300,
+  duel1: 30,
+  duel10: 120,
+  duelwin1: 60,
+  duelwin10: 300,
+  duelrich: 250,
 }
 
 /** Largest run of consecutive-correct decisions that fits inside `windowMs`.
@@ -88,6 +93,7 @@ export async function getAchievements(): Promise<Achievement[]> {
   const best = longestRun(all.map((d) => d.isCorrect))
   const dayStreak = liveStreak(getDaily())
   const crownCount = dailyWinsClaimed().length // times you topped the daily at reset
+  const duels = duelStats() // head-to-head play/win tallies + net PP
   const lessonsDone = CURRICULUM.filter((l) => lessonProgress(l.id).done).length
   const fastRun = bestSpeedRun(all) // best correct streak inside a 10s window
 
@@ -207,6 +213,11 @@ export async function getAchievements(): Promise<Achievement[]> {
       done: dressed >= 3,
       reward: ACHIEVEMENT_REWARD.fashionista,
     },
+    count('duel1', 'Duels', 'Pistols at dawn', 'Play your first duel', Swords, duels.played, 1),
+    count('duel10', 'Duels', 'Duelist', 'Play 10 duels', Swords, duels.played, 10),
+    count('duelwin1', 'Duels', 'First blood', 'Win a duel', Trophy, duels.won, 1),
+    count('duelwin10', 'Duels', 'Gunslinger', 'Win 10 duels', Trophy, duels.won, 10),
+    count('duelrich', 'Duels', 'Bounty hunter', 'Win 1,000 PP from duels (net)', Coins, Math.max(0, duels.net), 1000),
   ]
 }
 

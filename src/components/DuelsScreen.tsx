@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Swords, Coins, Check, X } from 'lucide-react'
+import { Swords, Coins, Check, X, Globe, Trophy } from 'lucide-react'
 import { fetchFriendsLeaderboard, getFriends, type LeaderRow } from '../lib/leaderboard'
-import { fetchDuels, settleFinishedDuels, duelOutcome, DUEL_LEN, type DuelRow } from '../lib/duel'
+import {
+  fetchDuels,
+  fetchOpenDuels,
+  fetchPublicLedger,
+  duelOutcome,
+  duelWinnerSide,
+  DUEL_LEN,
+  type DuelRow,
+} from '../lib/duel'
+import { MAX_DEBT } from '../lib/points'
 import { Avatar } from './Avatar'
 
 interface Props {
@@ -11,6 +20,7 @@ interface Props {
   version: number
   onSignIn: () => void
   onChallenge: (opponent: { user_id: string; handle: string; avatar: string }, wager: number) => void
+  onCreateOpen: (wager: number) => void
   onPlay: (duel: DuelRow) => void
   onDecline: (duel: DuelRow) => void
   /** Bump app progress when a duel settles (so the PP balance refreshes). */
@@ -24,22 +34,24 @@ export default function DuelsScreen({
   version,
   onSignIn,
   onChallenge,
+  onCreateOpen,
   onPlay,
   onDecline,
-  onChanged,
 }: Props) {
   const [friends, setFriends] = useState<LeaderRow[]>([])
   const [duels, setDuels] = useState<DuelRow[]>([])
+  const [open, setOpen] = useState<DuelRow[]>([])
+  const [ledger, setLedger] = useState<DuelRow[]>([])
   const [pick, setPick] = useState<string>('') // selected friend user_id
   const [wager, setWager] = useState<string>('0')
+  const [openWager, setOpenWager] = useState<string>('0')
 
   useEffect(() => {
     if (!userId) return
     fetchFriendsLeaderboard(getFriends()).then((r) => setFriends(r.filter((f) => f.user_id !== userId)))
-    fetchDuels(userId).then((d) => {
-      if (settleFinishedDuels(userId, d)) onChanged() // a wager paid out → refresh PP
-      setDuels(d)
-    })
+    fetchDuels(userId).then(setDuels)
+    fetchOpenDuels(userId).then(setOpen)
+    fetchPublicLedger().then(setLedger)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, version])
 
@@ -49,35 +61,51 @@ export default function DuelsScreen({
     return (
       <div className="mx-auto mt-10 max-w-sm panel flex flex-col items-center gap-3 p-5 text-center text-sm text-ink2">
         <Swords size={28} className="text-clay" />
-        <p>Sign in and add a friend to challenge them to a duel.</p>
+        <p>Sign in to challenge friends — or anyone — to a duel.</p>
         <button onClick={onSignIn} className="btn btn-primary px-4 py-2 text-sm">Sign in</button>
       </div>
     )
 
+  // Debt rules: you can't duel while already in the red, and a wager can't push
+  // you more than MAX_DEBT below zero.
+  const inDebt = balance < 0
+  const maxWager = balance + MAX_DEBT
   const opponent = friends.find((f) => f.user_id === pick)
   const wagerNum = Math.max(0, Math.floor(Number(wager) || 0))
-  const wagerOk = wagerNum <= balance && (!opponent || wagerNum <= opponent.pp_earned)
+  const openWagerNum = Math.max(0, Math.floor(Number(openWager) || 0))
+  const wagerOk = !inDebt && wagerNum <= maxWager && (!opponent || wagerNum <= opponent.pp_earned)
+  const openWagerOk = !inDebt && openWagerNum <= maxWager
+
   const incoming = duels.filter((d) => d.opponent === userId && d.status === 'pending')
   const history = duels.filter((d) => !(d.opponent === userId && d.status === 'pending'))
+
+  const wagerHint = (n: number, ok: boolean): string =>
+    inDebt ? 'Clear your debt first' : !ok ? `Max wager ${maxWager} PP` : n === 0 ? 'For pride' : `${n} PP at stake`
 
   return (
     <div className="px-4 pb-28 pt-6 max-w-xl lg:max-w-2xl mx-auto flex flex-col gap-5">
       <div className="flex items-center gap-2">
         <Swords size={20} className="text-clay" />
         <h1 className="serif text-2xl text-ink">Duels</h1>
-        <span className="ml-auto flex items-center gap-1 text-sm font-bold tabular-nums text-clay">
+        <span className={`ml-auto flex items-center gap-1 text-sm font-bold tabular-nums ${inDebt ? 'text-clay' : 'text-clay'}`}>
           <Coins size={14} /> {balance}
         </span>
       </div>
       <p className="-mt-2 text-sm text-ink2">
-        Best of {DUEL_LEN} questions, head to head. Wager Poker Points and the winner takes the pot.
+        Best of {DUEL_LEN} questions, head to head. Wager Poker Points — the winner takes the pot, a tie is a push.
       </p>
+
+      {inDebt && (
+        <div className="rounded-xl border border-clay/40 bg-clay/[0.08] px-3 py-2.5 text-sm text-clay">
+          You're {Math.abs(balance)} PP in debt — win some Poker Points back before you can duel again.
+        </div>
+      )}
 
       {/* challenge a friend */}
       <section className="panel flex flex-col gap-3 p-4">
         <h2 className="text-sm font-semibold text-ink">Challenge a friend</h2>
         {friends.length === 0 ? (
-          <p className="text-sm text-ink3">Add friends from the Profile tab to duel them.</p>
+          <p className="text-sm text-ink3">Add friends from the Profile tab to duel them directly.</p>
         ) : (
           <>
             <div className="flex flex-wrap gap-2">
@@ -104,7 +132,7 @@ export default function DuelsScreen({
                 style={{ fontSize: '16px' }}
                 className="w-28 rounded-xl border border-line bg-paper2 px-3 py-2 text-ink outline-none focus:border-sage tabular-nums"
               />
-              <span className="text-xs text-ink3">PP (0 = for pride)</span>
+              <span className="text-xs text-ink3">{wagerHint(wagerNum, wagerOk)}</span>
             </div>
             <button
               onClick={() => opponent && onChallenge({ user_id: opponent.user_id, handle: opponent.handle, avatar: opponent.avatar }, wagerNum)}
@@ -112,13 +140,40 @@ export default function DuelsScreen({
               className="btn btn-primary flex items-center justify-center gap-2 py-2.5 text-sm disabled:opacity-50"
             >
               <Swords size={15} />
-              {!opponent ? 'Pick a friend' : !wagerOk ? 'Wager too high' : `Duel ${opponent.handle}`}
+              {inDebt ? 'In debt' : !opponent ? 'Pick a friend' : !wagerOk ? 'Wager too high' : `Duel ${opponent.handle}`}
             </button>
           </>
         )}
       </section>
 
-      {/* incoming challenges */}
+      {/* create an open duel */}
+      <section className="panel flex flex-col gap-3 p-4">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+          <Globe size={15} className="text-sage" /> Open challenge
+        </h2>
+        <p className="-mt-1 text-xs text-ink3">Post your run for anyone to accept. First to take it plays your 10 spots.</p>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-ink2">Wager</span>
+          <input
+            type="number"
+            min={0}
+            value={openWager}
+            onChange={(e) => setOpenWager(e.target.value)}
+            style={{ fontSize: '16px' }}
+            className="w-28 rounded-xl border border-line bg-paper2 px-3 py-2 text-ink outline-none focus:border-sage tabular-nums"
+          />
+          <span className="text-xs text-ink3">{wagerHint(openWagerNum, openWagerOk)}</span>
+        </div>
+        <button
+          onClick={() => onCreateOpen(openWagerNum)}
+          disabled={!openWagerOk}
+          className="btn btn-secondary flex items-center justify-center gap-2 py-2.5 text-sm disabled:opacity-50"
+        >
+          <Globe size={15} /> {inDebt ? 'In debt' : !openWagerOk ? 'Wager too high' : 'Post open duel'}
+        </button>
+      </section>
+
+      {/* incoming direct challenges */}
       {incoming.length > 0 && (
         <section className="flex flex-col gap-2">
           <h2 className="px-1 text-xs uppercase tracking-wide text-ink3">Challenges · {incoming.length}</h2>
@@ -127,11 +182,13 @@ export default function DuelsScreen({
               <Avatar id={d.challenger_avatar} size={32} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-ink">{d.challenger_handle}</p>
-                <p className="text-xs text-ink3">
-                  challenges you{d.wager > 0 ? ` · ${d.wager} PP` : ' · for pride'}
-                </p>
+                <p className="text-xs text-ink3">challenges you{d.wager > 0 ? ` · ${d.wager} PP` : ' · for pride'}</p>
               </div>
-              <button onClick={() => onPlay(d)} className="btn btn-primary flex shrink-0 items-center gap-1 px-2.5 py-1.5 text-xs">
+              <button
+                onClick={() => onPlay(d)}
+                disabled={inDebt || d.wager > maxWager}
+                className="btn btn-primary flex shrink-0 items-center gap-1 px-2.5 py-1.5 text-xs disabled:opacity-50"
+              >
                 <Swords size={13} /> Play
               </button>
               <button
@@ -146,29 +203,62 @@ export default function DuelsScreen({
         </section>
       )}
 
-      {/* duel history */}
+      {/* open duels posted by others */}
+      {open.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="flex items-center gap-1.5 px-1 text-xs uppercase tracking-wide text-ink3">
+            <Globe size={13} /> Open duels · {open.length}
+          </h2>
+          {open.map((d) => {
+            const tooRich = d.wager > maxWager
+            return (
+              <div key={d.id} className="flex items-center gap-3 rounded-xl border border-sage/30 bg-sage/[0.07] px-3 py-2.5">
+                <Avatar id={d.challenger_avatar || undefined} size={32} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold text-ink">{d.challenger_handle}</p>
+                  <p className="text-xs text-ink3">open challenge{d.wager > 0 ? ` · ${d.wager} PP` : ' · for pride'}</p>
+                </div>
+                <button
+                  onClick={() => onPlay(d)}
+                  disabled={inDebt || tooRich}
+                  className="btn btn-primary flex shrink-0 items-center gap-1 px-2.5 py-1.5 text-xs disabled:opacity-50"
+                >
+                  <Swords size={13} /> {tooRich ? 'Too high' : 'Accept'}
+                </button>
+              </div>
+            )
+          })}
+        </section>
+      )}
+
+      {/* your duel history */}
       {history.length > 0 && (
         <section className="flex flex-col gap-2">
           <h2 className="px-1 text-xs uppercase tracking-wide text-ink3">Your duels</h2>
           {history.map((d) => {
-            const them = d.challenger === userId
+            const iAmChallenger = d.challenger === userId
+            const them = iAmChallenger
               ? { handle: d.opponent_handle, avatar: d.opponent_avatar }
               : { handle: d.challenger_handle, avatar: d.challenger_avatar }
-            const mineScore = d.challenger === userId ? d.challenger_score : d.opponent_score
-            const theirScore = d.challenger === userId ? d.opponent_score : d.challenger_score
+            const mineScore = iAmChallenger ? d.challenger_score : d.opponent_score
+            const theirScore = iAmChallenger ? d.opponent_score : d.challenger_score
             const out = d.status === 'done' ? duelOutcome(d, userId) : null
+            const subtitle =
+              d.status === 'declined'
+                ? 'declined'
+                : d.status === 'open'
+                  ? 'open — waiting for a taker'
+                  : d.status === 'pending'
+                    ? d.opponent === userId ? 'awaiting you' : 'waiting for them'
+                    : `${mineScore ?? 0}–${theirScore ?? 0}`
             return (
               <div key={d.id} className="flex items-center gap-3 rounded-xl border border-line bg-paper2 px-3 py-2.5">
-                <Avatar id={them.avatar} size={30} />
+                <Avatar id={them.avatar || undefined} size={30} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-ink">{them.handle}</p>
-                  <p className="text-xs text-ink3">
-                    {d.status === 'declined'
-                      ? 'declined'
-                      : d.status === 'pending'
-                        ? d.opponent === userId ? 'awaiting you' : 'waiting for them'
-                        : `${mineScore ?? 0}–${theirScore ?? 0}`}
+                  <p className="truncate text-sm font-semibold text-ink">
+                    {them.handle || (d.status === 'open' ? 'Open duel' : 'Opponent')}
                   </p>
+                  <p className="text-xs text-ink3">{subtitle}</p>
                 </div>
                 {out && (
                   <span
@@ -179,12 +269,48 @@ export default function DuelsScreen({
                     {out === 'win' ? `Won +${d.wager}` : out === 'loss' ? `Lost −${d.wager}` : 'Push'}
                   </span>
                 )}
-                {d.status === 'pending' && d.challenger === userId && (
+                {d.status !== 'done' && d.challenger === userId && d.opponent !== userId && (
                   <Check size={16} className="shrink-0 text-ink3" />
                 )}
               </div>
             )
           })}
+        </section>
+      )}
+
+      {/* public ledger: recent results across everyone */}
+      {ledger.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="flex items-center gap-1.5 px-1 text-xs uppercase tracking-wide text-ink3">
+            <Trophy size={13} className="text-clay" /> Recent duels worldwide
+          </h2>
+          <div className="panel flex flex-col divide-y divide-line overflow-hidden">
+            {ledger.map((d) => {
+              const winner = duelWinnerSide(d)
+              const cName = d.challenger_handle || 'Player'
+              const oName = d.opponent_handle || 'Player'
+              const cs = d.challenger_score ?? 0
+              const os = d.opponent_score ?? 0
+              return (
+                <div key={d.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                  <span className={`min-w-0 flex-1 truncate text-right ${winner === 'challenger' ? 'font-bold text-sage-dark' : 'text-ink2'}`}>
+                    {cName}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-ink3">
+                    {cs}–{os}
+                  </span>
+                  <span className={`min-w-0 flex-1 truncate ${winner === 'opponent' ? 'font-bold text-sage-dark' : 'text-ink2'}`}>
+                    {oName}
+                  </span>
+                  {d.wager > 0 && (
+                    <span className="ml-1 flex shrink-0 items-center gap-0.5 text-xs font-semibold tabular-nums text-clay">
+                      <Coins size={11} /> {d.wager}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </section>
       )}
     </div>

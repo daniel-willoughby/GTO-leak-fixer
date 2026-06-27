@@ -9,6 +9,7 @@ import { getAchievements } from './achievements'
 import {
   FREE_IDS,
   shopItem,
+  lootBox,
   DEFAULT_AVATAR,
   DEFAULT_FLAIR,
   DEFAULT_BACKGROUND,
@@ -20,6 +21,10 @@ import {
 export const PP_PER_CORRECT = 2
 export const DAILY_COMPLETE_BONUS = 20
 export const DAILY_WIN_BONUS = 500
+
+/** How far into the red a player is allowed to go on a duel wager. You can't
+ *  start a duel while already in debt, and a wager can't push you past this. */
+export const MAX_DEBT = 500
 
 const OWNED_KEY = 'lt-owned'
 const EQUIP_KEY = 'lt-equip'
@@ -65,7 +70,7 @@ const writeJSON = (key: string, v: unknown) => localStorage.setItem(key, JSON.st
 // the secret ships in the (minified) bundle, so a determined user reads it —
 // but it stops the common "just edit the number" cheat. True enforcement needs
 // server-side authority (see the planned Edge-Function task).
-const ECON_KEYS = ['lt-owned', 'lt-daily-results', 'lt-daily-wins', 'lt-bonus', 'lt-duel-ledger']
+const ECON_KEYS = ['lt-owned', 'lt-daily-results', 'lt-daily-wins', 'lt-bonus', 'lt-duel-ledger', 'lt-duel-record', 'lt-loot']
 const SIG_KEY = 'lt-econ-sig'
 const SECRET = 'pk7c-econ-v1'
 
@@ -110,10 +115,11 @@ export function verifyEconomyState(): boolean {
 
 // ---- ownership -------------------------------------------------------------
 
-/** All owned item ids, including the free defaults everyone has. */
+/** All owned item ids, including the free defaults everyone has and anything
+ *  won from a loot box (paid for at the box price, not the item's own cost). */
 export function owned(): string[] {
   const bought = readJSON<string[]>(OWNED_KEY, [])
-  return [...new Set([...FREE_IDS, ...bought])]
+  return [...new Set([...FREE_IDS, ...bought, ...lootOwnedIds()])]
 }
 export const isOwned = (id: string): boolean => owned().includes(id)
 
@@ -210,23 +216,81 @@ export function claimNamedBonus(handle: string): number {
 // ---- duel wagers -----------------------------------------------------------
 
 const DUEL_LEDGER_KEY = 'lt-duel-ledger'
+const DUEL_RECORD_KEY = 'lt-duel-record'
 type DuelLedger = Record<string, number> // duelId -> PP delta (+win / -loss / 0)
+export type DuelOutcome = 'win' | 'loss' | 'push'
+type DuelRecord = Record<string, DuelOutcome> // duelId -> result (for win/play stats)
 
 const duelLedger = (): DuelLedger => readJSON<DuelLedger>(DUEL_LEDGER_KEY, {})
+const duelRecord = (): DuelRecord => readJSON<DuelRecord>(DUEL_RECORD_KEY, {})
 
 /** Net PP won (negative if down) across all settled duels. A per-duel ledger so
  *  it merges cleanly across devices (union of {id: delta}). */
 export const duelNet = (): number => Object.values(duelLedger()).reduce((s, v) => s + v, 0)
 
+/** Win/play tallies across all settled duels — used by the duel achievements. */
+export function duelStats(): { played: number; won: number; lost: number; net: number } {
+  const vals = Object.values(duelRecord())
+  return {
+    played: vals.length,
+    won: vals.filter((v) => v === 'win').length,
+    lost: vals.filter((v) => v === 'loss').length,
+    net: duelNet(),
+  }
+}
+
 /** Record a finished duel's wager outcome once. `delta` is +wager (win),
- *  -wager (loss) or 0 (push). Returns true if it was newly settled. */
-export function settleDuel(duelId: string, delta: number): boolean {
+ *  -wager (loss) or 0 (push); `outcome` is the win/loss/push for stats.
+ *  Returns true if it was newly settled. */
+export function settleDuel(duelId: string, delta: number, outcome: DuelOutcome): boolean {
   const led = duelLedger()
   if (duelId in led) return false
   led[duelId] = Math.round(delta)
   writeJSON(DUEL_LEDGER_KEY, led)
+  const rec = duelRecord()
+  rec[duelId] = outcome
+  writeJSON(DUEL_RECORD_KEY, rec)
   signEconomyState()
   return true
+}
+
+// ---- loot boxes ------------------------------------------------------------
+// A loot box is a gamble: pay the box price and receive a random cosmetic you
+// don't own yet. The granted item is "free" (you paid the box, not the item),
+// so it must NOT also count toward `spentPoints`. We track each opening in its
+// own map keyed by a random id, so openings merge cleanly across devices (like
+// the duel ledger) and the spend is the sum of box prices, not item costs.
+const LOOT_KEY = 'lt-loot'
+type LootOpenings = Record<string, { item: string; cost: number }>
+
+const lootOpenings = (): LootOpenings => readJSON<LootOpenings>(LOOT_KEY, {})
+
+/** Item ids won from loot boxes (each counts as owned, but is free). */
+export const lootOwnedIds = (): string[] => [...new Set(Object.values(lootOpenings()).map((o) => o.item))]
+
+/** Total PP spent opening loot boxes (the box prices, not the items won). */
+export const lootSpend = (): number => Object.values(lootOpenings()).reduce((s, o) => s + o.cost, 0)
+
+/**
+ * Open a loot box: spend its price and receive a random item from its pool that
+ * you don't already own. Returns the won item id, or a reason it couldn't open
+ * (can't afford it, or you already own everything inside).
+ */
+export async function openLootBox(boxId: string): Promise<{ ok: boolean; itemId?: string; reason?: string }> {
+  const box = lootBox(boxId)
+  if (!box) return { ok: false, reason: 'Unknown box' }
+  const own = new Set(owned())
+  const pool = box.pool().filter((id) => !own.has(id))
+  if (!pool.length) return { ok: false, reason: 'You already own everything in this box' }
+  const { balance } = await pointsState()
+  if (balance < box.cost) return { ok: false, reason: 'Not enough points' }
+  const itemId = pool[Math.floor(Math.random() * pool.length)]
+  const openings = lootOpenings()
+  const openId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
+  openings[openId] = { item: itemId, cost: box.cost }
+  writeJSON(LOOT_KEY, openings)
+  signEconomyState()
+  return { ok: true, itemId }
 }
 
 // ---- derivation ------------------------------------------------------------
@@ -252,9 +316,10 @@ export async function earnedPoints(): Promise<number> {
   return derivedEarned(correct, reward)
 }
 
-/** PP spent on owned (non-free) cosmetics. */
+/** PP spent on owned (non-free) cosmetics plus loot boxes opened. */
 export function spentPoints(): number {
-  return readJSON<string[]>(OWNED_KEY, []).reduce((sum, id) => sum + (shopItem(id)?.cost ?? 0), 0)
+  const onCosmetics = readJSON<string[]>(OWNED_KEY, []).reduce((sum, id) => sum + (shopItem(id)?.cost ?? 0), 0)
+  return onCosmetics + lootSpend()
 }
 
 export async function pointsState(): Promise<PointsState> {
@@ -276,6 +341,6 @@ export async function buyItem(id: string): Promise<{ ok: boolean; reason?: strin
 }
 
 export function resetPoints(): void {
-  for (const k of [OWNED_KEY, EQUIP_KEY, RESULTS_KEY, WINS_KEY, BONUS_KEY, DUEL_LEDGER_KEY, SIG_KEY])
+  for (const k of [OWNED_KEY, EQUIP_KEY, RESULTS_KEY, WINS_KEY, BONUS_KEY, DUEL_LEDGER_KEY, DUEL_RECORD_KEY, LOOT_KEY, SIG_KEY])
     localStorage.removeItem(k)
 }

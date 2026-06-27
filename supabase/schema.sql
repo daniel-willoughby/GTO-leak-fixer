@@ -191,12 +191,12 @@ create table if not exists public.duels (
   challenger        uuid not null references auth.users (id) on delete cascade,
   challenger_handle text,
   challenger_avatar text,
-  opponent          uuid not null references auth.users (id) on delete cascade,
+  opponent          uuid references auth.users (id) on delete cascade,  -- null = open duel
   opponent_handle   text,
   opponent_avatar   text,
   wager             integer not null default 0,
   seed              text not null,
-  status            text not null default 'pending', -- pending | done | declined
+  status            text not null default 'pending', -- open | pending | done | declined
   challenger_score  integer,
   challenger_time   integer,
   opponent_score    integer,
@@ -204,30 +204,50 @@ create table if not exists public.duels (
   created_at        timestamptz not null default now()
 );
 
+-- `opponent` was NOT NULL in the first release; open duels need it nullable.
+alter table public.duels alter column opponent drop not null;
+
 alter table public.duels enable row level security;
 
 drop policy if exists "duels read involved"   on public.duels;
+drop policy if exists "duels read"             on public.duels;
 drop policy if exists "duels insert own"       on public.duels;
 drop policy if exists "duels update involved"  on public.duels;
+drop policy if exists "duels update"           on public.duels;
 
--- both players can see a duel they're in
-create policy "duels read involved"
+-- Read: a duel you're in, any OPEN duel (so anyone can find + accept it), and
+-- any concluded duel (the public results ledger). Pending/declined private
+-- duels stay visible only to the two parties.
+create policy "duels read"
   on public.duels for select
-  using (auth.uid() = challenger or auth.uid() = opponent);
+  using (
+    auth.uid() = challenger
+    or auth.uid() = opponent
+    or status = 'open'
+    or status = 'done'
+  );
 
 -- you can only create a duel *as* the challenger
 create policy "duels insert own"
   on public.duels for insert
   with check (auth.uid() = challenger);
 
--- either player can update (opponent submits their score / declines)
-create policy "duels update involved"
+-- Update: either party on their own duel, OR any signed-in user *claiming* an
+-- open duel. The WITH CHECK ensures the updater ends up as a participant, so a
+-- claimer can only stamp themselves in as the opponent — not edit a stranger's
+-- duel or rewrite scores on one they aren't in.
+create policy "duels update"
   on public.duels for update
-  using (auth.uid() = challenger or auth.uid() = opponent)
+  using (
+    auth.uid() = challenger
+    or auth.uid() = opponent
+    or (status = 'open' and opponent is null)
+  )
   with check (auth.uid() = challenger or auth.uid() = opponent);
 
 create index if not exists duels_opponent_idx on public.duels (opponent, created_at desc);
 create index if not exists duels_challenger_idx on public.duels (challenger, created_at desc);
+create index if not exists duels_open_idx on public.duels (status, created_at desc);
 
--- Duels are private to the two players.
-grant select, insert, update on public.duels to authenticated;
+-- Open duels + the results ledger are public reads; writes stay owner/claimer-scoped.
+grant select, insert, update on public.duels to anon, authenticated;

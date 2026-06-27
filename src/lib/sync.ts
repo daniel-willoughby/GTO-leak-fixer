@@ -35,6 +35,8 @@ export interface SyncSnapshot {
   dailyWins?: string[] | null
   bonuses?: string[] | null
   duelLedger?: Record<string, number> | null
+  duelRecord?: Record<string, string> | null
+  loot?: Record<string, { item: string; cost: number }> | null
   handle?: string | null
   friends?: string[] | null
 }
@@ -67,6 +69,8 @@ export async function gatherLocal(): Promise<SyncSnapshot> {
     dailyWins: lsParse<string[]>('lt-daily-wins'),
     bonuses: lsParse<string[]>('lt-bonus'),
     duelLedger: lsParse<Record<string, number>>('lt-duel-ledger'),
+    duelRecord: lsParse<Record<string, string>>('lt-duel-record'),
+    loot: lsParse<Record<string, { item: string; cost: number }>>('lt-loot'),
     handle: localStorage.getItem('lt-handle'),
     friends: lsParse<string[]>('lt-friends'),
   }
@@ -85,6 +89,8 @@ export async function applySnapshot(snap: SyncSnapshot): Promise<void> {
   if (snap.dailyWins) lsWrite('lt-daily-wins', snap.dailyWins)
   if (snap.bonuses) lsWrite('lt-bonus', snap.bonuses)
   if (snap.duelLedger) lsWrite('lt-duel-ledger', snap.duelLedger)
+  if (snap.duelRecord) lsWrite('lt-duel-record', snap.duelRecord)
+  if (snap.loot) lsWrite('lt-loot', snap.loot)
   signEconomyState() // re-sign the merged economy keys so they pass the load-time check
   if (snap.handle) localStorage.setItem('lt-handle', snap.handle)
   if (snap.friends) lsWrite('lt-friends', snap.friends)
@@ -174,6 +180,9 @@ export function mergeSnapshots(a: SyncSnapshot, b: SyncSnapshot): SyncSnapshot {
     // union of per-duel deltas; a given duel id resolves to the same delta on
     // both devices, so a plain merge is correct
     duelLedger: a.duelLedger || b.duelLedger ? { ...(a.duelLedger ?? {}), ...(b.duelLedger ?? {}) } : null,
+    duelRecord: a.duelRecord || b.duelRecord ? { ...(a.duelRecord ?? {}), ...(b.duelRecord ?? {}) } : null,
+    // loot openings are keyed by a unique open id, so the same union merge holds
+    loot: a.loot || b.loot ? { ...(a.loot ?? {}), ...(b.loot ?? {}) } : null,
     handle: (newer.handle || a.handle || b.handle) ?? null,
     friends: mergeOwned(a.friends, b.friends),
   }
@@ -220,6 +229,8 @@ function snapSig(s: SyncSnapshot): string {
     JSON.stringify(s.dailyWins),
     JSON.stringify(s.bonuses),
     JSON.stringify(s.duelLedger),
+    JSON.stringify(s.duelRecord),
+    JSON.stringify(s.loot),
     JSON.stringify(s.friends),
     s.handle,
     s.level,

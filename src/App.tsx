@@ -3,6 +3,7 @@ import { Spade, Target, GraduationCap, User, CalendarCheck, Swords, Volume2, Vol
 import DrillScreen, { type LadderRun } from './components/DrillScreen'
 import { Wordmark } from './components/Wordmark'
 import DailyChallengeCard from './components/DailyChallengeCard'
+import DailyLeaderboard from './components/DailyLeaderboard'
 import LadderResults from './components/LadderResults'
 import LessonsScreen from './components/LessonsScreen'
 import OnboardingScreen from './components/OnboardingScreen'
@@ -26,14 +27,22 @@ import { dailyLadderSeeds, ladderProgress, saveLadderProgress, clearLadderProgre
 import { submitDailyScore, fetchIncomingRequests, getHandle } from './lib/leaderboard'
 import {
   createDuel,
+  createOpenDuel,
   answerDuel,
+  acceptOpenDuel,
   declineDuel,
   duelSeeds,
   newDuelSeed,
   fetchDuels,
   incomingDuels,
+  settleFinishedDuels,
+  duelOutcome,
+  unseenConclusions,
+  markConclusionsSeen,
+  markDuelPlayed,
   type DuelRow,
 } from './lib/duel'
+import { DEFAULT_AVATAR } from './lib/shop'
 import type { Difficulty, FocusRequest } from './lib/spot'
 
 type Tab = 'drill' | 'daily' | 'duels' | 'lessons' | 'leaks' | 'profile'
@@ -226,16 +235,64 @@ export default function App() {
   const [duelReqCount, setDuelReqCount] = useState(0)
   // brief "VS" splash shown before a duel's 10 questions begin
   const [duelIntro, setDuelIntro] = useState<{ me: string; them: string; handle: string } | null>(null)
+  // toast notices when one of your duels concludes (you may not be on the tab)
+  const [duelNotices, setDuelNotices] = useState<{ id: string; title: string; sub: string; tone: 'win' | 'loss' | 'push' }[]>([])
+  // guard against launching the same duel's run twice (rapid taps / refetch race)
+  const duelGuard = useRef<Set<string>>(new Set())
 
-  // incoming-duel count → notification badge on the Duels tab
+  // Poll the duels this user is in: settle finished wagers, surface a result
+  // notice for any newly-concluded duel, and keep the inbox badge in sync. Runs
+  // on the Duels tab and on a slow interval so you're notified anywhere.
   useEffect(() => {
-    if (!user) return setDuelReqCount(0)
-    fetchDuels(user.id).then((d) => setDuelReqCount(incomingDuels(d, user.id).length))
+    if (!user) {
+      setDuelReqCount(0)
+      return
+    }
+    const uid = user.id
+    const refresh = () =>
+      fetchDuels(uid).then((d) => {
+        setDuelReqCount(incomingDuels(d, uid).length)
+        const settled = settleFinishedDuels(uid, d)
+        const fresh = unseenConclusions(uid, d)
+        if (fresh.length) {
+          markConclusionsSeen(fresh.map((x) => x.id))
+          setDuelNotices((q) => [
+            ...q,
+            ...fresh.map((x) => {
+              const out = duelOutcome(x, uid)
+              const them = x.challenger === uid ? x.opponent_handle : x.challenger_handle
+              const name = them || 'your opponent'
+              return {
+                id: x.id,
+                tone: out,
+                title: out === 'win' ? 'Duel won!' : out === 'loss' ? 'Duel lost' : 'Duel drawn',
+                sub:
+                  out === 'win'
+                    ? `You beat ${name}${x.wager > 0 ? ` · +${x.wager} PP` : ''}`
+                    : out === 'loss'
+                      ? `${name} won${x.wager > 0 ? ` · −${x.wager} PP` : ''}`
+                      : `Tied with ${name} — no PP changes hands`,
+              }
+            }),
+          ])
+        }
+        if (settled || fresh.length) setProgress((p) => p + 1) // refresh PP
+      })
+    refresh()
+    const t = setInterval(refresh, 60_000)
+    return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, duelsVersion, progress])
+  }, [user?.id, duelsVersion])
+
+  // auto-dismiss the front duel notice after a beat
+  useEffect(() => {
+    if (!duelNotices.length) return
+    const t = setTimeout(() => setDuelNotices((q) => q.slice(1)), 4500)
+    return () => clearTimeout(t)
+  }, [duelNotices])
 
   /** Run a duel's 10 seeded spots, then hand the score to `onDone`. */
-  function runDuel(seeds: ReturnType<typeof duelSeeds>, onDone: (score: number, timeMs: number) => void) {
+  function runDuel(seeds: ReturnType<typeof duelSeeds>, onDone: (score: number, timeMs: number) => void | Promise<void>) {
     setLadderResult(null)
     setLadderRun({
       seeds,
@@ -243,9 +300,9 @@ export default function App() {
       startScore: 0,
       baseTimeMs: 0,
       onProgress: () => {},
-      onComplete: (score, timeMs) => {
+      onComplete: async (score, timeMs) => {
         setLadderRun(null)
-        onDone(score, timeMs)
+        await onDone(score, timeMs)
         setProgress((p) => p + 1)
         setDuelsVersion((v) => v + 1)
       },
@@ -263,36 +320,58 @@ export default function App() {
   }
 
   function challengeFriend(opponent: { user_id: string; handle: string; avatar: string }, wager: number) {
+    if (!user) return
     setTab('duels')
     const seed = newDuelSeed()
     const seeds = duelSeeds(seed)
     withDuelIntro(opponent.avatar, opponent.handle, () =>
-      runDuel(seeds, (score, timeMs) => {
-        if (user)
-          createDuel({
-            userId: user.id,
-            opponentId: opponent.user_id,
-            opponentHandle: opponent.handle,
-            opponentAvatar: opponent.avatar,
-            wager,
-            seed,
-            score,
-            timeMs,
-          })
-      }),
+      runDuel(seeds, (score, timeMs) =>
+        createDuel({
+          userId: user.id,
+          opponentId: opponent.user_id,
+          opponentHandle: opponent.handle,
+          opponentAvatar: opponent.avatar,
+          wager,
+          seed,
+          score,
+          timeMs,
+        }).then(() => {}),
+      ),
     )
   }
 
+  /** Post an open duel anyone can accept (we play our 10 spots first). */
+  function createOpen(wager: number) {
+    if (!user) return
+    setTab('duels')
+    const seed = newDuelSeed()
+    const seeds = duelSeeds(seed)
+    withDuelIntro(DEFAULT_AVATAR, 'an open challenge', () =>
+      runDuel(seeds, (score, timeMs) =>
+        createOpenDuel({ userId: user.id, wager, seed, score, timeMs }).then(() => {}),
+      ),
+    )
+  }
+
+  /** Play an incoming challenge or accept an open duel. The local "played" mark
+   *  and the in-memory guard make the same duel un-replayable even if a refetch
+   *  briefly still shows it as pending/open. */
   function playDuel(duel: DuelRow) {
+    if (!user || duelGuard.current.has(duel.id)) return
+    duelGuard.current.add(duel.id)
+    markDuelPlayed(duel.id)
+    setDuelsVersion((v) => v + 1) // drop it from the inbox/open list immediately
+    const isOpen = duel.opponent == null
     const seeds = duelSeeds(duel.seed)
-    withDuelIntro(duel.challenger_avatar, duel.challenger_handle, () =>
-      runDuel(seeds, (score, timeMs) => {
-        answerDuel(duel.id, score, timeMs)
-      }),
+    withDuelIntro(duel.challenger_avatar || DEFAULT_AVATAR, duel.challenger_handle || 'Challenger', () =>
+      runDuel(seeds, (score, timeMs) =>
+        (isOpen ? acceptOpenDuel(duel.id, user.id, score, timeMs).then(() => {}) : answerDuel(duel.id, score, timeMs)),
+      ),
     )
   }
 
   function onDeclineDuel(duel: DuelRow) {
+    markDuelPlayed(duel.id) // also hide it locally right away
     declineDuel(duel.id).then(() => setDuelsVersion((v) => v + 1))
   }
 
@@ -505,8 +584,9 @@ export default function App() {
                 }}
               />
             ) : (
-              <div className="px-4 pt-6 max-w-xl lg:max-w-2xl mx-auto">
+              <div className="px-4 pb-28 pt-6 max-w-xl lg:max-w-2xl mx-auto">
                 <DailyChallengeCard day={dayKey()} version={dailyVersion} onPlay={startLadder} />
+                <DailyLeaderboard configured={supabaseConfigured} userId={user?.id ?? null} version={dailyVersion} />
               </div>
             ))}
           {tab === 'duels' &&
@@ -520,6 +600,7 @@ export default function App() {
                 version={duelsVersion}
                 onSignIn={() => setAccountOpen(true)}
                 onChallenge={challengeFriend}
+                onCreateOpen={createOpen}
                 onPlay={playDuel}
                 onDecline={onDeclineDuel}
                 onChanged={() => setProgress((p) => p + 1)}
@@ -616,6 +697,31 @@ export default function App() {
                 Achievement unlocked{a.reward > 0 && <span className="text-clay"> · +{a.reward} PP</span>}
               </p>
               <p className="truncate font-semibold text-ink">{a.title}</p>
+            </div>
+          </button>
+        )
+      })()}
+
+      {duelNotices.length > 0 && (() => {
+        const n = duelNotices[0]
+        const tone = n.tone === 'win' ? 'border-sage/40' : n.tone === 'loss' ? 'border-clay/40' : 'border-line'
+        const chip = n.tone === 'win' ? 'bg-sage' : n.tone === 'loss' ? 'bg-clay' : 'bg-ink3'
+        return (
+          <button
+            key={n.id}
+            onClick={() => {
+              setTab('duels')
+              setDuelNotices((q) => q.slice(1))
+            }}
+            style={{ top: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
+            className={`animate-toast fixed inset-x-0 z-[60] mx-auto flex w-[20rem] max-w-[calc(100%-1.5rem)] items-center gap-3 rounded-2xl border bg-paper2 p-3 text-left shadow-xl ${tone}`}
+          >
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white dark:text-paper ${chip}`}>
+              <Swords size={20} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-ink">{n.title}</p>
+              <p className="truncate text-xs text-ink2">{n.sub}</p>
             </div>
           </button>
         )

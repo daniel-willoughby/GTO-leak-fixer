@@ -89,3 +89,58 @@ export const shopItem = (id: string | undefined | null): ShopItem | undefined =>
 export const FREE_IDS: string[] = SHOP.filter((i) => i.cost === 0).map((i) => i.id)
 
 export const itemsOfType = (type: CosmeticType): ShopItem[] => SHOP.filter((i) => i.type === type)
+
+// ---- loot boxes ------------------------------------------------------------
+// A gamble for the indecisive: pay a fixed price for a random cosmetic you
+// don't own yet, drawn from a price band. The box price sits a little above the
+// band's average — you trade choice (and a small premium) for the thrill, with
+// a real shot at an item worth far more than the box (a Vault can drop the 2500
+// Shark). Free items are never in a pool — you already own them.
+export interface LootBox {
+  id: string
+  name: string
+  /** PP price to open. */
+  cost: number
+  blurb: string
+  /** Emoji shown on the box. */
+  art: string
+  /** Accent colour for the card. */
+  tint: string
+  /** Candidate item ids this box can yield (before filtering out owned ones). */
+  pool: () => string[]
+}
+
+const inBand = (lo: number, hi: number): string[] => SHOP.filter((i) => i.cost > lo && i.cost <= hi).map((i) => i.id)
+
+export const LOOT_BOXES: LootBox[] = [
+  {
+    id: 'box-lucky',
+    name: 'Lucky Dip',
+    cost: 250,
+    blurb: 'A random common cosmetic',
+    art: '🎁',
+    tint: '#5b7461',
+    pool: () => inBand(0, 300),
+  },
+  {
+    id: 'box-chest',
+    name: 'Treasure Chest',
+    cost: 600,
+    blurb: 'A mid-tier surprise',
+    art: '🧰',
+    tint: '#b16a52',
+    pool: () => inBand(300, 800),
+  },
+  {
+    id: 'box-vault',
+    name: 'Legendary Vault',
+    cost: 1400,
+    blurb: 'A premium or rare drop',
+    art: '💰',
+    tint: '#c79a4a',
+    pool: () => SHOP.filter((i) => i.cost > 800).map((i) => i.id),
+  },
+]
+
+export const lootBox = (id: string | undefined | null): LootBox | undefined =>
+  id ? LOOT_BOXES.find((b) => b.id === id) : undefined

@@ -10,6 +10,8 @@ import {
   dailyResult,
   grantDailyWin,
   hasClaimedDailyWin,
+  lootOwnedIds,
+  lootSpend,
   resetPoints,
   PP_PER_CORRECT,
   DAILY_COMPLETE_BONUS,
@@ -43,6 +45,16 @@ describe('ownership and spending', () => {
     localStorage.setItem('lt-owned', JSON.stringify(['avatar-fox']))
     expect(isOwned('avatar-fox')).toBe(true)
     expect(spentPoints()).toBe(400)
+  })
+
+  it('loot-won items are owned for free; only the box price is spent', () => {
+    // an opened box: paid 250 for the Lion (worth 1000) — it counts as owned but
+    // its own cost must NOT add to spend; only the 250 box price does.
+    localStorage.setItem('lt-loot', JSON.stringify({ open1: { item: 'avatar-lion', cost: 250 } }))
+    expect(lootOwnedIds()).toEqual(['avatar-lion'])
+    expect(isOwned('avatar-lion')).toBe(true)
+    expect(lootSpend()).toBe(250)
+    expect(spentPoints()).toBe(250) // not 250 + 1000
   })
 })
 

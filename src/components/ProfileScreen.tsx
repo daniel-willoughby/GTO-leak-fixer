@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Check, Coins, Lock, Sparkles, UserPlus, UserCheck, Search, ChevronDown, Pencil, X } from 'lucide-react'
+import { Check, Coins, Lock, Sparkles, UserPlus, UserCheck, Search, ChevronDown, Pencil, X, Gift } from 'lucide-react'
 import { getAchievements, type Achievement } from '../lib/achievements'
-import { pointsState, owned, equipped, equip, buyItem, claimNamedBonus } from '../lib/points'
-import { itemsOfType, type ShopItem, type CosmeticType } from '../lib/shop'
+import { pointsState, owned, equipped, equip, buyItem, claimNamedBonus, openLootBox } from '../lib/points'
+import { itemsOfType, shopItem, LOOT_BOXES, type ShopItem, type CosmeticType, type LootBox } from '../lib/shop'
 import {
   getHandle,
   setHandle,
@@ -53,7 +53,7 @@ const BOARD_MODES: { id: BoardMode; label: string }[] = [
   { id: 'crowns', label: 'Crowns' },
 ]
 
-const GROUPS: Achievement['group'][] = ['Volume', 'Accuracy', 'Streaks', 'Learning', 'Collection']
+const GROUPS: Achievement['group'][] = ['Volume', 'Accuracy', 'Streaks', 'Duels', 'Learning', 'Collection']
 
 export default function ProfileScreen({ version, configured, userId, onSignIn, onChanged }: Props) {
   const [section, setSection] = useState<Section>('achievements')
@@ -174,6 +174,25 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
       refreshLocal()
       onChanged()
     }
+  }
+
+  // loot-box opening + reveal overlay
+  const [reveal, setReveal] = useState<{ box: LootBox; item: ShopItem; phase: 'opening' | 'revealed' } | null>(null)
+  const [lootMsg, setLootMsg] = useState<string | null>(null)
+
+  async function onOpenBox(box: LootBox) {
+    setLootMsg(null)
+    const res = await openLootBox(box.id)
+    if (!res.ok || !res.itemId) {
+      setLootMsg(res.reason ?? 'Could not open that box')
+      return
+    }
+    const item = shopItem(res.itemId)
+    if (!item) return
+    setReveal({ box, item, phase: 'opening' })
+    setTimeout(() => setReveal((r) => (r ? { ...r, phase: 'revealed' } : r)), 1400)
+    refreshLocal()
+    onChanged()
   }
 
   if (!items) return null
@@ -381,7 +400,59 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
       )}
 
       {section === 'shop' && (
-        <Shop balance={balance} owned={ownedIds} equipped={eq} onBuy={onBuy} onEquip={onEquip} />
+        <Shop
+          balance={balance}
+          owned={ownedIds}
+          equipped={eq}
+          onBuy={onBuy}
+          onEquip={onEquip}
+          onOpenBox={onOpenBox}
+          lootMsg={lootMsg}
+        />
+      )}
+
+      {reveal && <LootReveal reveal={reveal} onClose={() => setReveal(null)} />}
+    </div>
+  )
+}
+
+/** Full-screen loot-box opening + reveal animation. */
+function LootReveal({
+  reveal,
+  onClose,
+}: {
+  reveal: { box: LootBox; item: ShopItem; phase: 'opening' | 'revealed' }
+  onClose: () => void
+}) {
+  const { box, item, phase } = reveal
+  const gradient = item.type === 'background' || item.type === 'cardback' || item.type === 'felt'
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/85 backdrop-blur-sm px-6" onClick={phase === 'revealed' ? onClose : undefined}>
+      {phase === 'opening' ? (
+        <div className="flex flex-col items-center gap-4">
+          <span className="animate-lootshake text-7xl" style={{ filter: `drop-shadow(0 8px 24px ${box.tint})` }}>
+            {box.art}
+          </span>
+          <p className="serif animate-spring text-lg text-paper">Opening {box.name}…</p>
+        </div>
+      ) : (
+        <div className="animate-spring flex w-full max-w-xs flex-col items-center gap-4 rounded-3xl border border-line bg-paper2 p-7 text-center shadow-2xl">
+          <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-clay">
+            <Sparkles size={13} /> You won
+          </span>
+          <span
+            className={`flex h-24 w-24 items-center justify-center border border-line text-5xl ${item.type === 'cardback' ? 'rounded-2xl' : 'rounded-full'} animate-glow`}
+            style={{ background: gradient ? item.art : 'rgb(var(--c-paper))' }}
+          >
+            {!gradient && item.art}
+          </span>
+          <div>
+            <p className="serif text-xl text-ink">{item.name}</p>
+            <p className="text-xs capitalize text-ink3">{item.type.replace('cardback', 'card back')}</p>
+          </div>
+          <p className="text-xs text-ink2">Added to your collection — equip it from the shop grid.</p>
+          <button onClick={onClose} className="btn btn-primary w-full py-2.5 text-sm">Nice!</button>
+        </div>
       )}
     </div>
   )
@@ -713,12 +784,16 @@ function Shop({
   equipped,
   onBuy,
   onEquip,
+  onOpenBox,
+  lootMsg,
 }: {
   balance: number
   owned: string[]
   equipped: { avatar: string; flair: string; background: string; cardback: string; felt: string }
   onBuy: (item: ShopItem) => void
   onEquip: (slot: CosmeticType, id: string) => void
+  onOpenBox: (box: LootBox) => void
+  lootMsg: string | null
 }) {
   const groups: { type: CosmeticType; label: string }[] = [
     { type: 'avatar', label: 'Avatars' },
@@ -729,13 +804,14 @@ function Shop({
   ]
   // these render their gradient `art` as the swatch fill (vs an emoji glyph)
   const isGradient = (t: CosmeticType) => t === 'background' || t === 'cardback' || t === 'felt'
-  // category filter — "All" (view all) or a single type, like the leaderboard toggle
-  const [filter, setFilter] = useState<'all' | CosmeticType>('all')
-  const shown = filter === 'all' ? groups : groups.filter((g) => g.type === filter)
+  // category filter — "All" (view all), Loot boxes, or a single cosmetic type
+  const [filter, setFilter] = useState<'all' | 'loot' | CosmeticType>('all')
+  const shown = filter === 'all' ? groups : filter === 'loot' ? [] : groups.filter((g) => g.type === filter)
+  const showLoot = filter === 'all' || filter === 'loot'
   return (
     <div className="flex flex-col gap-5">
       <div className="flex gap-1 overflow-x-auto rounded-2xl border border-line bg-ink/[0.06] p-1 text-sm [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-        {[{ type: 'all' as const, label: 'View all' }, ...groups].map((f) => (
+        {[{ type: 'all' as const, label: 'View all' }, { type: 'loot' as const, label: 'Loot boxes' }, ...groups].map((f) => (
           <button
             key={f.type}
             onClick={() => setFilter(f.type)}
@@ -747,6 +823,44 @@ function Shop({
           </button>
         ))}
       </div>
+
+      {showLoot && (
+        <section className="flex flex-col gap-2.5">
+          <h2 className="flex items-center gap-1.5 px-1 text-xs uppercase tracking-wide text-ink3">
+            <Gift size={13} className="text-clay" /> Loot boxes
+          </h2>
+          <p className="-mt-1 px-1 text-xs text-ink3">Pay the price, get a random cosmetic you don't own yet.</p>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            {LOOT_BOXES.map((box) => {
+              const remaining = box.pool().filter((id) => !owned.includes(id)).length
+              const soldOut = remaining === 0
+              const affordable = balance >= box.cost
+              return (
+                <div
+                  key={box.id}
+                  className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-paper2 p-3 text-center"
+                >
+                  <span className="text-4xl" style={{ filter: `drop-shadow(0 4px 10px ${box.tint}66)` }}>{box.art}</span>
+                  <span className="text-sm font-semibold text-ink">{box.name}</span>
+                  <span className="text-[11px] leading-snug text-ink3">{box.blurb}</span>
+                  <span className="text-[11px] text-ink3">{soldOut ? 'All collected' : `${remaining} possible`}</span>
+                  <button
+                    onClick={() => onOpenBox(box)}
+                    disabled={!affordable || soldOut}
+                    className={`flex w-full items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-bold transition ${
+                      affordable && !soldOut ? 'bg-clay/15 text-clay hover:bg-clay/25' : 'bg-ink/[0.05] text-ink3'
+                    }`}
+                  >
+                    {soldOut ? 'Owned' : affordable ? <><Coins size={12} /> {box.cost}</> : <><Lock size={12} /> {box.cost}</>}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+          {lootMsg && <p className="px-1 text-center text-xs text-clay">{lootMsg}</p>}
+        </section>
+      )}
+
       {shown.map((g) => (
         <section key={g.type} className="flex flex-col gap-2.5">
           <h2 className="px-1 text-xs uppercase tracking-wide text-ink3">{g.label}</h2>
