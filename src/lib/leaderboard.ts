@@ -106,21 +106,44 @@ export function profileStats(
   }
 }
 
+/**
+ * Publish standings through the server-authoritative `publish-standings` Edge
+ * Function (it validates the payload, clamps PP and recomputes crowns). Returns
+ * true on success. When the function isn't deployed yet it returns false so the
+ * caller can fall back to a direct write — keeping the app working before the
+ * server-authority migration is applied.
+ */
+async function publishViaFunction(body: Record<string, unknown>): Promise<boolean> {
+  if (!supabase) return false
+  try {
+    const { error } = await supabase.functions.invoke('publish-standings', { body })
+    return !error
+  } catch {
+    return false
+  }
+}
+
 /** Publish this user's profile row (called after a sync). No-op when offline. */
 export async function upsertProfile(userId: string, snap: SyncSnapshot): Promise<void> {
   if (!supabase) return
   const eq = equipped()
-  const { error } = await supabase.from('profiles').upsert({
+  const profile = {
     user_id: userId,
     handle: displayName(userId),
     ...profileStats(snap),
     pp_earned: await earnedPoints(),
-    crowns: dailyWinsClaimed().length,
+    crowns: dailyWinsClaimed().length, // server recomputes this; sent for the fallback path
     avatar: eq.avatar,
     flair: eq.flair,
     background: eq.background,
     updated_at: new Date().toISOString(),
-  })
+  }
+  if (await publishViaFunction({ profile })) {
+    bustLeaderboardCache()
+    return
+  }
+  // fallback: direct write (used until the Edge Function is deployed)
+  const { error } = await supabase.from('profiles').upsert(profile)
   if (error) console.error('[leaderboard] upsertProfile failed:', error.message)
   else bustLeaderboardCache()
 }
@@ -198,20 +221,23 @@ export async function fetchCrownsLeaderboard(limit = 50): Promise<LeaderRow[]> {
 export async function submitDailyScore(userId: string, day: string, score: number, timeMs: number): Promise<boolean> {
   if (!supabase) return false
   const eq = equipped()
-  const { error } = await supabase.from('daily_scores').upsert(
-    {
-      user_id: userId,
-      day,
-      score,
-      time_ms: timeMs,
-      handle: displayName(userId),
-      avatar: eq.avatar,
-      flair: eq.flair,
-      background: eq.background,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'user_id,day' },
-  )
+  const daily = {
+    user_id: userId,
+    day,
+    score,
+    time_ms: timeMs,
+    handle: displayName(userId),
+    avatar: eq.avatar,
+    flair: eq.flair,
+    background: eq.background,
+    updated_at: new Date().toISOString(),
+  }
+  // Server-validated path (clamps the score) first; direct write as a fallback.
+  if (await publishViaFunction({ daily })) {
+    bustLeaderboardCache()
+    return true
+  }
+  const { error } = await supabase.from('daily_scores').upsert(daily, { onConflict: 'user_id,day' })
   if (error) {
     console.error('[leaderboard] submitDailyScore failed:', error.message)
     return false
