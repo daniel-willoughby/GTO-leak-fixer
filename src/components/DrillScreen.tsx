@@ -60,6 +60,8 @@ import {
   type MistakeRecord,
 } from '../lib/db'
 import { playCorrect, playWrong, playDeal, playStreak } from '../lib/sound'
+import { equipped } from '../lib/points'
+import { shopItem } from '../lib/shop'
 import PokerTable, { type Chip } from './PokerTable'
 import RangeGrid, { type CellKind } from './RangeGrid'
 
@@ -202,6 +204,11 @@ function lessonSpot(l: Lesson, scopeOpts: GenOptions): Spot {
   return generateSpot(l.mode ?? 'rfi', scopeOpts)
 }
 
+// Current correct-answer streak, kept at module scope so it survives the
+// DrillScreen unmounting when you switch tabs — only a wrong answer (or a
+// deliberate mode switch) should reset it, not leaving and returning to Drill.
+let sessionStreak = 0
+
 export default function DrillScreen({
   onProgress,
   requestFocus,
@@ -240,7 +247,10 @@ export default function DrillScreen({
         : generateSpot('rfi', scopeOpts),
   )
   const [result, setResult] = useState<Judgement | null>(null)
-  const [streak, setStreak] = useState(0)
+  const [streak, setStreak] = useState(() => sessionStreak)
+  useEffect(() => {
+    sessionStreak = streak // persist across tab switches (DrillScreen unmount)
+  }, [streak])
   const [canContinue, setCanContinue] = useState(false)
   const [showHint, setShowHint] = useState(false)
   // beginner lesson progress (persisted in localStorage)
@@ -827,6 +837,7 @@ export default function DrillScreen({
       <PokerTable
         heroPos={spot.heroPos}
         heroCards={spot.cards}
+        cardBack={shopItem(equipped().cardback)?.art}
         raiserPos={spot.raiserPos}
         activePots={multiwayActive}
         chips={chipsFor(spot)}

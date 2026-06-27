@@ -3,7 +3,7 @@
 // leaderboards. Avatar artwork comes later; for now each avatar renders an emoji
 // placeholder (the `art` field), so the economy and UI work end-to-end today.
 
-export type CosmeticType = 'background' | 'flair' | 'avatar'
+export type CosmeticType = 'background' | 'flair' | 'avatar' | 'cardback'
 
 export interface ShopItem {
   id: string
@@ -18,6 +18,7 @@ export interface ShopItem {
 export const DEFAULT_AVATAR = 'avatar-chip'
 export const DEFAULT_FLAIR = ''
 export const DEFAULT_BACKGROUND = 'bg-felt'
+export const DEFAULT_CARDBACK = 'deck-classic'
 
 export const SHOP: ShopItem[] = [
   // ---- backgrounds (profile header wash) ----
@@ -60,6 +61,15 @@ export const SHOP: ShopItem[] = [
   { id: 'avatar-shark', type: 'avatar', name: 'Shark', cost: 2500, art: '🦈' },
   { id: 'avatar-dragon', type: 'avatar', name: 'Dragon', cost: 1500, art: '🐉' },
   { id: 'avatar-unicorn', type: 'avatar', name: 'Unicorn', cost: 1200, art: '🦄' },
+
+  // ---- card backs (the design on opponents' face-down cards at the table) ----
+  { id: 'deck-classic', type: 'cardback', name: 'Claret', cost: 0, art: 'linear-gradient(150deg,#9c4234,#863a2d 48%,#6f2f25)' },
+  { id: 'deck-midnight', type: 'cardback', name: 'Midnight', cost: 300, art: 'linear-gradient(150deg,#2b3a63,#1d2747 48%,#141b33)' },
+  { id: 'deck-emerald', type: 'cardback', name: 'Emerald', cost: 300, art: 'linear-gradient(150deg,#2f6d54,#245742 48%,#173a2c)' },
+  { id: 'deck-slate', type: 'cardback', name: 'Slate', cost: 400, art: 'linear-gradient(150deg,#3a4048,#2a2f36 48%,#1c2026)' },
+  { id: 'deck-plum', type: 'cardback', name: 'Plum', cost: 450, art: 'linear-gradient(150deg,#6d4a6b,#4f3450 48%,#33213a)' },
+  { id: 'deck-candy', type: 'cardback', name: 'Bubblegum', cost: 600, art: 'linear-gradient(150deg,#c45a7a,#a23f60 48%,#7c2c47)' },
+  { id: 'deck-gold', type: 'cardback', name: 'Gold leaf', cost: 1000, art: 'linear-gradient(150deg,#caa24c,#a8812f 48%,#7c5d1f)' },
 ]
 
 const BY_ID = new Map(SHOP.map((i) => [i.id, i]))

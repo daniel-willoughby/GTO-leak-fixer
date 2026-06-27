@@ -716,7 +716,7 @@ function Shop({
 }: {
   balance: number
   owned: string[]
-  equipped: { avatar: string; flair: string; background: string }
+  equipped: { avatar: string; flair: string; background: string; cardback: string }
   onBuy: (item: ShopItem) => void
   onEquip: (slot: CosmeticType, id: string) => void
 }) {
@@ -724,7 +724,10 @@ function Shop({
     { type: 'avatar', label: 'Avatars' },
     { type: 'flair', label: 'Flairs' },
     { type: 'background', label: 'Backgrounds' },
+    { type: 'cardback', label: 'Card backs' },
   ]
+  // these render their gradient `art` as the swatch fill (vs an emoji glyph)
+  const isGradient = (t: CosmeticType) => t === 'background' || t === 'cardback'
   return (
     <div className="flex flex-col gap-5">
       {groups.map((g) => (
@@ -743,10 +746,12 @@ function Shop({
                   }`}
                 >
                   <span
-                    className="flex h-12 w-12 items-center justify-center rounded-full border border-line text-2xl"
-                    style={{ background: g.type === 'background' ? item.art : 'rgb(var(--c-paper))' }}
+                    className={`flex h-12 w-12 items-center justify-center border border-line text-2xl ${
+                      g.type === 'cardback' ? 'rounded-lg' : 'rounded-full'
+                    }`}
+                    style={{ background: isGradient(g.type) ? item.art : 'rgb(var(--c-paper))' }}
                   >
-                    {g.type !== 'background' && item.art}
+                    {!isGradient(g.type) && item.art}
                   </span>
                   <span className="text-center text-xs font-semibold text-ink">{item.name}</span>
                   {isOwned ? (

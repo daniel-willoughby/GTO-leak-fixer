@@ -24,7 +24,11 @@ interface Props {
   villain?: { pos: Position; note: string }
   /** One-shot hero action animation: chips toss in (bet/raise/call) or cards muck (fold). */
   heroAnim?: { kind: 'chips' | 'muck'; seq: number } | null
+  /** CSS gradient for the opponents' face-down card backs (equipped "deck"). */
+  cardBack?: string
 }
+
+const DEFAULT_CARD_BACK = 'linear-gradient(150deg, #9c4234 0%, #863a2d 48%, #6f2f25 100%)'
 
 // Seat coordinates as % of the table container, seat 0 = hero (bottom). Seats
 // trace CLOCKWISE to match POSITION_ORDER, so the player to hero's left (next
@@ -42,12 +46,12 @@ type Status = 'hero' | 'raiser' | 'active' | 'folded' | 'waiting'
 
 // Face-down cards for the other players. A warm claret back with a cream
 // border so they read clearly as held cards and pop off the green felt.
-function CardBack({ delay = 0 }: { delay?: number }) {
+function CardBack({ delay = 0, bg = DEFAULT_CARD_BACK }: { delay?: number; bg?: string }) {
   return (
     <div
       className="w-[1.6rem] h-[2.2rem] rounded-[5px] border-[1.5px] border-[#efe6d2] flex items-center justify-center"
       style={{
-        background: 'linear-gradient(150deg, #9c4234 0%, #863a2d 48%, #6f2f25 100%)',
+        background: bg,
         boxShadow: '0 3px 7px rgba(34,31,25,0.45), 0 0 0 0.5px rgba(0,0,0,0.2)',
         animationDelay: `${delay}ms`,
       }}
@@ -70,7 +74,7 @@ const SEAT_CLASS: Record<Status, string> = {
   waiting: 'bg-[#33423a] text-white border-[#283228] shadow-[0_2px_6px_rgba(34,31,25,0.25)]',
 }
 
-export default function PokerTable({ heroPos, heroCards, raiserPos, activePots = [], chips = [], pot, board, villain, heroAnim }: Props) {
+export default function PokerTable({ heroPos, heroCards, raiserPos, activePots = [], chips = [], pot, board, villain, heroAnim, cardBack = DEFAULT_CARD_BACK }: Props) {
   const heroIdx = actionIndex(heroPos)
   const postflop = !!board
   // When a player still in the pot sits AFTER the hero in betting order, the
@@ -196,7 +200,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
               low enough that these still fit inside the table) */}
           {status !== 'hero' && status !== 'folded' && (
             <div className="flex gap-1 mb-0.5 animate-deal">
-              <CardBack /><CardBack delay={70} />
+              <CardBack bg={cardBack} /><CardBack bg={cardBack} delay={70} />
             </div>
           )}
           <div

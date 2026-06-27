@@ -12,6 +12,7 @@ import {
   DEFAULT_AVATAR,
   DEFAULT_FLAIR,
   DEFAULT_BACKGROUND,
+  DEFAULT_CARDBACK,
   type CosmeticType,
 } from './shop'
 
@@ -28,6 +29,7 @@ export interface Equipped {
   avatar: string
   flair: string
   background: string
+  cardback: string
 }
 
 export interface DailyResult {
@@ -121,6 +123,7 @@ export function equipped(): Equipped {
     avatar: e.avatar ?? DEFAULT_AVATAR,
     flair: e.flair ?? DEFAULT_FLAIR,
     background: e.background ?? DEFAULT_BACKGROUND,
+    cardback: e.cardback ?? DEFAULT_CARDBACK,
   }
 }
 
