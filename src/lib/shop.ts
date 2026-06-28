@@ -60,7 +60,7 @@ export const SHOP: ShopItem[] = [
   { id: 'avatar-wolf', type: 'avatar', name: 'Wolf', cost: 800, art: '🐺' },
   { id: 'avatar-eagle', type: 'avatar', name: 'Eagle', cost: 900, art: '🦅' },
   { id: 'avatar-croc', type: 'avatar', name: 'Croc', cost: 1100, art: '🐊' },
-  { id: 'avatar-shark', type: 'avatar', name: 'Shark', cost: 2500, art: '🦈' },
+  { id: 'avatar-whale', type: 'avatar', name: 'Whale', cost: 2500, art: '🐋' },
   { id: 'avatar-dragon', type: 'avatar', name: 'Dragon', cost: 1500, art: '🐉' },
   { id: 'avatar-unicorn', type: 'avatar', name: 'Unicorn', cost: 1200, art: '🦄' },
 
@@ -148,7 +148,7 @@ export const SHOP: ShopItem[] = [
 
   // ---- legendary (buyable only, never dropped from a loot box) ----
   { id: 'avatar-king', type: 'avatar', name: 'Pot King', cost: 10000, art: '👑', legendary: true },
-  { id: 'avatar-whale', type: 'avatar', name: 'Whale', cost: 20000, art: '🐋', legendary: true },
+  { id: 'avatar-shark', type: 'avatar', name: 'Shark', cost: 20000, art: '🦈', legendary: true },
 
   // ---- table felts (the colour of the felt you play on) ----
   { id: 'felt-classic', type: 'felt', name: 'Casino green', cost: 0, art: 'radial-gradient(circle at 50% 34%,#7e9a85 0%,#67836f 46%,#51695a 100%)' },
