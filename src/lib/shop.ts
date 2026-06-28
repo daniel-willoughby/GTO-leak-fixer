@@ -15,6 +15,9 @@ export interface ShopItem {
   /** Ultra-rare: never buyable and never in a normal loot pool, only obtainable
    *  via the rare loot-box pull (see SPECIAL_PULL_RATE). */
   special?: boolean
+  /** Legendary: buyable from the shop at a high price, but kept OUT of the loot
+   *  pool so it can only be earned by saving up (never randomly dropped). */
+  legendary?: boolean
 }
 
 // Free defaults every player owns from the start, so profiles always render.
@@ -62,17 +65,90 @@ export const SHOP: ShopItem[] = [
   { id: 'avatar-unicorn', type: 'avatar', name: 'Unicorn', cost: 1200, art: '🦄' },
 
   // ---- card backs (the design on opponents' face-down cards at the table) ----
-  { id: 'deck-classic', type: 'cardback', name: 'Claret', cost: 0, art: 'linear-gradient(150deg,#9c4234,#863a2d 48%,#6f2f25)' },
-  { id: 'deck-midnight', type: 'cardback', name: 'Midnight', cost: 300, art: 'linear-gradient(150deg,#2b3a63,#1d2747 48%,#141b33)' },
-  { id: 'deck-emerald', type: 'cardback', name: 'Emerald', cost: 300, art: 'linear-gradient(150deg,#2f6d54,#245742 48%,#173a2c)' },
-  { id: 'deck-slate', type: 'cardback', name: 'Slate', cost: 400, art: 'linear-gradient(150deg,#3a4048,#2a2f36 48%,#1c2026)' },
-  { id: 'deck-plum', type: 'cardback', name: 'Plum', cost: 450, art: 'linear-gradient(150deg,#6d4a6b,#4f3450 48%,#33213a)' },
-  { id: 'deck-candy', type: 'cardback', name: 'Bubblegum', cost: 600, art: 'linear-gradient(150deg,#c45a7a,#a23f60 48%,#7c2c47)' },
-  { id: 'deck-gold', type: 'cardback', name: 'Gold leaf', cost: 1000, art: 'linear-gradient(150deg,#caa24c,#a8812f 48%,#7c5d1f)' },
+  // Layered CSS backgrounds: a centre sheen / pattern over a base gradient, so
+  // each deck reads as an actual card-back motif (weave, argyle, dots, medallion)
+  // rather than a flat wash. Top layer first.
+  {
+    id: 'deck-classic',
+    type: 'cardback',
+    name: 'Claret',
+    cost: 0,
+    art: 'radial-gradient(circle at 50% 50%, rgba(255,236,210,0.10), transparent 42%), repeating-linear-gradient(45deg, rgba(0,0,0,0.10) 0 5px, transparent 5px 10px), linear-gradient(150deg,#9c4234,#863a2d 48%,#6f2f25)',
+  },
+  {
+    id: 'deck-midnight',
+    type: 'cardback',
+    name: 'Midnight weave',
+    cost: 300,
+    art: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08), transparent 45%), repeating-linear-gradient(-45deg, rgba(255,255,255,0.05) 0 6px, transparent 6px 12px), linear-gradient(150deg,#2b3a63,#1d2747 48%,#141b33)',
+  },
+  {
+    id: 'deck-emerald',
+    type: 'cardback',
+    name: 'Emerald weave',
+    cost: 300,
+    art: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08), transparent 45%), repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 0 6px, transparent 6px 12px), linear-gradient(150deg,#2f6d54,#245742 48%,#173a2c)',
+  },
+  {
+    id: 'deck-slate',
+    type: 'cardback',
+    name: 'Slate pinstripe',
+    cost: 400,
+    art: 'repeating-linear-gradient(60deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 7px), linear-gradient(150deg,#3a4048,#2a2f36 48%,#1c2026)',
+  },
+  {
+    id: 'deck-plum',
+    type: 'cardback',
+    name: 'Plum argyle',
+    cost: 450,
+    art: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.07) 0 7px, transparent 7px 14px), repeating-linear-gradient(-45deg, rgba(255,255,255,0.07) 0 7px, transparent 7px 14px), linear-gradient(150deg,#6d4a6b,#4f3450 48%,#33213a)',
+  },
+  {
+    id: 'deck-candy',
+    type: 'cardback',
+    name: 'Bubblegum dots',
+    cost: 600,
+    art: 'radial-gradient(circle, rgba(255,255,255,0.16) 1.5px, transparent 2px) 0 0 / 9px 9px, linear-gradient(150deg,#c45a7a,#a23f60 48%,#7c2c47)',
+  },
+  {
+    id: 'deck-royal',
+    type: 'cardback',
+    name: 'Royal cross',
+    cost: 700,
+    art: 'conic-gradient(from 45deg at 50% 50%, rgba(255,255,255,0.10), transparent 25%, rgba(255,255,255,0.10) 50%, transparent 75%, rgba(255,255,255,0.10)), linear-gradient(150deg,#7d2c3a,#5a1f2b 48%,#3c1620)',
+  },
+  {
+    id: 'deck-gold',
+    type: 'cardback',
+    name: 'Gold medallion',
+    cost: 1000,
+    art: 'radial-gradient(circle at 50% 50%, rgba(255,245,200,0.50) 0 8%, rgba(255,245,200,0) 11%), radial-gradient(circle at 50% 50%, rgba(0,0,0,0.20) 36%, transparent 38%), linear-gradient(150deg,#caa24c,#a8812f 48%,#7c5d1f)',
+  },
+  // store-exclusive legendary card backs (buyable only, never dropped from loot)
+  {
+    id: 'deck-mirage',
+    type: 'cardback',
+    name: 'Mirage',
+    cost: 6000,
+    legendary: true,
+    art: 'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.18), transparent 55%), conic-gradient(from 0deg at 50% 50%, #b16a52, #c79a4a 25%, #5b7461 50%, #3a5a8c 75%, #b16a52)',
+  },
+  {
+    id: 'deck-imperial',
+    type: 'cardback',
+    name: 'Imperial',
+    cost: 9000,
+    legendary: true,
+    art: 'radial-gradient(circle at 50% 50%, rgba(255,228,150,0.65) 0 7%, transparent 9%), repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,215,120,0.18) 0 6deg, transparent 6deg 30deg), linear-gradient(150deg,#3a2f17,#1c160a)',
+  },
 
   // ---- ultra-rare specials (loot-box only, ~2% pull; never buyable) ----
   { id: 'avatar-celestial', type: 'avatar', name: 'Celestial Dragon', cost: 5000, art: '🐲', special: true },
   { id: 'avatar-fish', type: 'avatar', name: 'Fish', cost: 5000, art: '🐟', special: true },
+
+  // ---- legendary (buyable only, never dropped from a loot box) ----
+  { id: 'avatar-king', type: 'avatar', name: 'Pot King', cost: 10000, art: '👑', legendary: true },
+  { id: 'avatar-whale', type: 'avatar', name: 'Whale', cost: 20000, art: '🐋', legendary: true },
 
   // ---- table felts (the colour of the felt you play on) ----
   { id: 'felt-classic', type: 'felt', name: 'Casino green', cost: 0, art: 'radial-gradient(circle at 50% 34%,#7e9a85 0%,#67836f 46%,#51695a 100%)' },
@@ -124,7 +200,7 @@ export const LOOT_BOXES: LootBox[] = [
     blurb: 'A random item you don’t own, anything in the shop, common to legendary',
     art: '🎁',
     tint: '#c79a4a',
-    pool: () => SHOP.filter((i) => !i.special && i.cost > 0).map((i) => i.id),
+    pool: () => SHOP.filter((i) => !i.special && !i.legendary && i.cost > 0).map((i) => i.id),
   },
 ]
 

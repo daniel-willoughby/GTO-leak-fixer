@@ -939,28 +939,6 @@ function isValue3Bet(label: string): boolean {
   return label === 'AKs' || label === 'AKo' || label === 'AQs'
 }
 
-/** Board-texture + range-dynamic note for the postflop spots (button vs big blind). */
-function boardTexture(board: Card[], street: 'flop' | 'turn' | 'river'): string {
-  if (street === 'turn')
-    return 'By the turn ranges are narrower, so bets polarise toward clear value and the best draws while medium hands check to keep the pot small.'
-  if (street === 'river')
-    return 'On the river the hand is decided, so play is polarised: bet your value hands and chosen bluffs (ideally with blockers) and check the rest to bluff-catch.'
-  const flop = board.slice(0, 3)
-  const suits = new Set(flop.map((c) => c.suit)).size
-  const hi = flop.map((c) => 14 - rk(c.rank))
-  const top = Math.max(...hi)
-  const paired = new Set(flop.map((c) => c.rank)).size < 3
-  const sorted = [...hi].sort((a, b) => b - a)
-  const connected = !paired && sorted[0] - sorted[2] <= 4
-  if (top >= 12 && !connected && !paired && suits >= 2)
-    return 'This dry, high flop favours the button (the raiser), so the textbook line is a small c-bet of about a third pot at a high frequency for thin value and equity denial.'
-  if (paired)
-    return 'Paired flops make strong hands rarer for both players, so the raiser leans on range advantage with a cheap bet and gives up little by checking back.'
-  if (suits === 1 || connected || top <= 9)
-    return "This wetter or lower flop connects better with the big blind's calling range, shrinking the raiser's edge, so it is checked more and bets are more selective."
-  return 'On a neutral flop the raiser keeps a small range edge and mixes a small c-bet with checks.'
-}
-
 // Phrasings for the postflop actions (check / bet⅓ / bet¾, plus legacy bet).
 const POST_PHRASE: Partial<Record<Action, string>> = {
   check: 'check back',
@@ -990,25 +968,32 @@ function explainPostflop(spot: Spot, chosen: Action): string {
         ? `Fine: ${phrase(chosen)} is played ${chosenPct}% here, a defensible mixed choice.`
         : `Not the top play: the solver prefers to ${phrase(spot.correct)} (${correctPct}%).`
   const streetNote = street === 'river' ? ' on the river' : street === 'turn' ? ' on the turn' : ' on this flop'
+  // Hand-strength note is DESCRIPTIVE only (no prescribed action), so it can
+  // never contradict the solver's actual top play — e.g. a strong hand the
+  // solver checks for pot control. The verdict + mix say what to do; this is
+  // just context.
   const reason: Record<typeof desc.tier, string> = {
-    monster: `You have ${desc.text}${streetNote}, a near-lock that wants to build the pot.`,
-    strong: `You have ${desc.text}${streetNote}, a strong made hand that mostly bets for value.`,
-    top: `You have ${desc.text}${streetNote}, a solid one-pair hand with real showdown value.`,
-    draw: `You have ${desc.text}${streetNote}, a draw that can semi-bluff for fold equity or check to realise it.`,
-    weak: `You have ${desc.text}${streetNote}, a marginal made hand with modest showdown value.`,
-    air: `You have ${desc.text}${streetNote}, with little showdown value, so it works as a check or a bluff.`,
+    monster: `${desc.text}${streetNote} is a near-lock.`,
+    strong: `${desc.text}${streetNote} is a strong made hand.`,
+    top: `${desc.text}${streetNote} is solid one-pair showdown value.`,
+    draw: `${desc.text}${streetNote} is a draw leaning on its equity.`,
+    weak: `${desc.text}${streetNote} is a marginal made hand.`,
+    air: `${desc.text}${streetNote} has little showdown value.`,
   }
-  // a sizing note only when the correct play is a specific bet size
+  // a sizing note only when the correct play is a specific bet size (so it
+  // always agrees with the verdict above)
   const sizeNote =
     spot.correct === 'bet33'
-      ? ' The small size lets the button bet a wide range thinly and cheaply.'
+      ? ' The small size bets a wide range thinly and cheaply.'
       : spot.correct === 'bet75'
-        ? ' The bigger size is for polarised spots, strong value plus the bluffs that want fold equity.'
+        ? ' The bigger size is polarised: strong value plus bluffs that want fold equity.'
         : ''
   const mix = spot.actions.map((a) => `${POST_MIX[a] ?? a} ${pct(a)}%`).join(' / ')
   const mixed = topFreq < 85 ? ' Genuinely mixed, lean to the majority.' : ''
-  return `${verdict} ${reason[desc.tier]}${sizeNote} ${boardTexture(board, street)} Solver mix: ${mix}.${mixed}`
+  return `${verdict} ${capitalize(reason[desc.tier])}${sizeNote} Mix: ${mix}.${mixed}`
 }
+
+const capitalize = (s: string): string => (s ? s[0].toUpperCase() + s.slice(1) : s)
 
 function explainRfi(spot: Spot, chosen: Action): string {
   const pos = spot.heroPos as RfiPosition
@@ -1060,14 +1045,10 @@ function explainVsRfi(spot: Spot, chosen: Action): string {
 
 function explainMultiway(spot: Spot, chosen: Action): string {
   const right = chosen === spot.correct
-  const m = multiwayOf(spot)
   const correctLabel = ACTION_LABEL[spot.correct].toLowerCase()
   const verdict = right
     ? `Correct: GTO ${correctLabel}s ${spot.label} here.`
     : `Not GTO: the solver ${correctLabel}s ${spot.label} in this spot.`
-  const context = m
-    ? `Spot: ${m.description} Pot is ~${m.pot}bb.`
-    : ''
   const oop = spot.heroPos === 'SB' || spot.heroPos === 'BB'
   const why: Partial<Record<Action, string>> = {
     squeeze: `${spot.label} is strong enough to squeeze. With a caller already in there is dead money to attack: size up to charge the field, deny their equity, and take the pot heads-up with the lead.`,
@@ -1078,7 +1059,7 @@ function explainMultiway(spot: Spot, chosen: Action): string {
     fold: `${spot.label} is too weak for a multiway pot: it is dominated by the ranges still in and realises little equity against several opponents${oop ? ' out of position' : ''}.`,
     'cold-4bet': `${spot.label} 4-bets for value: against a 3-betting range you represent a very tight, nutted range, and your blockers cut into the hands that could continue.`,
   }
-  return `${verdict} ${context} ${why[spot.correct] ?? ''}`
+  return `${verdict} ${why[spot.correct] ?? ''}`
 }
 
 function positionWhy(pos: RfiPosition, inRange: boolean): string {

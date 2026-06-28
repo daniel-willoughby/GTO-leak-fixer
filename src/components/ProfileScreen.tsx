@@ -935,13 +935,14 @@ function Shop({
               const isOwned = owned.includes(item.id)
               const isOn = equipped[g.type] === item.id
               const affordable = balance >= item.cost
+              const prestige = item.special || item.legendary // gold treatment for both
               return (
                 <div
                   key={item.id}
                   className={`flex flex-col items-center gap-2 rounded-2xl border p-3 ${
                     isOn
                       ? 'border-sage/50 bg-sage/10'
-                      : item.special
+                      : prestige
                         ? 'border-amber-400/50 bg-amber-400/[0.06]'
                         : 'border-line bg-paper2'
                   }`}
@@ -949,13 +950,15 @@ function Shop({
                   <span
                     className={`flex h-12 w-12 items-center justify-center border text-2xl ${
                       g.type === 'cardback' ? 'rounded-lg' : 'rounded-full'
-                    } ${item.special ? 'border-amber-400/60 shadow-[0_0_14px_-2px_rgba(251,191,36,0.6)]' : 'border-line'}`}
+                    } ${prestige ? 'border-amber-400/60 shadow-[0_0_14px_-2px_rgba(251,191,36,0.6)]' : 'border-line'} ${
+                      prestige && !isGradient(g.type) ? 'animate-prestige' : ''
+                    }`}
                     style={{ background: isGradient(g.type) ? item.art : 'rgb(var(--c-paper))' }}
                   >
                     {!isGradient(g.type) && item.art}
                   </span>
                   <span className="flex items-center gap-1 text-center text-xs font-semibold text-ink">
-                    {item.special && <Sparkles size={11} className="text-amber-500" />}
+                    {prestige && <Sparkles size={11} className="text-amber-500" />}
                     {item.name}
                   </span>
                   {isOwned ? (

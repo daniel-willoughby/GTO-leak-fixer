@@ -234,23 +234,27 @@ export async function fetchPublicLedger(sort: LedgerSort = 'recent', limit = 25)
   return data as DuelRow[]
 }
 
-/** Who won, from this user's perspective. A tie (equal score) is a push, there
- *  is no time tiebreak, so nobody wins and no PP changes hands. */
+/** Who won, from this user's perspective. Higher score wins; an equal score is
+ *  broken by the faster total answer time. Only an exact tie on both score and
+ *  time is a push (no PP changes hands). */
 export function duelOutcome(d: DuelRow, userId: string): DuelOutcome {
-  const cs = d.challenger_score ?? 0
-  const os = d.opponent_score ?? 0
-  if (cs === os) return 'push'
-  const winner = cs > os ? d.challenger : d.opponent
+  const side = duelWinnerSide(d)
+  if (!side) return 'push'
+  const winner = side === 'challenger' ? d.challenger : d.opponent
   return winner === userId ? 'win' : 'loss'
 }
 
-/** Who won, by side ('challenger' | 'opponent' | null-for-push), for the
- *  public ledger, which has no single viewer. */
+/** Who won, by side ('challenger' | 'opponent' | null for an exact tie), for the
+ *  public ledger, which has no single viewer. Score first, faster time breaks a
+ *  drawn score. */
 export function duelWinnerSide(d: DuelRow): 'challenger' | 'opponent' | null {
   const cs = d.challenger_score ?? 0
   const os = d.opponent_score ?? 0
-  if (cs === os) return null
-  return cs > os ? 'challenger' : 'opponent'
+  if (cs !== os) return cs > os ? 'challenger' : 'opponent'
+  const ct = d.challenger_time ?? Infinity
+  const ot = d.opponent_time ?? Infinity
+  if (ct === ot) return null // identical score and time: a genuine push
+  return ct < ot ? 'challenger' : 'opponent'
 }
 
 /** Apply the wager outcome for any finished, unsettled duels. Idempotent (each

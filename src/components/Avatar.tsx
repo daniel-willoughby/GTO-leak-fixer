@@ -1,15 +1,20 @@
 import { shopItem, DEFAULT_AVATAR } from '../lib/shop'
 
-/** Round avatar with an optional background wash. Emoji art for now. */
+/** Round avatar with an optional background wash. Emoji art for now. Prestige
+ *  avatars (loot-only specials + buyable legendaries) gently pulse to stand out. */
 export function Avatar({ id, background, size = 40 }: { id?: string; background?: string; size?: number }) {
-  const art = shopItem(id || DEFAULT_AVATAR)?.art ?? '🎰'
+  const item = shopItem(id || DEFAULT_AVATAR)
+  const art = item?.art ?? '🎰'
+  const prestige = !!(item?.special || item?.legendary)
   const bg = background ? shopItem(background)?.art : undefined
   return (
     <span
-      className="inline-flex shrink-0 items-center justify-center rounded-full border border-line"
+      className={`inline-flex shrink-0 items-center justify-center rounded-full border ${prestige ? 'border-amber-400/60' : 'border-line'}`}
       style={{ width: size, height: size, background: bg ?? 'rgb(var(--c-paper2))' }}
     >
-      <span style={{ fontSize: size * 0.56, lineHeight: 1 }}>{art}</span>
+      <span className={prestige ? 'animate-prestige' : undefined} style={{ fontSize: size * 0.56, lineHeight: 1 }}>
+        {art}
+      </span>
     </span>
   )
 }

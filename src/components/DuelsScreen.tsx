@@ -98,7 +98,7 @@ export default function DuelsScreen({
         </span>
       </div>
       <p className="-mt-2 text-sm text-ink2">
-        Best of {DUEL_LEN} questions, head to head. Wager Poker Points, the winner takes the pot, a tie is a push.
+        Best of {DUEL_LEN} questions, head to head. Wager Poker Points and the winner takes the pot; a level score is broken by the faster time.
       </p>
 
       {inDebt && (

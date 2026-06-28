@@ -39,8 +39,15 @@ describe('duel outcome', () => {
     expect(duelWinnerSide(d)).toBe('challenger')
   })
 
-  it('a tie is a push for both, no time tiebreak, no winner', () => {
+  it('an equal score is broken by the faster total time', () => {
     const d = duel({ challenger_score: 5, opponent_score: 5, challenger_time: 1000, opponent_time: 9000 })
+    expect(duelOutcome(d, ME)).toBe('win') // ME = challenger, faster
+    expect(duelOutcome(d, THEM)).toBe('loss')
+    expect(duelWinnerSide(d)).toBe('challenger')
+  })
+
+  it('an exact tie on both score and time is a push', () => {
+    const d = duel({ challenger_score: 5, opponent_score: 5, challenger_time: 4000, opponent_time: 4000 })
     expect(duelOutcome(d, ME)).toBe('push')
     expect(duelOutcome(d, THEM)).toBe('push')
     expect(duelWinnerSide(d)).toBeNull()
@@ -51,7 +58,7 @@ describe('settlement', () => {
   it('pays the wager out once per duel and records win/play stats', () => {
     const won = duel({ id: 'a', challenger_score: 9, opponent_score: 3, wager: 150 })
     const lost = duel({ id: 'b', challenger_score: 2, opponent_score: 8, wager: 50 })
-    const tied = duel({ id: 'c', challenger_score: 5, opponent_score: 5, wager: 200 })
+    const tied = duel({ id: 'c', challenger_score: 5, opponent_score: 5, challenger_time: 7000, opponent_time: 7000, wager: 200 })
 
     expect(settleFinishedDuels(ME, [won, lost, tied])).toBe(3)
     expect(duelNet()).toBe(150 - 50) // push contributes 0
