@@ -185,6 +185,7 @@ const BONUS_KEY = 'lt-bonus'
 // trustworthy as that name, fine for a personal gift, not anti-cheat.
 const NAMED_BONUSES: { handle: string; id: string; pp: number }[] = [
   { handle: 'george', id: 'george-grant-5000', pp: 5000 },
+  { handle: 'danbigstack', id: 'danbigstack-grant-20000', pp: 20000 },
 ]
 
 export const claimedBonuses = (): string[] => readJSON<string[]>(BONUS_KEY, [])

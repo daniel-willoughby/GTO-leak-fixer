@@ -93,9 +93,9 @@ Deno.serve(async (req) => {
       //   • 2 PP per correct hand            → ≤ hands * 2
       //   • 100 PP per daily completion       → dailyDays * 100  (server-owned)
       //   • 500 PP per crown                  → crowns * 500      (recomputed)
-      //   • a small fixed slack for the few sources the server can't see
-      //     (one-off grants, net duel winnings).
-      const ppCeiling = hands * 2 + (dailyDays ?? 0) * 100 + crowns * 500 + 10000
+      //   • a fixed slack for the few sources the server can't see (one-off
+      //     hand-granted bonuses up to ~25k, plus net duel winnings).
+      const ppCeiling = hands * 2 + (dailyDays ?? 0) * 100 + crowns * 500 + 30000
 
       const { error } = await admin.from('profiles').upsert({
         user_id: uid,
