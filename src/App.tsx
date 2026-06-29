@@ -205,6 +205,9 @@ export default function App() {
       // a sync pulls in a whole history at once; fold those already-earned
       // achievements into the "seen" set so they don't re-pop ("+PP" each login)
       await markAchievementsSeen()
+      // the sync also brings in / confirms the handle, so retry any named PP gift
+      // here too (the mount-time attempt can run before the handle is loaded)
+      claimNamedBonus(getHandle())
       setLastSynced(Date.now())
       setProgress((p) => p + 1) // refresh screens that read merged data
     } finally {
