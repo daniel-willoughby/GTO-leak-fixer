@@ -30,12 +30,26 @@ as $$
   select count(*)::int from tops where user_id = uid;
 $$;
 
--- Only the service role (the Edge Function) should call it.
+-- Only the service role (the Edge Function) should call it. Revoke from everyone
+-- else, then grant explicitly back to service_role (the revoke-from-public also
+-- removes service_role's implicit access, so it must be re-granted).
 revoke all on function public.count_crowns(uuid) from public, anon, authenticated;
+grant execute on function public.count_crowns(uuid) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- CRITICAL: the Edge Function writes as the service role. Tables created here in
+-- the SQL editor are NOT auto-granted to service_role (the same reason anon and
+-- authenticated needed explicit grants in schema.sql). Without these grants the
+-- function's writes fail, and once the client revokes below are applied NOTHING
+-- can write the leaderboards. Always grant the function's role before revoking
+-- the client's.
+-- ---------------------------------------------------------------------------
+grant select, insert, update on public.profiles     to service_role;
+grant select, insert, update on public.daily_scores to service_role;
 
 -- ---------------------------------------------------------------------------
 -- Revoke direct client writes. Reads stay open (the public leaderboard); writes
--- now go through publish-standings only. The service role ignores these grants.
+-- now go through publish-standings only (as the service role, granted above).
 -- ---------------------------------------------------------------------------
 revoke insert, update on public.profiles     from anon, authenticated;
 revoke insert, update on public.daily_scores from anon, authenticated;

@@ -135,6 +135,13 @@ grant insert, update on public.profiles to authenticated;
 grant select on public.daily_scores to anon, authenticated;
 grant insert, update on public.daily_scores to authenticated;
 
+-- The publish-standings Edge Function writes as service_role. Tables created in
+-- the SQL editor are NOT auto-granted to service_role, so grant it explicitly —
+-- otherwise the function's writes fail (and break entirely once server-authority
+-- revokes the client fallback).
+grant select, insert, update on public.profiles     to service_role;
+grant select, insert, update on public.daily_scores to service_role;
+
 -- ---------------------------------------------------------------------------
 -- Friend requests: a small inbox so a player is *notified* when someone adds
 -- them. The sender writes a row (with their denormalised name/avatar/flair for

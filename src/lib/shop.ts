@@ -147,7 +147,7 @@ export const SHOP: ShopItem[] = [
   { id: 'avatar-fish', type: 'avatar', name: 'Fish', cost: 5000, art: '🐟', special: true },
 
   // ---- legendary (buyable only, never dropped from a loot box) ----
-  { id: 'avatar-king', type: 'avatar', name: 'Pot King', cost: 10000, art: '👑', legendary: true },
+  { id: 'avatar-donkey', type: 'avatar', name: 'Donkey', cost: 10000, art: '🫏', legendary: true },
   { id: 'avatar-shark', type: 'avatar', name: 'Shark', cost: 20000, art: '🦈', legendary: true },
 
   // ---- table felts (the colour of the felt you play on) ----
