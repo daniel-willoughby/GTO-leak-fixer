@@ -258,14 +258,15 @@ body::before {
 .animate-lootburst {
   animation: loot-burst 0.7s ease-out forwards;
 }
-/* the reward springs up out of the burst */
+/* the reward punches up out of the burst */
 @keyframes loot-rise {
-  0% { transform: translateY(26px) scale(0.5); opacity: 0; }
-  55% { transform: translateY(0) scale(1.1); opacity: 1; }
+  0% { transform: translateY(30px) scale(0.35); opacity: 0; }
+  50% { transform: translateY(0) scale(1.2); opacity: 1; }
+  72% { transform: scale(0.96); }
   100% { transform: translateY(0) scale(1); }
 }
 .animate-lootrise {
-  animation: loot-rise 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: loot-rise 0.5s cubic-bezier(0.3, 1.7, 0.5, 1) both;
 }
 /* sparkle particles flying outward on reveal (direction via --dx/--dy) */
 @keyframes loot-sparkle {
@@ -291,6 +292,26 @@ body::before {
 }
 .animate-lootglow {
   animation: loot-glow 1.4s ease-in-out infinite;
+}
+/* white impact flash when the reel slams to a stop / the reward reveals */
+@keyframes loot-flash {
+  0% { opacity: 0; }
+  18% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+.animate-lootflash {
+  animation: loot-flash 0.4s ease-out forwards;
+}
+/* quick recoil shake on the reel when it lands */
+@keyframes land-shake {
+  0%, 100% { transform: translateX(0); }
+  18% { transform: translateX(-5px); }
+  38% { transform: translateX(5px); }
+  58% { transform: translateX(-3px); }
+  78% { transform: translateX(3px); }
+}
+.animate-landshake {
+  animation: land-shake 0.32s ease-in-out;
 }
 /* streak flame gives a little kick each time the run grows */
 @keyframes streak-kick {

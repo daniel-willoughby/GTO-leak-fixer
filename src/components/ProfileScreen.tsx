@@ -26,6 +26,7 @@ import {
 } from '../lib/leaderboard'
 import { gatherLocal } from '../lib/sync'
 import { dayKey } from '../lib/daily'
+import { haptic } from '../lib/haptics'
 import { Avatar, Flair } from './Avatar'
 
 interface Props {
@@ -478,11 +479,16 @@ function LootReveal({
 
   const reel = useMemo(() => buildReel(item), [item.id])
   const [rolled, setRolled] = useState(false)
+  const [landed, setLanded] = useState(false)
   useEffect(() => {
     if (phase !== 'spinning') return
     const t = setTimeout(() => setRolled(true), 80) // next frame → kick off the transition
     return () => clearTimeout(t)
   }, [phase])
+  const onLanded = () => {
+    setLanded(true)
+    haptic('success')
+  }
   const finalX = REEL_VIEW / 2 - (REEL_WIN * REEL_STEP + REEL_STEP / 2)
 
   return (
@@ -500,7 +506,7 @@ function LootReveal({
         <div className="relative flex flex-col items-center gap-5">
           <p className="serif text-lg text-paper">Opening {box.name}…</p>
           <div
-            className="relative overflow-hidden rounded-2xl border border-white/15 bg-ink/40"
+            className={`relative overflow-hidden rounded-2xl border bg-ink/40 ${landed ? 'animate-landshake border-amber-300' : 'border-white/15'}`}
             style={{ width: REEL_VIEW, height: 108 }}
           >
             {/* edge fades */}
@@ -509,23 +515,33 @@ function LootReveal({
             {/* centre pointer */}
             <span className="pointer-events-none absolute left-1/2 top-0 z-30 h-full w-[2px] -translate-x-1/2 bg-amber-300" style={{ boxShadow: '0 0 10px rgba(251,191,36,0.9)' }} />
             <span className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 border-x-[6px] border-t-[8px] border-x-transparent border-t-amber-300" />
-            {/* strip */}
+            {/* strip — fast spin that slams to a stop with a tiny overshoot */}
             <div
               className="flex h-full items-center"
+              onTransitionEnd={onLanded}
               style={{
                 transform: `translateX(${rolled ? finalX : 0}px)`,
-                transition: rolled ? `transform ${REEL_MS}ms cubic-bezier(0.1,0.78,0.16,1)` : 'none',
+                transition: rolled ? `transform ${REEL_MS}ms cubic-bezier(0.16,0.92,0.12,1.04)` : 'none',
               }}
             >
               {reel.map((it, i) => (
                 <ReelCard key={i} item={it} win={i === REEL_WIN} />
               ))}
             </div>
+            {/* impact: a burst + white flash the moment it lands */}
+            {landed && (
+              <>
+                <span className="animate-lootburst pointer-events-none absolute left-1/2 top-1/2 z-30 h-24 w-24 rounded-full" style={{ background: `radial-gradient(circle, ${accent}, transparent 62%)` }} />
+                <span className="animate-lootflash pointer-events-none absolute inset-0 z-40 bg-white" />
+              </>
+            )}
           </div>
-          <p className="text-xs text-ink3">Cycling through the vault…</p>
+          <p className="text-xs text-ink3">{landed ? 'Locked in!' : 'Cycling through the vault…'}</p>
         </div>
       ) : (
         <div className="relative flex items-center justify-center">
+          {/* a full-screen white flash punches in on reveal */}
+          <span className="animate-lootflash pointer-events-none fixed inset-0 z-40 bg-white" />
           {/* light burst, sits behind the card, its halo flares past the edges */}
           <span
             className="animate-lootburst pointer-events-none absolute left-1/2 top-1/2 z-0 h-72 w-72 rounded-full"
