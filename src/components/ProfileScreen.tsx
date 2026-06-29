@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Check, Coins, Lock, Sparkles, UserPlus, UserCheck, Search, ChevronDown, Pencil, X, Gift } from 'lucide-react'
 import { getAchievements, type Achievement } from '../lib/achievements'
 import { pointsState, owned, equipped, equip, buyItem, claimNamedBonus, openLootBox } from '../lib/points'
-import { itemsOfType, shopItem, MYSTERY_BOX, type ShopItem, type CosmeticType, type LootBox } from '../lib/shop'
+import { itemsOfType, shopItem, SHOP, MYSTERY_BOX, type ShopItem, type CosmeticType, type LootBox } from '../lib/shop'
 import {
   getHandle,
   setHandle,
@@ -176,8 +176,8 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
     }
   }
 
-  // loot-box opening + reveal overlay
-  const [reveal, setReveal] = useState<{ box: LootBox; item: ShopItem; phase: 'opening' | 'revealed' } | null>(null)
+  // loot-box opening: a 5s slot-reel that spins past items, then the reveal
+  const [reveal, setReveal] = useState<{ box: LootBox; item: ShopItem; phase: 'spinning' | 'revealed' } | null>(null)
   const [lootMsg, setLootMsg] = useState<string | null>(null)
 
   async function onOpenBox(box: LootBox) {
@@ -189,8 +189,8 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
     }
     const item = shopItem(res.itemId)
     if (!item) return
-    setReveal({ box, item, phase: 'opening' })
-    setTimeout(() => setReveal((r) => (r ? { ...r, phase: 'revealed' } : r)), 1400)
+    setReveal({ box, item, phase: 'spinning' })
+    setTimeout(() => setReveal((r) => (r ? { ...r, phase: 'revealed' } : r)), REEL_MS + 250)
     refreshLocal()
     onChanged()
   }
@@ -416,12 +416,58 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
   )
 }
 
-/** Full-screen loot-box opening + reveal animation. */
+// ---- loot reel ----
+const REEL_MS = 5000 // total spin time before the reveal
+const REEL_STEP = 80 // px per slot (72 card + 8 gap)
+const REEL_VIEW = 288 // visible viewport width
+const REEL_LEN = 48 // slots in the strip
+const REEL_WIN = 43 // index of the winning slot (near the end, with slots left to fill the right edge)
+
+/** Background gradient keyed to an item's price tier (cheap → grey, dear → gold). */
+function tierBg(item: ShopItem): string {
+  if (item.special || item.legendary) return 'linear-gradient(150deg,#f6c64b,#a9781f)' // legendary gold
+  const c = item.cost
+  if (c <= 0) return 'linear-gradient(150deg,#6f6a5e,#48443c)' // free, grey
+  if (c <= 300) return 'linear-gradient(150deg,#5e7d68,#3f5347)' // common, green
+  if (c <= 700) return 'linear-gradient(150deg,#46699c,#2c4368)' // uncommon, blue
+  if (c <= 1300) return 'linear-gradient(150deg,#73517a,#4b3454)' // rare, purple
+  return 'linear-gradient(150deg,#b1552f,#7a2e1d)' // epic, red
+}
+
+/** A strip of random items with the won item pinned at REEL_WIN. */
+function buildReel(won: ShopItem): ShopItem[] {
+  const pool = SHOP.filter((i) => i.cost > 0) // skip the free defaults for visual interest
+  const arr = Array.from({ length: REEL_LEN }, () => pool[Math.floor(Math.random() * pool.length)])
+  arr[REEL_WIN] = won
+  return arr
+}
+
+const isGradItem = (t: CosmeticType) => t === 'background' || t === 'cardback' || t === 'felt'
+
+/** One card in the spinning reel: a price-tier-coloured tile showing the item. */
+function ReelCard({ item, win }: { item: ShopItem; win: boolean }) {
+  const grad = isGradItem(item.type)
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center rounded-xl border ${win ? 'border-amber-300/90' : 'border-white/10'}`}
+      style={{ width: 72, height: 92, marginRight: REEL_STEP - 72, background: tierBg(item) }}
+    >
+      {grad ? (
+        <span className="h-9 w-7 rounded-md border border-white/25" style={{ background: item.art }} />
+      ) : (
+        <span className="text-3xl drop-shadow">{item.art}</span>
+      )}
+    </div>
+  )
+}
+
+/** Full-screen loot-box opening: a 5s slot-reel that spins past items (each on a
+ *  price-tier background) and decelerates onto your pull, then reveals it. */
 function LootReveal({
   reveal,
   onClose,
 }: {
-  reveal: { box: LootBox; item: ShopItem; phase: 'opening' | 'revealed' }
+  reveal: { box: LootBox; item: ShopItem; phase: 'spinning' | 'revealed' }
   onClose: () => void
 }) {
   const { box, item, phase } = reveal
@@ -429,6 +475,16 @@ function LootReveal({
   const special = !!item.special
   const accent = special ? '#fbbf24' : box.tint
   const sparkCount = special ? 14 : 9
+
+  const reel = useMemo(() => buildReel(item), [item.id])
+  const [rolled, setRolled] = useState(false)
+  useEffect(() => {
+    if (phase !== 'spinning') return
+    const t = setTimeout(() => setRolled(true), 80) // next frame → kick off the transition
+    return () => clearTimeout(t)
+  }, [phase])
+  const finalX = REEL_VIEW / 2 - (REEL_WIN * REEL_STEP + REEL_STEP / 2)
+
   return (
     <div
       className="fixed inset-0 z-[70] flex items-start justify-center overflow-hidden bg-ink/85 px-6 pt-20 backdrop-blur-md sm:pt-24"
@@ -440,18 +496,33 @@ function LootReveal({
         style={{ background: `radial-gradient(circle at 50% 44%, ${accent}33, transparent 62%)` }}
       />
 
-      {phase === 'opening' ? (
-        <div className="relative flex flex-col items-center gap-6">
-          <div className="relative flex h-32 w-32 items-center justify-center">
-            <span
-              className="animate-loot-aura absolute left-1/2 top-1/2 h-28 w-28 rounded-full"
-              style={{ background: `radial-gradient(circle, ${box.tint}cc, transparent 70%)` }}
-            />
-            <span className="animate-lootshake relative text-7xl" style={{ filter: `drop-shadow(0 10px 26px ${box.tint})` }}>
-              {box.art}
-            </span>
+      {phase === 'spinning' ? (
+        <div className="relative flex flex-col items-center gap-5">
+          <p className="serif text-lg text-paper">Opening {box.name}…</p>
+          <div
+            className="relative overflow-hidden rounded-2xl border border-white/15 bg-ink/40"
+            style={{ width: REEL_VIEW, height: 108 }}
+          >
+            {/* edge fades */}
+            <span className="pointer-events-none absolute inset-y-0 left-0 z-20 w-12" style={{ background: 'linear-gradient(90deg, rgba(20,18,14,0.95), transparent)' }} />
+            <span className="pointer-events-none absolute inset-y-0 right-0 z-20 w-12" style={{ background: 'linear-gradient(270deg, rgba(20,18,14,0.95), transparent)' }} />
+            {/* centre pointer */}
+            <span className="pointer-events-none absolute left-1/2 top-0 z-30 h-full w-[2px] -translate-x-1/2 bg-amber-300" style={{ boxShadow: '0 0 10px rgba(251,191,36,0.9)' }} />
+            <span className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 border-x-[6px] border-t-[8px] border-x-transparent border-t-amber-300" />
+            {/* strip */}
+            <div
+              className="flex h-full items-center"
+              style={{
+                transform: `translateX(${rolled ? finalX : 0}px)`,
+                transition: rolled ? `transform ${REEL_MS}ms cubic-bezier(0.1,0.78,0.16,1)` : 'none',
+              }}
+            >
+              {reel.map((it, i) => (
+                <ReelCard key={i} item={it} win={i === REEL_WIN} />
+              ))}
+            </div>
           </div>
-          <p className="serif animate-pulse text-lg text-paper">Opening…</p>
+          <p className="text-xs text-ink3">Cycling through the vault…</p>
         </div>
       ) : (
         <div className="relative flex items-center justify-center">
