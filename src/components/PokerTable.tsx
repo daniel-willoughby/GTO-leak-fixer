@@ -52,20 +52,13 @@ type Status = 'hero' | 'raiser' | 'active' | 'folded' | 'waiting'
 function CardBack({ delay = 0, bg = DEFAULT_CARD_BACK }: { delay?: number; bg?: string }) {
   return (
     <div
-      className="w-[1.6rem] h-[2.2rem] rounded-[5px] border-[1.5px] border-[#efe6d2] flex items-center justify-center"
+      className="w-[1.6rem] h-[2.2rem] rounded-[5px] border-[1.5px] border-[#efe6d2]"
       style={{
         background: bg,
         boxShadow: '0 3px 7px rgba(34,31,25,0.45), 0 0 0 0.5px rgba(0,0,0,0.2)',
         animationDelay: `${delay}ms`,
       }}
-    >
-      <svg width="15" height="21" viewBox="0 0 15 21" className="opacity-50">
-        <pattern id="cb" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
-          <rect x="1" y="1" width="2" height="2" fill="#f3ead6" transform="rotate(45 2 2)" />
-        </pattern>
-        <rect width="15" height="21" fill="url(#cb)" />
-      </svg>
-    </div>
+    />
   )
 }
 
