@@ -12,6 +12,8 @@ export const LADDER_LEN = 20
 interface Rung {
   mode: DrillMode
   difficulty: Difficulty
+  /** Postflop rungs can be pinned to the turn for a continuation spot. */
+  street?: 'flop' | 'turn'
 }
 
 // The difficulty curve across the 20 rungs.
@@ -26,10 +28,12 @@ const LADDER_PLAN: Rung[] = [
   ...Array.from({ length: 3 }, () => ({ mode: 'vsRfi' as DrillMode, difficulty: 'hard' as Difficulty })),
   // 14-15, multiway squeezes
   ...Array.from({ length: 2 }, () => ({ mode: 'multiway' as DrillMode, difficulty: 'all' as Difficulty })),
-  // 16-17, postflop
+  // 16-17, postflop (flop)
   ...Array.from({ length: 2 }, () => ({ mode: 'postflop' as DrillMode, difficulty: 'all' as Difficulty })),
-  // 18-20, trickiest postflop spots
-  ...Array.from({ length: 3 }, () => ({ mode: 'postflop' as DrillMode, difficulty: 'hard' as Difficulty })),
+  // 18-19, turn continuations
+  ...Array.from({ length: 2 }, () => ({ mode: 'postflop' as DrillMode, difficulty: 'all' as Difficulty, street: 'turn' as const })),
+  // 20, trickiest postflop spot
+  { mode: 'postflop' as DrillMode, difficulty: 'hard' as Difficulty },
 ]
 
 /** Run a function with Math.random seeded, then restore the real Math.random. */
@@ -46,7 +50,7 @@ function withSeededRandom<T>(seed: number, fn: () => T): T {
 /** The 20 seeds for a given UTC day, identical on every client. */
 export function dailyLadderSeeds(day: string): SpotSeed[] {
   return withSeededRandom(hashStr(`ladder-${day}`), () =>
-    LADDER_PLAN.map((r) => seedOf(generateSpot(r.mode, { difficulty: r.difficulty }))),
+    LADDER_PLAN.map((r) => seedOf(generateSpot(r.mode, { difficulty: r.difficulty, street: r.street }))),
   )
 }
 

@@ -13,6 +13,7 @@ import { MULTIWAY_MATCHUPS, respondMultiway } from '../data/multiway'
 import {
   ALL_NODES as ALL_STREET_NODES,
   FLOP_NODES,
+  TURN_NODES,
   hasRiver,
   nodeLabels,
   riverNodesForBoard,
@@ -145,6 +146,9 @@ export interface GenOptions {
   lockPos?: RfiPosition
   /** Pin a vs-RFI spot to one matchup (beginner lessons). */
   lockMatchup?: { raiser: RfiPosition; hero: Position }
+  /** Deal a postflop spot on a specific street (the daily ladder uses this to
+   *  surface a standalone turn continuation). Defaults to the flop. */
+  street?: 'flop' | 'turn'
 }
 
 /**
@@ -224,7 +228,7 @@ export function generateSpot(mode: DrillMode, opts: GenOptions = {}): Spot {
 }
 
 function generateOne(mode: DrillMode, opts: GenOptions = {}): Spot {
-  if (mode === 'postflop') return generatePostflopSpot()
+  if (mode === 'postflop') return opts.street === 'turn' ? generateTurnSpot() : generatePostflopSpot()
   if (mode === 'multiway') return generateMultiwaySpot()
   const label = pickLabel(opts.focus)
   const cards = dealHandForLabel(label)
@@ -367,6 +371,32 @@ function generatePostflopSpot(): Spot {
     node,
     freqs: strat.freqs,
     handState,
+  }
+}
+
+/** A single-decision spot dealt straight onto the turn, from a solved turn node.
+ *  Used by the daily ladder to include turn continuations. Board-driven, so
+ *  `spotFromSeed` rebuilds it identically on every client from the seed board. */
+function generateTurnSpot(): Spot {
+  if (!TURN_NODES.length) return generatePostflopSpot()
+  const node = randOf(TURN_NODES)
+  const board = boardCards(node)
+  const label = randOf(nodeLabels(node))
+  const cards = dealHandForLabel(label, board)
+  const strat = strategyFor(node, label)!
+  return {
+    mode: 'postflop',
+    heroPos: node.hero,
+    cards,
+    label,
+    correct: strat.primary as Action,
+    actions: node.actions as Action[],
+    category: classifyHand(label),
+    board,
+    node,
+    street: 'turn',
+    history: node.history,
+    freqs: strat.freqs,
   }
 }
 
