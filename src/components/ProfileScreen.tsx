@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Coins, Lock, Sparkles, UserPlus, UserCheck, Search, ChevronDown, Pencil, X, Gift } from 'lucide-react'
 import { getAchievements, type Achievement } from '../lib/achievements'
-import { pointsState, owned, equipped, equip, buyItem, claimNamedBonus, openLootBox } from '../lib/points'
+import { pointsState, owned, equipped, equip, buyItem, sellItem, sellValue, claimNamedBonus, openLootBox } from '../lib/points'
 import { itemsOfType, shopItem, SHOP, MYSTERY_BOX, type ShopItem, type CosmeticType, type LootBox } from '../lib/shop'
 import {
   getHandle,
@@ -25,6 +25,7 @@ import {
   type FriendRequest,
 } from '../lib/leaderboard'
 import { gatherLocal } from '../lib/sync'
+import { useStickyState } from '../lib/uiState'
 import { dayKey } from '../lib/daily'
 import { haptic } from '../lib/haptics'
 import { playLootReel } from '../lib/sound'
@@ -58,8 +59,8 @@ const BOARD_MODES: { id: BoardMode; label: string }[] = [
 const GROUPS: Achievement['group'][] = ['Volume', 'Accuracy', 'Streaks', 'Duels', 'Learning', 'Collection']
 
 export default function ProfileScreen({ version, configured, userId, onSignIn, onChanged }: Props) {
-  const [section, setSection] = useState<Section>('achievements')
-  const [boardMode, setBoardMode] = useState<BoardMode>('daily')
+  const [section, setSection] = useStickyState<Section>('lt-ui-profile-section', 'achievements')
+  const [boardMode, setBoardMode] = useStickyState<BoardMode>('lt-ui-profile-board', 'daily')
   const [items, setItems] = useState<Achievement[] | null>(null)
   const [balance, setBalance] = useState(0)
   const [eq, setEq] = useState(equipped())
@@ -174,6 +175,28 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
     if (res.ok) {
       await onEquip(item.type, item.id)
       refreshLocal()
+      onChanged()
+    }
+  }
+
+  // two-tap sell: first tap arms the confirm, second within the window sells.
+  const [sellArmed, setSellArmed] = useState<string | null>(null)
+  async function onSell(item: ShopItem) {
+    if (sellArmed !== item.id) {
+      setSellArmed(item.id)
+      setTimeout(() => setSellArmed((s) => (s === item.id ? null : s)), 3000)
+      return
+    }
+    setSellArmed(null)
+    const res = sellItem(item.id)
+    if (res.ok) {
+      haptic('success')
+      setEq(equipped()) // may have been unequipped
+      refreshLocal()
+      if (userId) {
+        await upsertProfile(userId, await gatherLocal())
+        await syncDailyScores(userId)
+      }
       onChanged()
     }
   }
@@ -409,6 +432,8 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
           equipped={eq}
           onBuy={onBuy}
           onEquip={onEquip}
+          onSell={onSell}
+          sellArmed={sellArmed}
           onOpenBox={onOpenBox}
           lootMsg={lootMsg}
         />
@@ -928,6 +953,8 @@ function Shop({
   equipped,
   onBuy,
   onEquip,
+  onSell,
+  sellArmed,
   onOpenBox,
   lootMsg,
 }: {
@@ -936,6 +963,8 @@ function Shop({
   equipped: { avatar: string; flair: string; background: string; cardback: string; felt: string }
   onBuy: (item: ShopItem) => void
   onEquip: (slot: CosmeticType, id: string) => void
+  onSell: (item: ShopItem) => void
+  sellArmed: string | null
   onOpenBox: (box: LootBox) => void
   lootMsg: string | null
 }) {
@@ -949,7 +978,7 @@ function Shop({
   // these render their gradient `art` as the swatch fill (vs an emoji glyph)
   const isGradient = (t: CosmeticType) => t === 'background' || t === 'cardback' || t === 'felt'
   // category filter, "All" (view all), Loot boxes, or a single cosmetic type
-  const [filter, setFilter] = useState<'all' | 'loot' | CosmeticType>('all')
+  const [filter, setFilter] = useStickyState<'all' | 'loot' | CosmeticType>('lt-ui-shop-filter', 'all')
   const shown = filter === 'all' ? groups : filter === 'loot' ? [] : groups.filter((g) => g.type === filter)
   const showLoot = filter === 'all' || filter === 'loot'
   return (
@@ -1051,15 +1080,35 @@ function Shop({
                     {item.name}
                   </span>
                   {isOwned ? (
-                    <button
-                      onClick={() => onEquip(g.type, item.id)}
-                      disabled={isOn}
-                      className={`w-full rounded-lg py-1.5 text-xs font-semibold transition ${
-                        isOn ? 'bg-sage/15 text-sage-dark' : 'bg-ink/[0.06] text-ink hover:bg-ink/10'
-                      }`}
-                    >
-                      {isOn ? 'Equipped' : 'Equip'}
-                    </button>
+                    <div className="flex w-full flex-col gap-1">
+                      <button
+                        onClick={() => onEquip(g.type, item.id)}
+                        disabled={isOn}
+                        className={`w-full rounded-lg py-1.5 text-xs font-semibold transition ${
+                          isOn ? 'bg-sage/15 text-sage-dark' : 'bg-ink/[0.06] text-ink hover:bg-ink/10'
+                        }`}
+                      >
+                        {isOn ? 'Equipped' : 'Equip'}
+                      </button>
+                      {sellValue(item.id) > 0 && (
+                        <button
+                          onClick={() => onSell(item)}
+                          className={`flex w-full items-center justify-center gap-1 rounded-lg py-1 text-[11px] font-semibold transition ${
+                            sellArmed === item.id
+                              ? 'bg-clay/20 text-clay'
+                              : 'text-ink3 hover:bg-ink/[0.05] hover:text-ink2'
+                          }`}
+                        >
+                          {sellArmed === item.id ? (
+                            <>Sell for {sellValue(item.id)}? Tap to confirm</>
+                          ) : (
+                            <>
+                              <Coins size={11} /> Sell · {sellValue(item.id)}
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   ) : item.special ? (
                     <span className="flex w-full items-center justify-center gap-1 rounded-lg bg-amber-400/15 py-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
                       <Lock size={11} /> Loot only

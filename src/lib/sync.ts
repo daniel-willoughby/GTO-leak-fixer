@@ -37,6 +37,7 @@ export interface SyncSnapshot {
   duelLedger?: Record<string, number> | null
   duelRecord?: Record<string, string> | null
   loot?: Record<string, { item: string; cost: number }> | null
+  sold?: string[] | null
   handle?: string | null
   friends?: string[] | null
 }
@@ -71,6 +72,7 @@ export async function gatherLocal(): Promise<SyncSnapshot> {
     duelLedger: lsParse<Record<string, number>>('lt-duel-ledger'),
     duelRecord: lsParse<Record<string, string>>('lt-duel-record'),
     loot: lsParse<Record<string, { item: string; cost: number }>>('lt-loot'),
+    sold: lsParse<string[]>('lt-sold'),
     handle: localStorage.getItem('lt-handle'),
     friends: lsParse<string[]>('lt-friends'),
   }
@@ -91,6 +93,7 @@ export async function applySnapshot(snap: SyncSnapshot): Promise<void> {
   if (snap.duelLedger) lsWrite('lt-duel-ledger', snap.duelLedger)
   if (snap.duelRecord) lsWrite('lt-duel-record', snap.duelRecord)
   if (snap.loot) lsWrite('lt-loot', snap.loot)
+  if (snap.sold) lsWrite('lt-sold', snap.sold)
   signEconomyState() // re-sign the merged economy keys so they pass the load-time check
   if (snap.handle) localStorage.setItem('lt-handle', snap.handle)
   if (snap.friends) lsWrite('lt-friends', snap.friends)
@@ -183,6 +186,8 @@ export function mergeSnapshots(a: SyncSnapshot, b: SyncSnapshot): SyncSnapshot {
     duelRecord: a.duelRecord || b.duelRecord ? { ...(a.duelRecord ?? {}), ...(b.duelRecord ?? {}) } : null,
     // loot openings are keyed by a unique open id, so the same union merge holds
     loot: a.loot || b.loot ? { ...(a.loot ?? {}), ...(b.loot ?? {}) } : null,
+    // sold-back tombstones union too, so a sale on one device sticks everywhere
+    sold: mergeOwned(a.sold, b.sold),
     handle: (newer.handle || a.handle || b.handle) ?? null,
     friends: mergeOwned(a.friends, b.friends),
   }
@@ -231,6 +236,7 @@ function snapSig(s: SyncSnapshot): string {
     JSON.stringify(s.duelLedger),
     JSON.stringify(s.duelRecord),
     JSON.stringify(s.loot),
+    JSON.stringify(s.sold),
     JSON.stringify(s.friends),
     s.handle,
     s.level,

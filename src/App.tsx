@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Spade, Target, GraduationCap, User, CalendarCheck, Swords, Volume2, VolumeX, SlidersHorizontal, Cloud, X, Coins, type LucideIcon } from 'lucide-react'
 import DrillScreen, { type LadderRun } from './components/DrillScreen'
 import { Wordmark } from './components/Wordmark'
@@ -43,6 +43,7 @@ import {
   type DuelRow,
 } from './lib/duel'
 import { DEFAULT_AVATAR } from './lib/shop'
+import { useStickyState, saveScroll, loadScroll } from './lib/uiState'
 import type { Difficulty, FocusRequest } from './lib/spot'
 
 type Tab = 'drill' | 'daily' | 'duels' | 'lessons' | 'leaks' | 'profile'
@@ -71,7 +72,42 @@ function applyTheme(theme: Theme) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('drill')
+  const [tab, setTab] = useStickyState<Tab>('lt-ui-tab', 'drill')
+  // Remember scroll position per tab so a round-trip lands you back where you
+  // were (e.g. partway down the shop). The whole window scrolls (the tab content
+  // grows past the viewport), so track window.scrollY, keyed by tab.
+  const tabRef = useRef(tab)
+  tabRef.current = tab
+  useEffect(() => {
+    let raf = 0
+    const onScroll = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => saveScroll(tabRef.current, window.scrollY))
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('scroll', onScroll)
+    }
+  }, [])
+  // Restore the entered tab's saved offset. Some tabs fetch their content async
+  // and grow after mount, so a one-shot scroll would clamp to a too-short page;
+  // re-apply for a few frames until we actually reach the target (or give up).
+  useLayoutEffect(() => {
+    const target = loadScroll(tab)
+    if (target <= 0) {
+      window.scrollTo(0, 0)
+      return
+    }
+    let tries = 0
+    let raf = 0
+    const attempt = () => {
+      window.scrollTo(0, target)
+      if (Math.abs(window.scrollY - target) > 2 && tries++ < 30) raf = requestAnimationFrame(attempt)
+    }
+    attempt()
+    return () => cancelAnimationFrame(raf)
+  }, [tab])
   const [progress, setProgress] = useState(0)
   const [muted, setMutedState] = useState(isMuted())
   const [haptics, setHapticsState] = useState(hapticsEnabled())

@@ -32,6 +32,10 @@ const OWNED_KEY = 'lt-owned'
 const EQUIP_KEY = 'lt-equip'
 const RESULTS_KEY = 'lt-daily-results'
 const WINS_KEY = 'lt-daily-wins'
+const SOLD_KEY = 'lt-sold'
+
+/** Fraction of an item's shop value refunded when sold back. */
+export const SELL_RATE = 0.5
 
 export interface Equipped {
   avatar: string
@@ -72,7 +76,7 @@ const writeJSON = (key: string, v: unknown) => localStorage.setItem(key, JSON.st
 // the secret ships in the (minified) bundle, so a determined user reads it.
 // But it stops the common "just edit the number" cheat. True enforcement needs
 // server-side authority (see the planned Edge-Function task).
-const ECON_KEYS = ['lt-owned', 'lt-daily-results', 'lt-daily-wins', 'lt-bonus', 'lt-duel-ledger', 'lt-duel-record', 'lt-loot']
+const ECON_KEYS = ['lt-owned', 'lt-daily-results', 'lt-daily-wins', 'lt-bonus', 'lt-duel-ledger', 'lt-duel-record', 'lt-loot', 'lt-sold']
 const SIG_KEY = 'lt-econ-sig'
 const SECRET = 'pk7c-econ-v1'
 
@@ -117,11 +121,18 @@ export function verifyEconomyState(): boolean {
 
 // ---- ownership -------------------------------------------------------------
 
+/** Item ids sold back (tombstones). Kept rather than deleting from the owned/loot
+ *  stores so a sale survives the union-merge on sync (a plain removal would be
+ *  resurrected by any device that still lists the item as owned). */
+export const soldIds = (): string[] => readJSON<string[]>(SOLD_KEY, [])
+
 /** All owned item ids, including the free defaults everyone has and anything
- *  won from a loot box (paid for at the box price, not the item's own cost). */
+ *  won from a loot box (paid for at the box price, not the item's own cost),
+ *  minus anything sold back. */
 export function owned(): string[] {
   const bought = readJSON<string[]>(OWNED_KEY, [])
-  return [...new Set([...FREE_IDS, ...bought, ...lootOwnedIds()])]
+  const sold = new Set(soldIds())
+  return [...new Set([...FREE_IDS, ...bought, ...lootOwnedIds()])].filter((id) => !sold.has(id))
 }
 export const isOwned = (id: string): boolean => owned().includes(id)
 
@@ -300,6 +311,7 @@ export async function openLootBox(boxId: string): Promise<{ ok: boolean; itemId?
     }
   }
   if (!itemId) itemId = pool[Math.floor(Math.random() * pool.length)]
+  clearSold(itemId) // re-winning something you sold back makes it owned again
   const openings = lootOpenings()
   const openId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
   openings[openId] = { item: itemId, cost: box.cost }
@@ -331,10 +343,16 @@ export async function earnedPoints(): Promise<number> {
   return derivedEarned(correct, reward)
 }
 
-/** PP spent on owned (non-free) cosmetics plus loot boxes opened. */
+/** PP refunded so far from selling items back (50% of each sold item's value).
+ *  The item's original cost stays in `spentPoints`, so crediting the refund here
+ *  leaves a net paid of the other 50%. */
+export const sellRefundTotal = (): number => soldIds().reduce((sum, id) => sum + sellValue(id), 0)
+
+/** PP spent on owned (non-free) cosmetics plus loot boxes opened, less refunds
+ *  from selling items back. */
 export function spentPoints(): number {
   const onCosmetics = readJSON<string[]>(OWNED_KEY, []).reduce((sum, id) => sum + (shopItem(id)?.cost ?? 0), 0)
-  return onCosmetics + lootSpend()
+  return onCosmetics + lootSpend() - sellRefundTotal()
 }
 
 export async function pointsState(): Promise<PointsState> {
@@ -350,12 +368,67 @@ export async function buyItem(id: string): Promise<{ ok: boolean; reason?: strin
   if (isOwned(id)) return { ok: false, reason: 'Already owned' }
   const { balance } = await pointsState()
   if (balance < item.cost) return { ok: false, reason: 'Not enough points' }
-  writeJSON(OWNED_KEY, [...readJSON<string[]>(OWNED_KEY, []), id])
+  clearSold(id) // re-buying an item you sold back un-tombstones it
+  const bought = readJSON<string[]>(OWNED_KEY, [])
+  if (!bought.includes(id)) writeJSON(OWNED_KEY, [...bought, id]) // avoid a double-count in `spentPoints`
   signEconomyState()
   return { ok: true }
 }
 
+// ---- selling back ----------------------------------------------------------
+
+const DEFAULT_FOR: Record<CosmeticType, string> = {
+  avatar: DEFAULT_AVATAR,
+  flair: DEFAULT_FLAIR,
+  background: DEFAULT_BACKGROUND,
+  cardback: DEFAULT_CARDBACK,
+  felt: DEFAULT_FELT,
+}
+
+/** PP you get back for selling an item: 50% of its shop value, rounded down.
+ *  0 for free/default items and anything not for sale. */
+export function sellValue(id: string): number {
+  const item = shopItem(id)
+  if (!item || FREE_IDS.includes(id) || item.cost <= 0) return 0
+  return Math.floor(item.cost * SELL_RATE)
+}
+
+/** Whether an item can be sold: owned, not a free default, and worth something. */
+export function canSell(id: string): boolean {
+  return isOwned(id) && sellValue(id) > 0
+}
+
+/** Drop an id from the sold-back tombstones (called when it is re-acquired). */
+export function clearSold(id: string): void {
+  const sold = soldIds()
+  if (!sold.includes(id)) return
+  writeJSON(SOLD_KEY, sold.filter((x) => x !== id))
+  signEconomyState()
+}
+
+/**
+ * Sell an owned item back for 50% of its value. Tombstones it (so the sale
+ * survives cross-device merges), unequips it if equipped, and credits the refund
+ * to the balance. Returns the PP refunded, or a reason it couldn't be sold.
+ */
+export function sellItem(id: string): { ok: boolean; refund?: number; reason?: string } {
+  const item = shopItem(id)
+  if (!item) return { ok: false, reason: 'Unknown item' }
+  if (FREE_IDS.includes(id) || item.cost <= 0) return { ok: false, reason: "This item can't be sold" }
+  if (!isOwned(id)) return { ok: false, reason: "You don't own this" }
+
+  const refund = sellValue(id)
+  writeJSON(SOLD_KEY, [...new Set([...soldIds(), id])])
+
+  // Unequip if this exact item was in use.
+  const eq = equipped()
+  if (eq[item.type] === id) equip(item.type, DEFAULT_FOR[item.type])
+
+  signEconomyState()
+  return { ok: true, refund }
+}
+
 export function resetPoints(): void {
-  for (const k of [OWNED_KEY, EQUIP_KEY, RESULTS_KEY, WINS_KEY, BONUS_KEY, DUEL_LEDGER_KEY, DUEL_RECORD_KEY, LOOT_KEY, SIG_KEY])
+  for (const k of [OWNED_KEY, EQUIP_KEY, RESULTS_KEY, WINS_KEY, BONUS_KEY, DUEL_LEDGER_KEY, DUEL_RECORD_KEY, LOOT_KEY, SOLD_KEY, SIG_KEY])
     localStorage.removeItem(k)
 }
