@@ -81,6 +81,30 @@ export function playStreak() {
   ;[523, 659, 784, 1047].forEach((f, i) => tone({ freq: f, dur: 0.12, type: 'triangle', delay: i * 0.07 }))
 }
 
+/**
+ * Loot-box reel: a run of decelerating ticks (dense at first, spacing out as it
+ * slows) ending on a low "thunk" as it lands, then a short win chime — grander
+ * for an ultra-rare/legendary pull. Scheduled on the audio clock so it stays in
+ * step with the 5s visual reel.
+ */
+export function playLootReel(durationMs: number, special = false) {
+  if (muted) return
+  const T = durationMs / 1000
+  const K = 40 // tick count ≈ items that pass the pointer
+  for (let k = 1; k <= K; k++) {
+    // ease-out timing: small gaps early (fast), large gaps late (slowing down)
+    const delay = T * (1 - Math.pow(1 - k / K, 1 / 3))
+    tone({ freq: 1040, dur: 0.028, type: 'square', gain: 0.05, delay })
+  }
+  // landing thunk
+  tone({ freq: 190, dur: 0.2, type: 'sine', gain: 0.2, delay: T, slideTo: 90 })
+  // win chime on the reveal (a beat after the land), bigger for specials
+  const chime = special ? [659, 880, 1175, 1568] : [523, 784, 1047]
+  chime.forEach((f, i) =>
+    tone({ freq: f, dur: 0.18, type: 'triangle', gain: 0.13, delay: T + 0.3 + i * 0.08 }),
+  )
+}
+
 export function isMuted() {
   return muted
 }

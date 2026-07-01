@@ -27,6 +27,7 @@ import {
 import { gatherLocal } from '../lib/sync'
 import { dayKey } from '../lib/daily'
 import { haptic } from '../lib/haptics'
+import { playLootReel } from '../lib/sound'
 import { Avatar, Flair } from './Avatar'
 
 interface Props {
@@ -191,6 +192,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
     const item = shopItem(res.itemId)
     if (!item) return
     setReveal({ box, item, phase: 'spinning' })
+    playLootReel(REEL_MS, !!(item.special || item.legendary))
     setTimeout(() => setReveal((r) => (r ? { ...r, phase: 'revealed' } : r)), REEL_MS + 250)
     refreshLocal()
     onChanged()
