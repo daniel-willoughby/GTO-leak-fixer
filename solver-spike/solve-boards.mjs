@@ -227,7 +227,7 @@ set_bet_sizes ip,river,raise,75
 set_bet_sizes ip,river,allin
 set_allin_threshold 0.67
 build_tree
-set_thread_num 8
+set_thread_num 5
 set_accuracy 0.5
 set_max_iteration 90
 set_print_interval 30
