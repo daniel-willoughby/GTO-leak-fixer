@@ -291,7 +291,22 @@ export const lootSpend = (): number => Object.values(lootOpenings()).reduce((s, 
  * you don't already own. Returns the won item id, or a reason it couldn't open
  * (can't afford it, or you already own everything inside).
  */
+let lootInFlight = false
+
 export async function openLootBox(boxId: string): Promise<{ ok: boolean; itemId?: string; reason?: string }> {
+  // Re-entrancy guard: without this, rapid taps on the box each pass the balance
+  // check (the read is async) and each record an opening, billing the price
+  // several times over for what the user sees as one open. One at a time.
+  if (lootInFlight) return { ok: false, reason: 'Already opening a box' }
+  lootInFlight = true
+  try {
+    return await runOpenLootBox(boxId)
+  } finally {
+    lootInFlight = false
+  }
+}
+
+async function runOpenLootBox(boxId: string): Promise<{ ok: boolean; itemId?: string; reason?: string }> {
   const box = lootBox(boxId)
   if (!box) return { ok: false, reason: 'Unknown box' }
   const own = new Set(owned())

@@ -206,6 +206,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
   const [lootMsg, setLootMsg] = useState<string | null>(null)
 
   async function onOpenBox(box: LootBox) {
+    if (reveal) return // a reveal is already spinning; ignore repeat taps
     setLootMsg(null)
     const res = await openLootBox(box.id)
     if (!res.ok || !res.itemId) {

@@ -169,11 +169,11 @@ export const FREE_IDS: string[] = SHOP.filter((i) => i.cost === 0).map((i) => i.
 export const itemsOfType = (type: CosmeticType): ShopItem[] => SHOP.filter((i) => i.type === type)
 
 // ---- loot box --------------------------------------------------------------
-// One Mystery Box: a flat 300 PP gamble for a random cosmetic you don't own
-// yet. Anything in the shop is on the table, from a 150 PP background up to the
-// 2500 Shark, plus a rare 2% shot at an ultra-rare special. Free items are
-// never in the pool (you already own them) and specials never appear here (they
-// only arrive via the 2% pull), so the box always yields something you'd buy.
+// One Mystery Box: a flat 400 PP gamble for a random cosmetic you don't own yet.
+// Everything in the shop is on the table, from a 150 PP background up to the
+// 20000 Shark and the legendary card backs, plus a rare 2% shot at an ultra-rare
+// special. Free items are never in the pool (you already own them); the specials
+// are reachable via the 2% pull, so every item in the game can be won from a box.
 export interface LootBox {
   id: string
   name: string
@@ -196,11 +196,13 @@ export const LOOT_BOXES: LootBox[] = [
   {
     id: 'box-mystery',
     name: 'Mystery Box',
-    cost: 300,
+    cost: 400,
     blurb: 'A random item you don’t own, anything in the shop, common to legendary',
     art: '🎁',
     tint: '#c79a4a',
-    pool: () => SHOP.filter((i) => !i.special && !i.legendary && i.cost > 0).map((i) => i.id),
+    // everything with a price is on the table (legendaries included); the
+    // ultra-rare specials arrive via the separate 2% pull.
+    pool: () => SHOP.filter((i) => !i.special && i.cost > 0).map((i) => i.id),
   },
 ]
 
