@@ -35,7 +35,7 @@ const WINS_KEY = 'lt-daily-wins'
 const SOLD_KEY = 'lt-sold'
 
 /** Fraction of an item's shop value refunded when sold back. */
-export const SELL_RATE = 0.5
+export const SELL_RATE = 1 / 3
 
 export interface Equipped {
   avatar: string
@@ -400,12 +400,12 @@ const DEFAULT_FOR: Record<CosmeticType, string> = {
   felt: DEFAULT_FELT,
 }
 
-/** PP you get back for selling an item: 50% of its shop value, rounded down.
+/** PP you get back for selling an item: a third of its shop value, rounded up.
  *  0 for free/default items and anything not for sale. */
 export function sellValue(id: string): number {
   const item = shopItem(id)
   if (!item || FREE_IDS.includes(id) || item.cost <= 0) return 0
-  return Math.floor(item.cost * SELL_RATE)
+  return Math.ceil(item.cost * SELL_RATE)
 }
 
 /** Whether an item can be sold: owned, not a free default, and worth something. */

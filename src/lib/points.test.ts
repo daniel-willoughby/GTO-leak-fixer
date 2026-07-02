@@ -62,16 +62,16 @@ describe('ownership and spending', () => {
 })
 
 describe('selling items back', () => {
-  it('refunds 50% of a bought item and drops it from ownership', () => {
+  it('refunds a third of a bought item (rounded up) and drops it from ownership', () => {
     localStorage.setItem('lt-owned', JSON.stringify(['avatar-owl'])) // cost 400
     expect(spentPoints()).toBe(400)
     const res = sellItem('avatar-owl')
     expect(res.ok).toBe(true)
-    expect(res.refund).toBe(200)
+    expect(res.refund).toBe(134) // ceil(400/3)
     expect(isOwned('avatar-owl')).toBe(false)
-    // original 400 still in spend, less the 200 refund → net 200 paid
-    expect(spentPoints()).toBe(200)
-    expect(sellRefundTotal()).toBe(200)
+    // original 400 still in spend, less the 134 refund → net 266 paid
+    expect(spentPoints()).toBe(266)
+    expect(sellRefundTotal()).toBe(134)
   })
 
   it('unequips an item that was in use when sold', () => {
@@ -82,14 +82,14 @@ describe('selling items back', () => {
     expect(equipped().avatar).toBe(DEFAULT_AVATAR)
   })
 
-  it('refunds a loot-won item at half its shop value and removes ownership', () => {
+  it('refunds a loot-won item at a third of its shop value and removes ownership', () => {
     localStorage.setItem('lt-loot', JSON.stringify({ open1: { item: 'avatar-wolf', cost: 250 } }))
     const res = sellItem('avatar-wolf') // Wolf worth 800
     expect(res.refund).toBe(sellValue('avatar-wolf'))
-    expect(res.refund).toBe(400)
+    expect(res.refund).toBe(267) // ceil(800/3)
     expect(isOwned('avatar-wolf')).toBe(false)
-    // paid 250 for the box, refunded 400 → net -150 (a profitable pull)
-    expect(spentPoints()).toBe(250 - 400)
+    // paid 250 for the box, refunded 267 → net -17 (a slightly profitable pull)
+    expect(spentPoints()).toBe(250 - 267)
   })
 
   it('cannot sell free defaults or unowned items', () => {
