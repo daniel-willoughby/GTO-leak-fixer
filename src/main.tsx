@@ -11,10 +11,14 @@ import '@fontsource-variable/jetbrains-mono'
 import './index.css'
 import App from './App.tsx'
 import { loadFreeplayNodes } from './data/freeplay'
+import { initNative } from './lib/native'
 
 // Fetch the all-seats Freeplay dataset in the background; until it lands,
 // vs-GTO Freeplay falls back to the other generators.
 void loadFreeplayNodes()
+
+// Native shell (Capacitor): style the status bar + dismiss the splash. No-op on web.
+void initNative()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
