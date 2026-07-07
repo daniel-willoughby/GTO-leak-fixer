@@ -134,6 +134,13 @@ export function owned(): string[] {
   const sold = new Set(soldIds())
   return [...new Set([...FREE_IDS, ...bought, ...lootOwnedIds()])].filter((id) => !sold.has(id))
 }
+
+/** Everything ever acquired — bought or won — regardless of whether it was later
+ *  sold back. Used to keep the loot pool from re-awarding a sold item (which
+ *  would double-charge). Sold items are re-bought, not re-won. */
+export function acquiredIds(): string[] {
+  return [...new Set([...FREE_IDS, ...readJSON<string[]>(OWNED_KEY, []), ...lootOwnedIds()])]
+}
 export const isOwned = (id: string): boolean => owned().includes(id)
 
 // ---- equipped cosmetics ----------------------------------------------------
@@ -309,8 +316,13 @@ export async function openLootBox(boxId: string): Promise<{ ok: boolean; itemId?
 async function runOpenLootBox(boxId: string): Promise<{ ok: boolean; itemId?: string; reason?: string }> {
   const box = lootBox(boxId)
   if (!box) return { ok: false, reason: 'Unknown box' }
-  const own = new Set(owned())
-  const pool = box.pool().filter((id) => !own.has(id))
+  // Filter against everything you've EVER acquired, not just what you currently
+  // own. A sold-back item is no longer "owned", but re-winning it from a box
+  // would reverse its sell refund on top of the box price (the item's original
+  // purchase charge is still on the books) — so it would cost more than the box.
+  // Excluding ever-acquired items means a sold item can only be re-bought.
+  const acquired = new Set(acquiredIds())
+  const pool = box.pool().filter((id) => !acquired.has(id))
   if (!pool.length) return { ok: false, reason: 'You already own everything in this box' }
   const { balance } = await pointsState()
   if (balance < box.cost) return { ok: false, reason: 'Not enough points' }
@@ -320,13 +332,12 @@ async function runOpenLootBox(boxId: string): Promise<{ ok: boolean; itemId?: st
   // for nothing).
   let itemId: string | undefined
   for (const sid of SPECIAL_IDS) {
-    if (!own.has(sid) && Math.random() < SPECIAL_PULL_RATE) {
+    if (!acquired.has(sid) && Math.random() < SPECIAL_PULL_RATE) {
       itemId = sid
       break
     }
   }
   if (!itemId) itemId = pool[Math.floor(Math.random() * pool.length)]
-  clearSold(itemId) // re-winning something you sold back makes it owned again
   const openings = lootOpenings()
   const openId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
   openings[openId] = { item: itemId, cost: box.cost }
