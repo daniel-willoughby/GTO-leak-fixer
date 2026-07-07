@@ -32,8 +32,13 @@ export default defineConfig(({ command }) => {
         registerType: 'prompt',
         includeAssets: ['favicon-32.png', 'apple-touch-icon.png'],
         // The all-seats Freeplay dataset is large and fetched on demand, so keep
-        // it out of the precache manifest (avoids the workbox size limit).
-        workbox: { globIgnores: ['**/freeplay-nodes.json'] },
+        // it out of the precache manifest. The postflop corpus (street-nodes) is
+        // bundled into the main chunk and IS a core offline feature, so bump the
+        // precache size limit to fit it (~4.7 MB chunk after the 357-board solve).
+        workbox: {
+          globIgnores: ['**/freeplay-nodes.json'],
+          maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        },
         manifest: {
           name: 'PotKing, GTO Poker',
           short_name: 'PotKing',
