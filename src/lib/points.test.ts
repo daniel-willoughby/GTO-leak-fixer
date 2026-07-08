@@ -97,6 +97,33 @@ describe('selling items back', () => {
     expect(sellItem('avatar-owl').ok).toBe(false) // not owned
     expect(sellValue(DEFAULT_AVATAR)).toBe(0)
   })
+
+  it('re-winning a sold item from a box costs exactly the box price', () => {
+    // buy the Wolf (800), sell it back
+    localStorage.setItem('lt-owned', JSON.stringify(['avatar-wolf']))
+    sellItem('avatar-wolf')
+    expect(isOwned('avatar-wolf')).toBe(false)
+    const spentAfterSell = spentPoints() // 800 - 267
+    expect(spentAfterSell).toBe(800 - 267)
+
+    // re-win it from a 400 box (what openLootBox records)
+    localStorage.setItem('lt-loot', JSON.stringify({ w1: { item: 'avatar-wolf', cost: 400, sold: false } }))
+    expect(isOwned('avatar-wolf')).toBe(true)
+    // spend rose by exactly the 400 box price — the old sell refund is NOT reversed
+    expect(spentPoints()).toBe(spentAfterSell + 400)
+  })
+
+  it('selling a re-won item leaves it unowned and credits its refund', () => {
+    localStorage.setItem('lt-owned', JSON.stringify(['avatar-wolf']))
+    sellItem('avatar-wolf') // sell the bought copy
+    localStorage.setItem('lt-loot', JSON.stringify({ w1: { item: 'avatar-wolf', cost: 400, sold: false } }))
+    const before = spentPoints()
+    const res = sellItem('avatar-wolf') // now sell the loot win
+    expect(res.refund).toBe(267)
+    expect(isOwned('avatar-wolf')).toBe(false)
+    // selling credits the 267 refund (spend drops by it)
+    expect(spentPoints()).toBe(before - 267)
+  })
 })
 
 describe('equipping cosmetics', () => {

@@ -121,25 +121,19 @@ export function verifyEconomyState(): boolean {
 
 // ---- ownership -------------------------------------------------------------
 
-/** Item ids sold back (tombstones). Kept rather than deleting from the owned/loot
- *  stores so a sale survives the union-merge on sync (a plain removal would be
- *  resurrected by any device that still lists the item as owned). */
+/** Ids of *bought* items sold back (tombstone). Kept rather than removing the id
+ *  from the owned list, so the sale survives the union-merge on sync (a plain
+ *  removal would be resurrected by any device that still lists it as owned).
+ *  Loot-won items track their sold state per opening instead (see LootOpenings). */
 export const soldIds = (): string[] => readJSON<string[]>(SOLD_KEY, [])
 
-/** All owned item ids, including the free defaults everyone has and anything
- *  won from a loot box (paid for at the box price, not the item's own cost),
- *  minus anything sold back. */
+/** All owned item ids: the free defaults, bought items not sold back, and items
+ *  with an active loot-box win. An active loot win counts even when the same id
+ *  is also a sold bought-instance — that's the "sold then re-won" case. */
 export function owned(): string[] {
   const bought = readJSON<string[]>(OWNED_KEY, [])
   const sold = new Set(soldIds())
-  return [...new Set([...FREE_IDS, ...bought, ...lootOwnedIds()])].filter((id) => !sold.has(id))
-}
-
-/** Everything ever acquired — bought or won — regardless of whether it was later
- *  sold back. Used to keep the loot pool from re-awarding a sold item (which
- *  would double-charge). Sold items are re-bought, not re-won. */
-export function acquiredIds(): string[] {
-  return [...new Set([...FREE_IDS, ...readJSON<string[]>(OWNED_KEY, []), ...lootOwnedIds()])]
+  return [...new Set([...FREE_IDS, ...bought.filter((id) => !sold.has(id)), ...lootOwnedIds()])]
 }
 export const isOwned = (id: string): boolean => owned().includes(id)
 
@@ -283,14 +277,20 @@ export function settleDuel(duelId: string, delta: number, outcome: DuelOutcome):
 // own map keyed by a random id, so openings merge cleanly across devices (like
 // the duel ledger) and the spend is the sum of box prices, not item costs.
 const LOOT_KEY = 'lt-loot'
-type LootOpenings = Record<string, { item: string; cost: number }>
+// Each opening tracks its own sold-back state, so buy/sell/re-win cycles net out
+// per acquisition. A sold opening stays in the map (flagged) rather than being
+// deleted, so its box price and refund still net out and the sale survives the
+// union-merge on sync.
+type LootOpenings = Record<string, { item: string; cost: number; sold?: boolean }>
 
 const lootOpenings = (): LootOpenings => readJSON<LootOpenings>(LOOT_KEY, {})
 
-/** Item ids won from loot boxes (each counts as owned, but is free). */
-export const lootOwnedIds = (): string[] => [...new Set(Object.values(lootOpenings()).map((o) => o.item))]
+/** Item ids currently owned via a loot box — an active (not sold-back) opening. */
+export const lootOwnedIds = (): string[] =>
+  [...new Set(Object.values(lootOpenings()).filter((o) => !o.sold).map((o) => o.item))]
 
-/** Total PP spent opening loot boxes (the box prices, not the items won). */
+/** Total PP paid to open loot boxes (gross box prices; sell refunds netted in
+ *  `sellRefundTotal`). */
 export const lootSpend = (): number => Object.values(lootOpenings()).reduce((s, o) => s + o.cost, 0)
 
 /**
@@ -316,13 +316,12 @@ export async function openLootBox(boxId: string): Promise<{ ok: boolean; itemId?
 async function runOpenLootBox(boxId: string): Promise<{ ok: boolean; itemId?: string; reason?: string }> {
   const box = lootBox(boxId)
   if (!box) return { ok: false, reason: 'Unknown box' }
-  // Filter against everything you've EVER acquired, not just what you currently
-  // own. A sold-back item is no longer "owned", but re-winning it from a box
-  // would reverse its sell refund on top of the box price (the item's original
-  // purchase charge is still on the books) — so it would cost more than the box.
-  // Excluding ever-acquired items means a sold item can only be re-bought.
-  const acquired = new Set(acquiredIds())
-  const pool = box.pool().filter((id) => !acquired.has(id))
+  // Anything you don't currently own is in the pool — including items you sold
+  // back. Re-winning one is safe now: the opening records its own box price, and
+  // the earlier sale keeps its refund (tracked per opening / per bought-item), so
+  // a re-win costs exactly the box price and never reverses an old refund.
+  const own = new Set(owned())
+  const pool = box.pool().filter((id) => !own.has(id))
   if (!pool.length) return { ok: false, reason: 'You already own everything in this box' }
   const { balance } = await pointsState()
   if (balance < box.cost) return { ok: false, reason: 'Not enough points' }
@@ -332,7 +331,7 @@ async function runOpenLootBox(boxId: string): Promise<{ ok: boolean; itemId?: st
   // for nothing).
   let itemId: string | undefined
   for (const sid of SPECIAL_IDS) {
-    if (!acquired.has(sid) && Math.random() < SPECIAL_PULL_RATE) {
+    if (!own.has(sid) && Math.random() < SPECIAL_PULL_RATE) {
       itemId = sid
       break
     }
@@ -340,7 +339,7 @@ async function runOpenLootBox(boxId: string): Promise<{ ok: boolean; itemId?: st
   if (!itemId) itemId = pool[Math.floor(Math.random() * pool.length)]
   const openings = lootOpenings()
   const openId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
-  openings[openId] = { item: itemId, cost: box.cost }
+  openings[openId] = { item: itemId, cost: box.cost, sold: false }
   writeJSON(LOOT_KEY, openings)
   signEconomyState()
   return { ok: true, itemId }
@@ -369,10 +368,18 @@ export async function earnedPoints(): Promise<number> {
   return derivedEarned(correct, reward)
 }
 
-/** PP refunded so far from selling items back (50% of each sold item's value).
- *  The item's original cost stays in `spentPoints`, so crediting the refund here
- *  leaves a net paid of the other 50%. */
-export const sellRefundTotal = (): number => soldIds().reduce((sum, id) => sum + sellValue(id), 0)
+/** PP refunded so far from selling items back — across both sold bought-items and
+ *  sold loot-wins. Each acquisition's original cost (item price or box price)
+ *  stays in `spentPoints`, so crediting its refund here leaves the un-refunded
+ *  remainder as the net paid. This is what makes a re-win cost exactly the box
+ *  price: the box price is added, and no earlier refund is reversed. */
+export const sellRefundTotal = (): number => {
+  const fromBought = soldIds().reduce((sum, id) => sum + sellValue(id), 0)
+  const fromLoot = Object.values(lootOpenings())
+    .filter((o) => o.sold)
+    .reduce((sum, o) => sum + sellValue(o.item), 0)
+  return fromBought + fromLoot
+}
 
 /** PP spent on owned (non-free) cosmetics plus loot boxes opened, less refunds
  *  from selling items back. */
@@ -433,9 +440,11 @@ export function clearSold(id: string): void {
 }
 
 /**
- * Sell an owned item back for 50% of its value. Tombstones it (so the sale
- * survives cross-device merges), unequips it if equipped, and credits the refund
- * to the balance. Returns the PP refunded, or a reason it couldn't be sold.
+ * Sell an owned item back for a third of its value. Marks the one acquisition
+ * you're selling — an active loot-box win (flag that opening sold) or, failing
+ * that, the bought copy (tombstone it) — unequips it if equipped, and credits
+ * the refund. The pool can only ever offer an item you don't own, so at most one
+ * acquisition is active at a time; there's no ambiguity about which to sell.
  */
 export function sellItem(id: string): { ok: boolean; refund?: number; reason?: string } {
   const item = shopItem(id)
@@ -444,7 +453,15 @@ export function sellItem(id: string): { ok: boolean; refund?: number; reason?: s
   if (!isOwned(id)) return { ok: false, reason: "You don't own this" }
 
   const refund = sellValue(id)
-  writeJSON(SOLD_KEY, [...new Set([...soldIds(), id])])
+  const openings = lootOpenings()
+  const activeKey = Object.keys(openings).find((k) => openings[k].item === id && !openings[k].sold)
+  if (activeKey) {
+    openings[activeKey].sold = true
+    writeJSON(LOOT_KEY, openings)
+  } else {
+    // owned via a purchase — tombstone the bought copy
+    writeJSON(SOLD_KEY, [...new Set([...soldIds(), id])])
+  }
 
   // Unequip if this exact item was in use.
   const eq = equipped()
