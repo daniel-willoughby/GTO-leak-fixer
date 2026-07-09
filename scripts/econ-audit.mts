@@ -128,5 +128,24 @@ P.sellItem('avatar-owl')
 eq('verifyEconomyState keeps legit sale', P.verifyEconomyState(), false) // false = nothing tampered/reset
 eq('after verify, item still unowned', P.isOwned('avatar-owl'), false)
 
+// ---------- 7. rare tiers: legendaries out of the pool; box locks when only they remain ----------
+seed()
+eq('normal pool excludes legendaries', S.MYSTERY_BOX.pool().some((id) => S.LEGENDARY_IDS.includes(id)), false)
+eq('normal pool excludes specials', S.MYSTERY_BOX.pool().some((id) => S.SPECIAL_IDS.includes(id)), false)
+// own every common + every special, leaving only legendaries → box must refuse
+const ownAllButLegendaries = [...S.MYSTERY_BOX.pool(), ...S.SPECIAL_IDS].map((item, i) => [
+  `o${i}`,
+  { item, cost: 400, sold: false },
+])
+localStorage.setItem('lt-loot', JSON.stringify(Object.fromEntries(ownAllButLegendaries)))
+let openRes = await P.openLootBox('box-mystery')
+eq('box refuses to open with only legendaries left', openRes.ok, false)
+eq('box refusal names the legendaries', /legendar/i.test(openRes.reason ?? ''), true)
+// but while a common is still missing, it opens fine
+seed()
+localStorage.setItem('lt-owned', JSON.stringify(S.MYSTERY_BOX.pool().slice(1))) // own all commons but one
+openRes = await P.openLootBox('box-mystery')
+eq('box opens while a common remains', openRes.ok, true)
+
 console.log(fails === 0 ? '\nALL PASS' : `\n${fails} FAILED`)
 process.exit(fails === 0 ? 0 : 1)

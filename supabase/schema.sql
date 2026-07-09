@@ -214,6 +214,12 @@ create table if not exists public.duels (
 -- `opponent` was NOT NULL in the first release; open duels need it nullable.
 alter table public.duels alter column opponent drop not null;
 
+-- When a duel actually concludes (the second player submits), distinct from when
+-- the challenger created it. The public ledger sorts by this. Backfill existing
+-- finished duels from created_at so they still order sensibly.
+alter table public.duels add column if not exists concluded_at timestamptz;
+update public.duels set concluded_at = created_at where status = 'done' and concluded_at is null;
+
 alter table public.duels enable row level security;
 
 drop policy if exists "duels read involved"   on public.duels;
@@ -255,6 +261,8 @@ create policy "duels update"
 create index if not exists duels_opponent_idx on public.duels (opponent, created_at desc);
 create index if not exists duels_challenger_idx on public.duels (challenger, created_at desc);
 create index if not exists duels_open_idx on public.duels (status, created_at desc);
+-- public ledger: concluded duels newest-completed first
+create index if not exists duels_done_idx on public.duels (status, concluded_at desc);
 
 -- Open duels + the results ledger are public reads; writes stay owner/claimer-scoped.
 grant select, insert, update on public.duels to anon, authenticated;

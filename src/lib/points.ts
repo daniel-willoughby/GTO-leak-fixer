@@ -11,6 +11,7 @@ import {
   shopItem,
   lootBox,
   SPECIAL_IDS,
+  LEGENDARY_IDS,
   SPECIAL_PULL_RATE,
   DEFAULT_AVATAR,
   DEFAULT_FLAIR,
@@ -324,22 +325,31 @@ async function runOpenLootBox(boxId: string): Promise<{ ok: boolean; itemId?: st
   // the earlier sale keeps its refund (tracked per opening / per bought-item), so
   // a re-win costs exactly the box price and never reverses an old refund.
   const own = new Set(owned())
+  // Normal band = commons you don't own (sold-back items are back in the pool).
   const pool = box.pool().filter((id) => !own.has(id))
   const specialPool = SPECIAL_IDS.filter((id) => !own.has(id))
-  // Only truly sold out once there's nothing left at all — normal items AND the
-  // ultra-rare specials. Otherwise the box must stay openable so a collector who
-  // owns every normal item can still chase the specials.
-  if (!pool.length && !specialPool.length) return { ok: false, reason: 'You already own everything in this box' }
+  const legendaryPool = LEGENDARY_IDS.filter((id) => !own.has(id))
+  // The box needs a guaranteeable drop to be worth opening: a common, or a
+  // special (which can't be bought, so it must stay obtainable). Legendaries are
+  // buyable and only ever a 2% bonus, so a box is NOT openable when they're all
+  // that's left — you buy those from the shop.
+  if (!pool.length && !specialPool.length) {
+    return {
+      ok: false,
+      reason: legendaryPool.length
+        ? 'Only legendaries left — buy those from the shop'
+        : 'You already own everything in this box',
+    }
+  }
   const { balance } = await pointsState()
   if (balance < box.cost) return { ok: false, reason: 'Not enough points' }
-  // Roll each unowned ultra-rare special at its small per-special chance first.
-  // On a miss, drop a normal item from the band; but once the normal band is
-  // exhausted, the remaining specials ARE the pool, so an open guarantees one
-  // (you're never charged for nothing, and the last specials stay obtainable).
+  // Roll each unowned rare (special, then legendary) at the flat 2% chance. On a
+  // miss, drop a common; once commons are exhausted the remaining specials are
+  // the guaranteed fallback (never a legendary — those stay pure 2%).
   let itemId: string | undefined
-  for (const sid of specialPool) {
+  for (const rid of [...specialPool, ...legendaryPool]) {
     if (Math.random() < SPECIAL_PULL_RATE) {
-      itemId = sid
+      itemId = rid
       break
     }
   }

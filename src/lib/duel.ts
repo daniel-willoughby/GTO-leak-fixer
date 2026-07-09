@@ -37,6 +37,9 @@ export interface DuelRow {
   opponent_score: number | null
   opponent_time: number | null
   created_at: string
+  /** When the duel concluded (second player submitted). Null until 'done';
+   *  backfilled from created_at for duels finished before this column existed. */
+  concluded_at: string | null
 }
 
 const myHandle = () => localStorage.getItem('lt-handle') || 'Player'
@@ -153,7 +156,7 @@ export async function answerDuel(duelId: string, score: number, timeMs: number):
   if (!supabase) return
   const { error } = await supabase
     .from('duels')
-    .update({ opponent_score: score, opponent_time: timeMs, status: 'done' })
+    .update({ opponent_score: score, opponent_time: timeMs, status: 'done', concluded_at: new Date().toISOString() })
     .eq('id', duelId)
     .eq('status', 'pending')
   if (error) console.error('[duel] answerDuel failed:', error.message)
@@ -175,6 +178,7 @@ export async function acceptOpenDuel(duelId: string, userId: string, score: numb
       opponent_score: score,
       opponent_time: timeMs,
       status: 'done',
+      concluded_at: new Date().toISOString(),
     })
     .eq('id', duelId)
     .eq('status', 'open')
@@ -220,19 +224,25 @@ export async function fetchOpenDuels(userId: string): Promise<DuelRow[]> {
 
 export type LedgerSort = 'recent' | 'wager'
 
-/** Public ledger: concluded duels across *all* players, newest first or by the
- *  biggest pot, depending on `sort`. */
+/** Public ledger: concluded duels across *all* players, ordered by when they
+ *  concluded (most recently finished first) or by the biggest pot. Rows finished
+ *  before `concluded_at` existed were backfilled from created_at, but guard with
+ *  a client fallback in case any slipped through. */
 export async function fetchPublicLedger(sort: LedgerSort = 'recent', limit = 25): Promise<DuelRow[]> {
   if (!supabaseConfigured || !supabase) return []
   let q = supabase.from('duels').select('*').eq('status', 'done')
   q =
     sort === 'wager'
-      ? q.order('wager', { ascending: false }).order('created_at', { ascending: false })
-      : q.order('created_at', { ascending: false })
+      ? q.order('wager', { ascending: false }).order('concluded_at', { ascending: false, nullsFirst: false })
+      : q.order('concluded_at', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false })
   const { data, error } = await q.limit(limit)
   if (error || !data) return []
   return data as DuelRow[]
 }
+
+/** Completion time of a duel for display/sort, falling back to when it was
+ *  created for rows that predate the concluded_at column. */
+export const duelConcludedAt = (d: DuelRow): string => d.concluded_at ?? d.created_at
 
 /** Who won, from this user's perspective. Higher score wins; an equal score is
  *  broken by the faster total answer time. Only an exact tie on both score and

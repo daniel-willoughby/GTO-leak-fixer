@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Check, Coins, Lock, Sparkles, UserPlus, UserCheck, Search, ChevronDown, Pencil, X, Gift } from 'lucide-react'
 import { getAchievements, type Achievement } from '../lib/achievements'
 import { pointsState, owned, equipped, equip, buyItem, sellItem, sellValue, claimNamedBonus, openLootBox } from '../lib/points'
-import { itemsOfType, shopItem, SHOP, MYSTERY_BOX, SPECIAL_IDS, type ShopItem, type CosmeticType, type LootBox } from '../lib/shop'
+import { itemsOfType, shopItem, SHOP, MYSTERY_BOX, SPECIAL_IDS, LEGENDARY_IDS, type ShopItem, type CosmeticType, type LootBox } from '../lib/shop'
 import {
   getHandle,
   setHandle,
@@ -1014,8 +1014,13 @@ function Shop({
         const box = MYSTERY_BOX
         const remaining = box.pool().filter((id) => !owned.includes(id)).length
         const specialsLeft = SPECIAL_IDS.filter((id) => !owned.includes(id)).length
-        // sold out only when nothing's left at all, incl. the ultra-rare specials
-        const soldOut = remaining === 0 && specialsLeft === 0
+        const legendariesLeft = LEGENDARY_IDS.filter((id) => !owned.includes(id)).length
+        // The box needs a guaranteeable drop (common or special) to be worth
+        // opening. Legendaries are buyable and only a 2% bonus, so a box with only
+        // legendaries left is locked — you buy those. Sold out = truly nothing.
+        const openable = remaining > 0 || specialsLeft > 0
+        const legendaryOnly = !openable && legendariesLeft > 0
+        const soldOut = !openable && legendariesLeft === 0
         const affordable = balance >= box.cost
         return (
           <section className="flex flex-col gap-2.5">
@@ -1036,6 +1041,10 @@ function Shop({
               <p className="text-[11px] text-ink3">
                 {soldOut ? (
                   'You own every cosmetic, nothing left to win'
+                ) : legendaryOnly ? (
+                  <>
+                    Only <span className="font-semibold text-amber-600 dark:text-amber-400">legendaries</span> left — buy those from the shop
+                  </>
                 ) : remaining === 0 ? (
                   <>
                     Only the <span className="font-semibold text-amber-600 dark:text-amber-400">ultra-rares</span> remain ·{' '}
@@ -1044,20 +1053,20 @@ function Shop({
                 ) : (
                   <>
                     <span className="font-semibold text-ink2">{remaining}</span> possible drops · rare{' '}
-                    <span className="font-semibold text-amber-600 dark:text-amber-400">2%</span> ultra-rare pull
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">2%</span> special / legendary pull
                   </>
                 )}
               </p>
               <button
                 onClick={() => onOpenBox(box)}
-                disabled={!affordable || soldOut}
+                disabled={!affordable || !openable}
                 className={`flex w-full max-w-xs items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold transition ${
-                  affordable && !soldOut
+                  affordable && openable
                     ? 'bg-clay text-white shadow-[0_6px_18px_-6px_rgba(177,68,44,0.7)] hover:brightness-105'
                     : 'bg-ink/[0.06] text-ink3'
                 }`}
               >
-                {soldOut ? 'All collected' : affordable ? <><Gift size={15} /> Open · {box.cost} PP</> : <><Lock size={14} /> {box.cost} PP</>}
+                {soldOut ? 'All collected' : legendaryOnly ? 'Buy legendaries in shop' : affordable ? <><Gift size={15} /> Open · {box.cost} PP</> : <><Lock size={14} /> {box.cost} PP</>}
               </button>
               {lootMsg && <p className="text-xs text-clay">{lootMsg}</p>}
             </div>

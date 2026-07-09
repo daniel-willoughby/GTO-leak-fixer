@@ -188,8 +188,15 @@ export interface LootBox {
   pool: () => string[]
 }
 
-/** Ids of the ultra-rare specials, and the per-special drop chance on any open. */
+/** Ids of the ultra-rare specials (loot-only) and the buyable legendaries. Both
+ *  are "rare" drops: they only ever arrive via the 2% per-item pull, never from
+ *  the normal band. Specials must stay obtainable (they can't be bought), so a
+ *  box can still guarantee one when nothing else is left; legendaries can just be
+ *  bought, so a box is NOT openable when only legendaries remain. */
 export const SPECIAL_IDS: string[] = SHOP.filter((i) => i.special).map((i) => i.id)
+export const LEGENDARY_IDS: string[] = SHOP.filter((i) => i.legendary).map((i) => i.id)
+/** Every rare that rides the 2% pull, in the order it's rolled. */
+export const RARE_PULL_IDS: string[] = [...SPECIAL_IDS, ...LEGENDARY_IDS]
 export const SPECIAL_PULL_RATE = 0.02
 
 export const LOOT_BOXES: LootBox[] = [
@@ -197,12 +204,12 @@ export const LOOT_BOXES: LootBox[] = [
     id: 'box-mystery',
     name: 'Mystery Box',
     cost: 400,
-    blurb: 'A random item you don’t own, anything in the shop, common to legendary',
+    blurb: 'A random item you don’t own, plus a rare 2% shot at a special or legendary',
     art: '🎁',
     tint: '#c79a4a',
-    // everything with a price is on the table (legendaries included); the
-    // ultra-rare specials arrive via the separate 2% pull.
-    pool: () => SHOP.filter((i) => !i.special && i.cost > 0).map((i) => i.id),
+    // the normal band is commons only; specials AND legendaries are excluded and
+    // only reachable via the 2% rare pull (see openLootBox).
+    pool: () => SHOP.filter((i) => !i.special && !i.legendary && i.cost > 0).map((i) => i.id),
   },
 ]
 
