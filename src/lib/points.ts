@@ -285,6 +285,9 @@ type LootOpenings = Record<string, { item: string; cost: number; sold?: boolean 
 
 const lootOpenings = (): LootOpenings => readJSON<LootOpenings>(LOOT_KEY, {})
 
+/** Unique id for a new acquisition (loot win or re-buy) in the ledger. */
+const newAcqId = (): string => Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
+
 /** Item ids currently owned via a loot box — an active (not sold-back) opening. */
 export const lootOwnedIds = (): string[] =>
   [...new Set(Object.values(lootOpenings()).filter((o) => !o.sold).map((o) => o.item))]
@@ -346,8 +349,7 @@ async function runOpenLootBox(boxId: string): Promise<{ ok: boolean; itemId?: st
       : specialPool[Math.floor(Math.random() * specialPool.length)]
   }
   const openings = lootOpenings()
-  const openId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
-  openings[openId] = { item: itemId, cost: box.cost, sold: false }
+  openings[newAcqId()] = { item: itemId, cost: box.cost, sold: false }
   writeJSON(LOOT_KEY, openings)
   signEconomyState()
   return { ok: true, itemId }
@@ -409,9 +411,19 @@ export async function buyItem(id: string): Promise<{ ok: boolean; reason?: strin
   if (isOwned(id)) return { ok: false, reason: 'Already owned' }
   const { balance } = await pointsState()
   if (balance < item.cost) return { ok: false, reason: 'Not enough points' }
-  clearSold(id) // re-buying an item you sold back un-tombstones it
   const bought = readJSON<string[]>(OWNED_KEY, [])
-  if (!bought.includes(id)) writeJSON(OWNED_KEY, [...bought, id]) // avoid a double-count in `spentPoints`
+  if (bought.includes(id)) {
+    // Re-buying a copy you sold back. The original charge and its sell refund
+    // both stay on the books, so record this purchase as a fresh acquisition in
+    // the ledger (same mechanics as a loot win, at the item's own price) — the
+    // re-buy then debits exactly the price. Un-tombstoning instead would erase
+    // the old refund and hand the item back for a third of its cost.
+    const openings = lootOpenings()
+    openings[newAcqId()] = { item: id, cost: item.cost, sold: false }
+    writeJSON(LOOT_KEY, openings)
+  } else {
+    writeJSON(OWNED_KEY, [...bought, id])
+  }
   signEconomyState()
   return { ok: true }
 }
@@ -437,14 +449,6 @@ export function sellValue(id: string): number {
 /** Whether an item can be sold: owned, not a free default, and worth something. */
 export function canSell(id: string): boolean {
   return isOwned(id) && sellValue(id) > 0
-}
-
-/** Drop an id from the sold-back tombstones (called when it is re-acquired). */
-export function clearSold(id: string): void {
-  const sold = soldIds()
-  if (!sold.includes(id)) return
-  writeJSON(SOLD_KEY, sold.filter((x) => x !== id))
-  signEconomyState()
 }
 
 /**

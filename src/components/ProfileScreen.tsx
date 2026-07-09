@@ -181,6 +181,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
 
   // two-tap sell: first tap arms the confirm, second within the window sells.
   const [sellArmed, setSellArmed] = useState<string | null>(null)
+  const [sellMsg, setSellMsg] = useState<string | null>(null)
   async function onSell(item: ShopItem) {
     if (sellArmed !== item.id) {
       setSellArmed(item.id)
@@ -189,16 +190,22 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
     }
     setSellArmed(null)
     const res = sellItem(item.id)
-    if (res.ok) {
-      haptic('success')
-      setEq(equipped()) // may have been unequipped
-      refreshLocal()
-      if (userId) {
-        await upsertProfile(userId, await gatherLocal())
-        await syncDailyScores(userId)
-      }
-      onChanged()
+    if (!res.ok) {
+      // never fail silently: say why the sale didn't go through
+      haptic('error')
+      setSellMsg(res.reason ?? 'Could not sell that item')
+      setTimeout(() => setSellMsg(null), 4000)
+      return
     }
+    setSellMsg(null)
+    haptic('success')
+    setEq(equipped()) // may have been unequipped
+    refreshLocal()
+    if (userId) {
+      await upsertProfile(userId, await gatherLocal())
+      await syncDailyScores(userId)
+    }
+    onChanged()
   }
 
   // loot-box opening: a 5s slot-reel that spins past items, then the reveal
@@ -435,6 +442,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
           onEquip={onEquip}
           onSell={onSell}
           sellArmed={sellArmed}
+          sellMsg={sellMsg}
           onOpenBox={onOpenBox}
           lootMsg={lootMsg}
         />
@@ -956,6 +964,7 @@ function Shop({
   onEquip,
   onSell,
   sellArmed,
+  sellMsg,
   onOpenBox,
   lootMsg,
 }: {
@@ -966,6 +975,7 @@ function Shop({
   onEquip: (slot: CosmeticType, id: string) => void
   onSell: (item: ShopItem) => void
   sellArmed: string | null
+  sellMsg: string | null
   onOpenBox: (box: LootBox) => void
   lootMsg: string | null
 }) {
@@ -997,6 +1007,8 @@ function Shop({
           </button>
         ))}
       </div>
+
+      {sellMsg && <p className="px-1 text-center text-xs text-clay">{sellMsg}</p>}
 
       {showLoot && (() => {
         const box = MYSTERY_BOX

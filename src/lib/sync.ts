@@ -18,6 +18,7 @@ import { upsertProfile, syncDailyScores } from './leaderboard'
 
 type LessonMap = Record<string, LessonState>
 type DailyResults = Record<string, DailyResult>
+type LootMap = Record<string, { item: string; cost: number; sold?: boolean }>
 
 export interface SyncSnapshot {
   v: 1
@@ -36,7 +37,7 @@ export interface SyncSnapshot {
   bonuses?: string[] | null
   duelLedger?: Record<string, number> | null
   duelRecord?: Record<string, string> | null
-  loot?: Record<string, { item: string; cost: number }> | null
+  loot?: LootMap | null
   sold?: string[] | null
   handle?: string | null
   friends?: string[] | null
@@ -71,7 +72,7 @@ export async function gatherLocal(): Promise<SyncSnapshot> {
     bonuses: lsParse<string[]>('lt-bonus'),
     duelLedger: lsParse<Record<string, number>>('lt-duel-ledger'),
     duelRecord: lsParse<Record<string, string>>('lt-duel-record'),
-    loot: lsParse<Record<string, { item: string; cost: number }>>('lt-loot'),
+    loot: lsParse<LootMap>('lt-loot'),
     sold: lsParse<string[]>('lt-sold'),
     handle: localStorage.getItem('lt-handle'),
     friends: lsParse<string[]>('lt-friends'),
@@ -152,6 +153,20 @@ function mergeOwned(a?: string[] | null, b?: string[] | null): string[] | null {
   return [...new Set([...(a ?? []), ...(b ?? [])])]
 }
 
+/** Union of acquisitions by their unique open id. The same key is the same
+ *  acquisition on both sides, so item/cost match; the `sold` flag is STICKY —
+ *  once either device sold it, it stays sold. (A naive spread let a stale
+ *  remote's sold:false clobber a fresh local sale, silently reverting it.) */
+function mergeLoot(a?: LootMap | null, b?: LootMap | null): LootMap | null {
+  if (!a && !b) return null
+  const out: LootMap = { ...(a ?? {}) }
+  for (const [k, v] of Object.entries(b ?? {})) {
+    const cur = out[k]
+    out[k] = cur ? { ...v, sold: !!(cur.sold || v.sold) } : v
+  }
+  return out
+}
+
 function mergeDailyResults(a?: DailyResults | null, b?: DailyResults | null): DailyResults | null {
   if (!a) return b ?? null
   if (!b) return a
@@ -184,8 +199,7 @@ export function mergeSnapshots(a: SyncSnapshot, b: SyncSnapshot): SyncSnapshot {
     // both devices, so a plain merge is correct
     duelLedger: a.duelLedger || b.duelLedger ? { ...(a.duelLedger ?? {}), ...(b.duelLedger ?? {}) } : null,
     duelRecord: a.duelRecord || b.duelRecord ? { ...(a.duelRecord ?? {}), ...(b.duelRecord ?? {}) } : null,
-    // loot openings are keyed by a unique open id, so the same union merge holds
-    loot: a.loot || b.loot ? { ...(a.loot ?? {}), ...(b.loot ?? {}) } : null,
+    loot: mergeLoot(a.loot, b.loot),
     // sold-back tombstones union too, so a sale on one device sticks everywhere
     sold: mergeOwned(a.sold, b.sold),
     handle: (newer.handle || a.handle || b.handle) ?? null,
