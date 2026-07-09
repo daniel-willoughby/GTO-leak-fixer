@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Check, Coins, Lock, Sparkles, UserPlus, UserCheck, Search, ChevronDown, Pencil, X, Gift } from 'lucide-react'
 import { getAchievements, type Achievement } from '../lib/achievements'
 import { pointsState, owned, equipped, equip, buyItem, sellItem, sellValue, claimNamedBonus, openLootBox } from '../lib/points'
-import { itemsOfType, shopItem, SHOP, MYSTERY_BOX, type ShopItem, type CosmeticType, type LootBox } from '../lib/shop'
+import { itemsOfType, shopItem, SHOP, MYSTERY_BOX, SPECIAL_IDS, type ShopItem, type CosmeticType, type LootBox } from '../lib/shop'
 import {
   getHandle,
   setHandle,
@@ -1001,7 +1001,9 @@ function Shop({
       {showLoot && (() => {
         const box = MYSTERY_BOX
         const remaining = box.pool().filter((id) => !owned.includes(id)).length
-        const soldOut = remaining === 0
+        const specialsLeft = SPECIAL_IDS.filter((id) => !owned.includes(id)).length
+        // sold out only when nothing's left at all, incl. the ultra-rare specials
+        const soldOut = remaining === 0 && specialsLeft === 0
         const affordable = balance >= box.cost
         return (
           <section className="flex flex-col gap-2.5">
@@ -1022,6 +1024,11 @@ function Shop({
               <p className="text-[11px] text-ink3">
                 {soldOut ? (
                   'You own every cosmetic, nothing left to win'
+                ) : remaining === 0 ? (
+                  <>
+                    Only the <span className="font-semibold text-amber-600 dark:text-amber-400">ultra-rares</span> remain ·{' '}
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">2%</span> pull
+                  </>
                 ) : (
                   <>
                     <span className="font-semibold text-ink2">{remaining}</span> possible drops · rare{' '}

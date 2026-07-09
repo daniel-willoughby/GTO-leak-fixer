@@ -322,21 +322,29 @@ async function runOpenLootBox(boxId: string): Promise<{ ok: boolean; itemId?: st
   // a re-win costs exactly the box price and never reverses an old refund.
   const own = new Set(owned())
   const pool = box.pool().filter((id) => !own.has(id))
-  if (!pool.length) return { ok: false, reason: 'You already own everything in this box' }
+  const specialPool = SPECIAL_IDS.filter((id) => !own.has(id))
+  // Only truly sold out once there's nothing left at all — normal items AND the
+  // ultra-rare specials. Otherwise the box must stay openable so a collector who
+  // owns every normal item can still chase the specials.
+  if (!pool.length && !specialPool.length) return { ok: false, reason: 'You already own everything in this box' }
   const { balance } = await pointsState()
   if (balance < box.cost) return { ok: false, reason: 'Not enough points' }
-  // Any box can pull an ultra-rare special at a small per-special chance, on top
-  // of its normal price-band drop. Roll the specials first; otherwise fall back
-  // to a normal item from the band (always something, so you're never charged
-  // for nothing).
+  // Roll each unowned ultra-rare special at its small per-special chance first.
+  // On a miss, drop a normal item from the band; but once the normal band is
+  // exhausted, the remaining specials ARE the pool, so an open guarantees one
+  // (you're never charged for nothing, and the last specials stay obtainable).
   let itemId: string | undefined
-  for (const sid of SPECIAL_IDS) {
-    if (!own.has(sid) && Math.random() < SPECIAL_PULL_RATE) {
+  for (const sid of specialPool) {
+    if (Math.random() < SPECIAL_PULL_RATE) {
       itemId = sid
       break
     }
   }
-  if (!itemId) itemId = pool[Math.floor(Math.random() * pool.length)]
+  if (!itemId) {
+    itemId = pool.length
+      ? pool[Math.floor(Math.random() * pool.length)]
+      : specialPool[Math.floor(Math.random() * specialPool.length)]
+  }
   const openings = lootOpenings()
   const openId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
   openings[openId] = { item: itemId, cost: box.cost, sold: false }
