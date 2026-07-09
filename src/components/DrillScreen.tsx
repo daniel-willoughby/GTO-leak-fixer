@@ -255,9 +255,18 @@ export default function DrillScreen({
   }, [streak])
   const [canContinue, setCanContinue] = useState(false)
   const [showHint, setShowHint] = useState(false)
-  // beginner lesson progress (persisted in localStorage)
-  const [lessonCorrect, setLessonCorrect] = useState(() => (lesson ? lessonProgress(lesson.id).correct : 0))
-  const [lessonDone, setLessonDone] = useState(() => (lesson ? lessonProgress(lesson.id).done : false))
+  // beginner lesson progress. `goal` is how many correct answers finish it (a
+  // drill lesson without an explicit goal must never insta-complete, so default
+  // to a full run, not 1). Each drill run is a SESSION: it starts un-finished and
+  // resumes a partial run, but re-opening an already-completed lesson restarts a
+  // fresh practice run rather than showing "Finish" after one answer.
+  const lessonGoal = lesson?.goal ?? 20
+  const [lessonCorrect, setLessonCorrect] = useState(() => {
+    if (!lesson) return 0
+    const p = lessonProgress(lesson.id)
+    return p.done ? 0 : p.correct
+  })
+  const [lessonDone, setLessonDone] = useState(false)
   // adaptive focus
   const [focusOn, setFocusOn] = useState(false)
   // the *active* focus set (a targeted leak's category, or the weak set when the
@@ -509,11 +518,15 @@ export default function DrillScreen({
       if (j.isCorrect) setLadderScore(score)
       ladder.onProgress(ladderIndex + 1, score, ladderTime.current)
     }
-    // beginner lesson: advance the goal on every correct (or acceptable) answer
+    // beginner lesson: advance a SESSION counter on every correct answer, and
+    // persist progress so it survives a refresh and marks the lesson done. The
+    // session counter (not the stored count) drives completion, so re-practising
+    // a finished lesson runs the full goal again instead of ending at once.
     if (lesson && j.isCorrect && !lessonDone) {
-      const st = recordLessonCorrect(lesson.id, lesson.goal ?? 1)
-      setLessonCorrect(st.correct)
-      if (st.done) setLessonDone(true)
+      const n = Math.min(lessonGoal, lessonCorrect + 1)
+      setLessonCorrect(n)
+      recordLessonCorrect(lesson.id, lessonGoal) // persist for resume + the done flag
+      if (n >= lessonGoal) setLessonDone(true)
     }
     if (!lesson && fullHand && !reviewMode) {
       if (spot.mode === 'rfi' && action === 'raise') {
@@ -679,13 +692,13 @@ export default function DrillScreen({
             </button>
             <span className="serif min-w-0 flex-1 truncate text-center text-sm text-ink">{lesson.title}</span>
             <span className="text-xs tabular-nums text-ink3">
-              {Math.min(lessonCorrect, lesson.goal ?? 1)}/{lesson.goal ?? 1}
+              {Math.min(lessonCorrect, lessonGoal)}/{lessonGoal}
             </span>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink/[0.07]">
             <div
               className="h-full rounded-full bg-sage transition-all"
-              style={{ width: `${Math.min(100, (lessonCorrect / (lesson.goal ?? 1)) * 100)}%` }}
+              style={{ width: `${Math.min(100, (lessonCorrect / lessonGoal) * 100)}%` }}
             />
           </div>
         </div>

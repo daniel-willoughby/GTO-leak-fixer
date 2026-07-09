@@ -38,14 +38,15 @@ const MATCHUPS: Omit<MultiwayMatchup, 'squeeze' | 'call'>[] = [
     actions: ['fold', 'call', 'squeeze'],
     bets: { SB: 0.5, BB: 1, UTG: 2.5, HJ: 2.5 },
   },
-  // CO opens, BTN calls, SB squeezes (SB is OOP so 3b-or-fold)
+  // CO opens, BTN calls, SB acts: call, squeeze, or fold. SB is OOP so the flat
+  // range is tight (set-mining pairs + a few hands that flop well multiway).
   {
     id: 'CO_open_BTN_call_SB_squeeze',
-    description: 'CO opens, BTN calls. SB: squeeze or fold?',
+    description: 'CO opens, BTN calls. SB: call, squeeze, or fold?',
     activeBefore: ['CO', 'BTN'],
     hero: 'SB',
     pot: 8.5,
-    actions: ['fold', 'squeeze'],
+    actions: ['fold', 'call', 'squeeze'],
     bets: { SB: 0.5, BB: 1, CO: 2.5, BTN: 2.5 },
   },
   // BTN opens, BB 3-bets, BTN cold-calls or 4-bets (BTN defends 3-bet)
@@ -111,7 +112,9 @@ const RANGES: Record<string, { squeeze?: string[]; '3bet'?: string[]; call?: str
   },
   CO_open_BTN_call_SB_squeeze: {
     squeeze: ['TT+', 'AQs+', 'AKo', 'A4s', 'A5s', 'KQs'],
-    call: [],
+    // OOP flat: small/medium pairs to set-mine plus a few suited hands that play
+    // well in a multiway pot. Kept tight since cold-calling OOP is thin.
+    call: ['22-99', 'AJs', 'ATs', 'KJs', 'QJs', 'JTs', 'T9s'],
   },
   BTN_open_BB_3bet_BTN_defend: {
     'cold-4bet': ['QQ+', 'AKs', 'AKo', 'A5s', 'A4s'],
