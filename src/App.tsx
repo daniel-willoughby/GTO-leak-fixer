@@ -170,7 +170,13 @@ export default function App() {
       startIndex: saved?.index ?? 0,
       startScore: saved?.score ?? 0,
       baseTimeMs: saved?.timeMs ?? 0,
-      onProgress: (index, score, timeMs) => saveLadderProgress({ day, index, score, timeMs }),
+      // Persist progress AND advance the run's own resume anchor, so if the user
+      // switches tabs (unmounting the drill) and comes back, it re-mounts at the
+      // question they were on instead of restarting from the frozen startIndex.
+      onProgress: (index, score, timeMs) => {
+        saveLadderProgress({ day, index, score, timeMs })
+        setLadderRun((r) => (r ? { ...r, startIndex: index, startScore: score, baseTimeMs: timeMs } : r))
+      },
       onComplete: (score, timeMs) => {
         recordDailyResult(day, score, timeMs)
         recordLadderComplete()
