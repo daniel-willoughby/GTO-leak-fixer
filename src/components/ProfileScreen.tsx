@@ -1057,6 +1057,14 @@ function Shop({
                   </>
                 )}
               </p>
+              {/* Explicit drop-odds disclosure, always visible before purchase
+                  (App Store Guideline 3.1.1 loot-box odds requirement). */}
+              <p className="mx-auto max-w-xs rounded-lg bg-ink/[0.04] px-3 py-2 text-[11px] leading-snug text-ink3">
+                <span className="font-semibold text-ink2">Drop odds:</span> each open gives a random cosmetic you don’t
+                already own. Every special or legendary has a{' '}
+                <span className="font-semibold text-amber-600 dark:text-amber-400">2%</span> chance per open; otherwise
+                you receive a standard item. Boxes are paid for with Poker Points earned by playing, never real money.
+              </p>
               <button
                 onClick={() => onOpenBox(box)}
                 disabled={!affordable || !openable}

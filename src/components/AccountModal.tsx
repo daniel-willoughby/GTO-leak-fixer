@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Cloud, CloudOff, LogOut, RefreshCw, Mail, Check } from 'lucide-react'
+import { X, Cloud, CloudOff, LogOut, RefreshCw, Mail, Check, Trash2 } from 'lucide-react'
 import { useAuth } from '../lib/useAuth'
 import { getHandle, setHandle, sanitizeHandle } from '../lib/leaderboard'
 
@@ -20,7 +20,7 @@ function ago(ts: number | null): string {
 }
 
 export default function AccountModal({ onClose, onSyncNow, syncing, lastSynced }: Props) {
-  const { user, signIn, signUp, signOut } = useAuth()
+  const { user, signIn, signUp, signOut, deleteAccount } = useAuth()
   const [mode, setMode] = useState<'in' | 'up'>('in')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -28,6 +28,29 @@ export default function AccountModal({ onClose, onSyncNow, syncing, lastSynced }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  // account deletion: first tap arms, second tap deletes (guards a misfire)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  async function onDelete() {
+    if (!confirmDelete) {
+      setConfirmDelete(true)
+      return
+    }
+    setError(null)
+    setDeleting(true)
+    try {
+      const { error: delErr } = await deleteAccount()
+      if (delErr) {
+        setError(delErr.message)
+        setConfirmDelete(false)
+      } else {
+        onClose()
+      }
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -90,6 +113,24 @@ export default function AccountModal({ onClose, onSyncNow, syncing, lastSynced }
             >
               <LogOut size={15} /> Sign out
             </button>
+            {error && <p className="text-center text-xs text-heartred">{error}</p>}
+            <div className="mt-1 border-t border-line pt-3">
+              <button
+                onClick={onDelete}
+                disabled={deleting}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition disabled:opacity-60 ${
+                  confirmDelete
+                    ? 'bg-heartred text-white'
+                    : 'text-heartred hover:bg-heartred/10'
+                }`}
+              >
+                <Trash2 size={15} />
+                {deleting ? 'Deleting…' : confirmDelete ? 'Tap again to permanently delete' : 'Delete account'}
+              </button>
+              <p className="mt-1.5 text-center text-[11px] text-ink3">
+                Permanently removes your account and all cloud data. This cannot be undone.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -157,6 +198,16 @@ export default function AccountModal({ onClose, onSyncNow, syncing, lastSynced }
 
         <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11px] text-ink3">
           <CloudOff size={12} /> Everything works offline. Sign in only to back up and sync across devices.
+        </p>
+        <p className="mt-2 text-center text-[11px] text-ink3">
+          <a
+            href={`${import.meta.env.BASE_URL}privacy.html`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-ink2"
+          >
+            Privacy Policy
+          </a>
         </p>
       </div>
     </div>

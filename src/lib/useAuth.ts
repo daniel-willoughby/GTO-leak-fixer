@@ -33,5 +33,14 @@ export function useAuth() {
     signIn: (email: string, password: string) => supabase!.auth.signInWithPassword({ email, password }),
     signInWithGoogle: () => supabase!.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } }),
     signOut: () => supabase!.auth.signOut(),
+    // Permanently delete the signed-in account. The delete_account() RPC removes
+    // the user's auth row (cascading to all their cloud data); then sign out so
+    // the local session is cleared. Returns any error for the UI to surface.
+    deleteAccount: async (): Promise<{ error: Error | null }> => {
+      const { error } = await supabase!.rpc('delete_account')
+      if (error) return { error }
+      await supabase!.auth.signOut()
+      return { error: null }
+    },
   }
 }

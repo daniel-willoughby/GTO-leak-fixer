@@ -266,3 +266,29 @@ create index if not exists duels_done_idx on public.duels (status, concluded_at 
 
 -- Open duels + the results ledger are public reads; writes stay owner/claimer-scoped.
 grant select, insert, update on public.duels to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Account deletion. App Store Guideline 5.1.1(v) requires any app that supports
+-- account creation to let the user delete their account from within the app.
+-- Clients hold only the anon key and cannot touch auth.users, so expose a
+-- SECURITY DEFINER function that deletes the *caller's own* auth row. Every
+-- public table FKs auth.users ON DELETE CASCADE, so this one delete wipes all
+-- of the user's data (state, profile, daily scores, duels, friend requests).
+-- ---------------------------------------------------------------------------
+create or replace function public.delete_account()
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+
+-- Only a signed-in user may call it, and it only ever deletes auth.uid().
+revoke all on function public.delete_account() from public, anon;
+grant execute on function public.delete_account() to authenticated;
