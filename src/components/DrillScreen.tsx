@@ -922,7 +922,10 @@ export default function DrillScreen({
           <div className={`grid w-full gap-3 ${spot.actions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {spot.actions.map((a) => (
               <button key={a} onClick={() => answer(a)} className={`serif py-4 text-lg ${ACTION_STYLE[a]}`}>
-                {ACTION_LABEL[a]} <span className="text-xs opacity-70">({KEY_HINT[a] ?? ''})</span>
+                {ACTION_LABEL[a]}{' '}
+                {/* keyboard shortcut hint: desktop only. Hidden on touch devices
+                    (mobile / the iOS app) where there's no physical keyboard. */}
+                <span className="text-xs opacity-70 [@media(pointer:coarse)]:hidden">({KEY_HINT[a] ?? ''})</span>
               </button>
             ))}
           </div>
