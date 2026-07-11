@@ -224,7 +224,11 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
     if (!item) return
     setReveal({ box, item, phase: 'spinning' })
     playLootReel(REEL_MS, !!(item.special || item.legendary))
-    setTimeout(() => setReveal((r) => (r ? { ...r, phase: 'revealed' } : r)), REEL_MS + 250)
+    setTimeout(() => {
+      setReveal((r) => (r ? { ...r, phase: 'revealed' } : r))
+      // tactile pop as the reel lands — grander for a rare pull
+      haptic(item.special || item.legendary ? 'celebrate' : 'success')
+    }, REEL_MS + 250)
     refreshLocal()
     onChanged()
   }

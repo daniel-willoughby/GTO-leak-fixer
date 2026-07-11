@@ -184,6 +184,7 @@ export default function App() {
         if (user) submitDailyScore(user.id, day, score, timeMs)
         setLadderRun(null)
         setLadderResult({ score, total: seeds.length })
+        haptic('celebrate')
         setProgress((p) => p + 1) // refresh PP
         setDailyVersion((v) => v + 1)
       },
@@ -196,7 +197,10 @@ export default function App() {
   useEffect(() => {
     let alive = true
     newlyEarned().then((fresh) => {
-      if (alive && fresh.length) setToasts((q) => [...q, ...fresh])
+      if (alive && fresh.length) {
+        setToasts((q) => [...q, ...fresh])
+        haptic('celebrate')
+      }
     })
     return () => {
       alive = false
