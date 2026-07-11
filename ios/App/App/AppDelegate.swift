@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import AVFoundation
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,7 +8,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // The app's drill sounds are synthesised with Web Audio inside the
+        // WKWebView. Without an explicit session, that audio routes through a
+        // category the ring/silent switch mutes, so the app is silent on a
+        // phone set to vibrate. Use .playback so sounds are audible regardless
+        // of the switch (the app has its own in-app mute toggle), and
+        // .mixWithOthers so it plays over the user's music instead of stopping it.
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            // non-fatal: fall back to the default session
+        }
         return true
     }
 
