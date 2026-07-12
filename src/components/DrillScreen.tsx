@@ -50,6 +50,8 @@ import { MATCHUPS, respond } from '../data/vsRfi'
 import { respondMultiway } from '../data/multiway'
 import { strategyFor } from '../data/postflop'
 import { FREEPLAY_READY } from '../data/freeplay'
+import { isPro, postflopLeft, consumePostflop } from '../lib/pro'
+import Paywall from './Paywall'
 import {
   dueMistakes,
   enqueueMistake,
@@ -281,6 +283,8 @@ export default function DrillScreen({
   // review queue (spaced repetition)
   const [reviewQueue, setReviewQueue] = useState<MistakeRecord[]>([])
   const [reviewMode, setReviewMode] = useState(false)
+  // native-only Pro gate (isPro() is always true on the web/PWA)
+  const [paywall, setPaywall] = useState(false)
   const [mistakeBadge, setMistakeBadge] = useState(0)
   const [confirmClear, setConfirmClear] = useState(false) // two-tap guard for "clear all"
   // daily ladder run state
@@ -344,6 +348,15 @@ export default function DrillScreen({
   }, [requestFocus])
 
   function dealNormal(m: DrillMode = mode, fh: boolean = fullHand, vs: VillainStyle = villainStyle) {
+    // Pro gate (native only): each FRESH postflop/Freeplay hand consumes the
+    // free daily quota. Lessons and street continuations are exempt.
+    if (!lesson && (fh || m === 'postflop')) {
+      if (postflopLeft() <= 0) {
+        setPaywall(true)
+        return
+      }
+      consumePostflop()
+    }
     // Freeplay vs GTO with real all-seats data: a varied solver-true spot from a
     // random seat / node type. vs Fish (or no data) keeps the play-a-hand flow.
     // `vs` is passed explicitly on a mode switch, since setVillainStyle hasn't
@@ -415,6 +428,11 @@ export default function DrillScreen({
   function applyMode(m: DrillMode, fh: boolean) {
     if (reviewMode || lesson) return
     if (m === mode && fh === fullHand) return
+    // don't switch into a postflop mode the free quota can no longer deal
+    if ((fh || m === 'postflop') && postflopLeft() <= 0) {
+      setPaywall(true)
+      return
+    }
     if (m !== 'postflop') lastPreflopMode.current = m
     setMode(m)
     setFullHand(fh)
@@ -430,6 +448,9 @@ export default function DrillScreen({
       setFocusOn(false)
       setFocusPos(null)
       setFocusLabel(null)
+    } else if (!isPro()) {
+      // adaptive leak-focused drilling is a Pro feature on the native app
+      setPaywall(true)
     } else {
       setFocusOn(true)
       // generic toggle focuses the user's weak categories
@@ -441,6 +462,11 @@ export default function DrillScreen({
   }
 
   async function startReview() {
+    if (!isPro()) {
+      // the spaced-repetition review queue is a Pro feature on the native app
+      setPaywall(true)
+      return
+    }
     const q = await dueMistakes()
     if (!q.length) return
     setReviewMode(true)
@@ -654,6 +680,7 @@ export default function DrillScreen({
 
   return (
     <div className="flex flex-col items-center gap-2 px-4 pb-10 pt-2 lg:gap-3 lg:pb-12 lg:pt-4 max-w-xl lg:max-w-5xl mx-auto">
+      {paywall && <Paywall onClose={() => setPaywall(false)} />}
       {/* ladder header: progress through the 20-question daily + running score */}
       {ladder ? (
         <div className="flex w-full flex-col gap-2 lg:max-w-2xl lg:mx-auto">
@@ -767,6 +794,12 @@ export default function DrillScreen({
               </button>
             )}
           </div>
+          {/* free-tier quota chip (native only): fresh postflop hands left today */}
+          {category === 'continuation' && Number.isFinite(postflopLeft()) && (
+            <p className="px-1 text-center text-[11px] text-ink3">
+              {postflopLeft()} free postflop {postflopLeft() === 1 ? 'hand' : 'hands'} left today
+            </p>
+          )}
           {/* preflop situations, only while the menu is open, collapses on select */}
           {category === 'preflop' && preflopMenuOpen && (
             <div className="flex w-full gap-1 px-0.5">

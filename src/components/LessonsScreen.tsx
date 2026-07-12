@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Check, ArrowRight, ArrowLeft, Sparkles, GraduationCap, BookOpen, Trophy } from 'lucide-react'
+import { Check, ArrowRight, ArrowLeft, Sparkles, GraduationCap, BookOpen, Trophy, Lock } from 'lucide-react'
 import { CURRICULUM, lessonById, type Lesson } from '../data/curriculum'
 import { lessonProgress, curriculumComplete, completeLesson } from '../lib/level'
+import { isPro, FREE_LESSONS } from '../lib/pro'
 import GlossaryText from './GlossaryText'
 import DrillScreen from './DrillScreen'
 import LearnScreen from './LearnScreen'
+import Paywall from './Paywall'
+
+/** Native free tier: only the first few lessons are open (always open on web). */
+const lessonLocked = (l: Lesson) => !isPro() && (INDEX.get(l.id) ?? 99) > FREE_LESSONS
 
 interface Props {
   onProgress: () => void
@@ -30,14 +35,14 @@ export default function LessonsScreen({ onProgress, openLessonId, onOpened }: Pr
   const [view, setView] = useState<View>('list')
   const [section, setSection] = useState<'lessons' | 'glossary'>('lessons')
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [paywall, setPaywall] = useState(false)
   const [, setTick] = useState(0) // bump to re-read localStorage progress after a lesson
   const refresh = () => setTick((t) => t + 1)
 
   // jump straight into a lesson requested from elsewhere (e.g. a leak's "Learn")
   useEffect(() => {
     if (openLessonId && lessonById(openLessonId)) {
-      setActiveId(openLessonId)
-      setView('intro')
+      openLesson(lessonById(openLessonId)!)
       onOpened?.()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -46,6 +51,10 @@ export default function LessonsScreen({ onProgress, openLessonId, onOpened }: Pr
   const active = activeId ? lessonById(activeId) : null
 
   function openLesson(l: Lesson) {
+    if (lessonLocked(l)) {
+      setPaywall(true)
+      return
+    }
     setActiveId(l.id)
     setView('intro')
   }
@@ -77,6 +86,7 @@ export default function LessonsScreen({ onProgress, openLessonId, onOpened }: Pr
 
   return (
     <div className="flex flex-col">
+      {paywall && <Paywall onClose={() => setPaywall(false)} />}
       {/* Lessons | Glossary switch (Glossary folded in here to slim the nav) */}
       <div className="mx-auto w-full max-w-xl px-4 pb-1 pt-5 lg:max-w-2xl">
         <div className="flex gap-1 rounded-2xl border border-line bg-ink/[0.06] p-1 text-sm">
@@ -172,7 +182,11 @@ export default function LessonsScreen({ onProgress, openLessonId, onOpened }: Pr
                       <span className="text-ink3">{l.blurb}</span>
                     </div>
                   </div>
-                  <ArrowRight size={16} className="mt-0.5 shrink-0 self-center text-ink3 transition group-hover:translate-x-0.5 group-hover:text-sage" />
+                  {lessonLocked(l) ? (
+                    <Lock size={15} className="mt-0.5 shrink-0 self-center text-amber-500" />
+                  ) : (
+                    <ArrowRight size={16} className="mt-0.5 shrink-0 self-center text-ink3 transition group-hover:translate-x-0.5 group-hover:text-sage" />
+                  )}
                 </button>
               )
             })}

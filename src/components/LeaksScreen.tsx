@@ -13,6 +13,8 @@ import {
 import { lessonById } from '../data/curriculum'
 import { formatBoardCode } from '../lib/cards'
 import type { FocusRequest } from '../lib/spot'
+import { isPro } from '../lib/pro'
+import Paywall from './Paywall'
 
 interface Props {
   version: number // bump to force refresh
@@ -192,6 +194,16 @@ function ModeSection({
 export default function LeaksScreen({ version, onDrillLeaks, onOpenLesson }: Props) {
   const [sum, setSum] = useState<LeakSummary | null>(null)
   const [trend, setTrend] = useState<ProgressTrend | null>(null)
+  const [paywall, setPaywall] = useState(false)
+
+  // targeted leak-drilling is a Pro feature on the native app (free on web)
+  const gatedDrill = (req: FocusRequest) => {
+    if (!isPro()) {
+      setPaywall(true)
+      return
+    }
+    onDrillLeaks(req)
+  }
 
   useEffect(() => {
     getLeakSummary().then(setSum)
@@ -211,6 +223,7 @@ export default function LeaksScreen({ version, onDrillLeaks, onOpenLesson }: Pro
 
   return (
     <div className="px-4 pb-28 pt-6 max-w-xl lg:max-w-3xl mx-auto flex flex-col gap-5">
+      {paywall && <Paywall onClose={() => setPaywall(false)} />}
       <div className="flex items-center justify-between">
         <div>
           <div className="serif text-5xl font-semibold text-sage-dark tabular-nums">{Math.round(sum.accuracy * 100)}%</div>
@@ -281,7 +294,7 @@ export default function LeaksScreen({ version, onDrillLeaks, onOpenLesson }: Pro
                     </p>
                   )}
                   <div className="mt-3 flex justify-end">
-                    <FixActions leak={l} onDrillLeaks={onDrillLeaks} onOpenLesson={onOpenLesson} />
+                    <FixActions leak={l} onDrillLeaks={gatedDrill} onOpenLesson={onOpenLesson} />
                   </div>
                 </div>
               ))}
