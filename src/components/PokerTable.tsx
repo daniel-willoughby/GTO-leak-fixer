@@ -58,6 +58,20 @@ const SEATS = [
   { left: 90, top: 68 }, // lower-right
 ]
 
+// Where a replay action label ("folds", "opens 2.5bb", "calls") sits for each
+// physical seat: pulled inboard toward the felt centre, into the open space,
+// so it never lands on the seat's own pill or tucked hole cards (which hug the
+// rail). Kept clear of the central pot band (~34% top) too. Same index order
+// as SEATS.
+const LABEL_POS = [
+  { left: 50, top: 72 }, // hero (bottom) — above the big hole cards
+  { left: 30, top: 57 }, // lower-left
+  { left: 30, top: 43 }, // upper-left
+  { left: 50, top: 26 }, // top — above the pot band
+  { left: 70, top: 43 }, // upper-right
+  { left: 70, top: 57 }, // lower-right
+]
+
 type Status = 'hero' | 'raiser' | 'active' | 'folded' | 'waiting'
 
 // Face-down cards for the other players. A warm claret back with a cream
@@ -305,10 +319,15 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
 
       {/* replay: acting-seat action label + a card-muck when a seat folds */}
       {replay?.action && (() => {
-        const seat = seats.find((s) => s.pos === replay.action!.pos)
-        if (!seat) return null
-        const { left, top } = seat.coord
-        const labelTop = top < 50 ? top + 13 : top - 14
+        const idx = seats.findIndex((s) => s.pos === replay.action!.pos)
+        if (idx < 0) return null
+        const { left, top } = seats[idx].coord
+        // Park the label in the open felt just inboard of each physical seat,
+        // rather than on top of it: a purely-vertical nudge left the corner
+        // seats' labels sitting right over their own pill + hole cards. Keyed by
+        // physical seat index (0 = hero bottom, clockwise); cards/pill hug the
+        // rail so the inboard slot is always clear, and clear of the central pot.
+        const lbl = LABEL_POS[idx] ?? { left, top }
         return (
           <>
             {replay.action!.anim === 'muck' && (
@@ -322,8 +341,8 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
             )}
             <div
               key={`lbl-${replay.seq}`}
-              className="absolute -translate-x-1/2 -translate-y-1/2 z-[9] pointer-events-none animate-pop"
-              style={{ left: `${left}%`, top: `${labelTop}%` }}
+              className="absolute -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none animate-pop"
+              style={{ left: `${lbl.left}%`, top: `${lbl.top}%` }}
             >
               <span className="font-table text-[9px] font-semibold text-white bg-[#3a352b]/85 px-1.5 py-0.5 rounded whitespace-nowrap">
                 {replay.action!.label}

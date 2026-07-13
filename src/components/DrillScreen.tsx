@@ -71,6 +71,7 @@ import { equipped } from '../lib/points'
 import { shopItem } from '../lib/shop'
 import PokerTable, { type Chip } from './PokerTable'
 import RangeGrid, { type CellKind } from './RangeGrid'
+// (HandHistory removed: the replay animation now conveys the betting history)
 
 /** Chips in front of each seat for the current spot (blinds, opens, calls, 3-bets). */
 function chipsFor(spot: Spot): Chip[] {
@@ -94,7 +95,6 @@ function chipsFor(spot: Spot): Chip[] {
   }
   return Object.values(map)
 }
-import HandHistory from './HandHistory'
 
 interface Props {
   onProgress: () => void
@@ -676,7 +676,6 @@ export default function DrillScreen({
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const history = spot.handState?.history ?? spot.history ?? []
   const street = spot.handState?.street ?? spot.street
   const prompt = promptFor(spot, level)
   const replayFrame = replaying && replayFrames ? replayFrames[replayIdx] : null
@@ -938,17 +937,13 @@ export default function DrillScreen({
       <div className="w-full flex flex-col items-center gap-3 lg:grid lg:grid-cols-2 lg:gap-8 lg:items-start">
         {/* table column */}
         <div className="w-full flex flex-col items-center gap-3">
-      {/* one line: matchup label · betting history (scrolls) · streak. The
-          scrolling history is hidden during the replay (the animation shows it). */}
+      {/* one line: matchup label · streak. The betting history used to scroll
+          here as pills, but the replay animation now shows how the hand got to
+          this spot, so the pill row was redundant and has been removed. */}
       <div className="flex items-center justify-between w-full gap-2 text-sm">
         <span className="text-ink2 whitespace-nowrap shrink-0 text-xs">
           {spot.mode === 'postflop' ? postflopLabel : '100bb · 6-max cash'}
         </span>
-        {history.length > 0 && !replayFrame && (
-          <div className="min-w-0 flex-1">
-            <HandHistory history={history} />
-          </div>
-        )}
         <span
           className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 border transition ${
             streak >= 3 ? 'border-clay/40 bg-clay/10 text-clay' : 'border-line bg-paper2 text-ink2'
