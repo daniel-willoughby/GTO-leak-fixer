@@ -31,6 +31,7 @@ import {
   openerOf,
   nodeLabels as fpLabels,
   facedBetBb,
+  FREEPLAY_NODES,
   type FreeplayNode,
 } from '../data/freeplay'
 import type { Level } from './level'
@@ -277,6 +278,10 @@ export interface SpotSeed {
   board?: string
   /** multiway matchup id */
   matchupId?: string
+  /** Freeplay (all-seats, OOP) spot: its node id + kind, so the daily ladder can
+   *  round-trip a BB-defends-a-c-bet spot deterministically. */
+  fpSpot?: string
+  fpKind?: FreeplayNode['kind']
 }
 
 export function seedOf(spot: Spot): SpotSeed {
@@ -285,8 +290,10 @@ export function seedOf(spot: Spot): SpotSeed {
     heroPos: spot.heroPos,
     raiserPos: spot.raiserPos,
     label: spot.label,
-    board: spot.node?.board,
+    board: spot.node?.board ?? (spot.fpNode ? spot.fpNode.board : undefined),
     matchupId: spot.matchupId,
+    fpSpot: spot.fpNode?.spot,
+    fpKind: spot.fpNode?.kind,
   }
 }
 
@@ -335,6 +342,14 @@ export function spotFromSeed(seed: SpotSeed): Spot | null {
       category: classifyHand(label),
       matchupId: m.id,
     }
+  }
+  // Freeplay (all-seats / OOP) spot: rebuild from its node id (used by the daily
+  // ladder's out-of-position rungs).
+  if (seed.fpKind) {
+    const fp = FREEPLAY_NODES.find((n) => n.spot === seed.fpSpot && n.board === seed.board && n.kind === seed.fpKind)
+    if (!fp) return null
+    const fpBoard = fp.board.match(/../g)!.map((c) => parseCards(c)[0]) as Card[]
+    return freeplaySpotFromNode(fp, dealHandForLabel(label, fpBoard), label)
   }
   // postflop
   const node = ALL_STREET_NODES.find((n) => n.board === seed.board)
