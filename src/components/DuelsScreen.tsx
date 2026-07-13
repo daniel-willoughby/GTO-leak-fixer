@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Swords, Coins, Check, X, Globe, Trophy } from 'lucide-react'
+import { Swords, Coins, Check, X, Globe } from 'lucide-react'
 import { fetchFriendsLeaderboard, getFriends, type LeaderRow } from '../lib/leaderboard'
 import {
   fetchDuels,
@@ -12,6 +12,7 @@ import {
   type LedgerSort,
 } from '../lib/duel'
 import { MAX_DEBT } from '../lib/points'
+import { useStickyState } from '../lib/uiState'
 import { Avatar } from './Avatar'
 
 interface Props {
@@ -47,6 +48,9 @@ export default function DuelsScreen({
   const [wager, setWager] = useState<string>('0')
   const [openWager, setOpenWager] = useState<string>('0')
   const [ledgerSort, setLedgerSort] = useState<LedgerSort>('recent')
+  // one "Duels" panel, toggled between your own duels and everyone's results,
+  // so the public history isn't buried at the bottom of a long scroll
+  const [duelsView, setDuelsView] = useStickyState<'mine' | 'all'>('lt-ui-duels-view', 'mine')
 
   useEffect(() => {
     if (!userId) return
@@ -237,106 +241,127 @@ export default function DuelsScreen({
         </section>
       )}
 
-      {/* your duel history */}
-      {history.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="px-1 text-xs uppercase tracking-wide text-ink3">Your duels</h2>
-          {history.map((d) => {
-            const iAmChallenger = d.challenger === userId
-            const them = iAmChallenger
-              ? { handle: d.opponent_handle, avatar: d.opponent_avatar }
-              : { handle: d.challenger_handle, avatar: d.challenger_avatar }
-            const mineScore = iAmChallenger ? d.challenger_score : d.opponent_score
-            const theirScore = iAmChallenger ? d.opponent_score : d.challenger_score
-            const out = d.status === 'done' ? duelOutcome(d, userId) : null
-            const subtitle =
-              d.status === 'declined'
-                ? 'declined'
-                : d.status === 'open'
-                  ? 'open, waiting for a taker'
-                  : d.status === 'pending'
-                    ? d.opponent === userId ? 'awaiting you' : 'waiting for them'
-                    : `${mineScore ?? 0}–${theirScore ?? 0}`
-            return (
-              <div key={d.id} className="flex items-center gap-3 rounded-xl border border-line bg-paper2 px-3 py-2.5">
-                <Avatar id={them.avatar || undefined} size={30} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-ink">
-                    {them.handle || (d.status === 'open' ? 'Open duel' : 'Opponent')}
-                  </p>
-                  <p className="text-xs text-ink3">{subtitle}</p>
-                </div>
-                {out && (
-                  <span
-                    className={`shrink-0 text-sm font-bold tabular-nums ${
-                      out === 'win' ? 'text-sage-dark' : out === 'loss' ? 'text-clay' : 'text-ink3'
-                    }`}
-                  >
-                    {out === 'win' ? `Won +${d.wager}` : out === 'loss' ? `Lost −${d.wager}` : 'Push'}
-                  </span>
-                )}
-                {d.status !== 'done' && d.challenger === userId && d.opponent !== userId && (
-                  <Check size={16} className="shrink-0 text-ink3" />
-                )}
-              </div>
-            )
-          })}
-        </section>
-      )}
-
-      {/* public ledger: past results across everyone */}
-      {ledger.length > 0 && (
+      {/* one panel for both your duels and everyone's results, so the public
+          history isn't buried below a long scroll */}
+      {(history.length > 0 || ledger.length > 0) && (
         <section className="flex flex-col gap-2">
           <div className="flex items-center gap-2 px-1">
-            <h2 className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-ink3">
-              <Trophy size={13} className="text-clay" /> Past duels
-            </h2>
-            <div className="ml-auto flex gap-1 rounded-lg border border-line bg-ink/[0.05] p-0.5 text-xs">
+            <div className="flex gap-1 rounded-lg border border-line bg-ink/[0.05] p-0.5 text-xs">
               {([
-                { id: 'recent', label: 'Recent' },
-                { id: 'wager', label: 'Wager' },
-              ] as const).map((s) => (
+                { id: 'mine', label: 'Your duels' },
+                { id: 'all', label: 'History' },
+              ] as const).map((v) => (
                 <button
-                  key={s.id}
-                  onClick={() => setLedgerSort(s.id)}
-                  className={`rounded-md px-2 py-0.5 font-semibold transition ${
-                    ledgerSort === s.id ? 'bg-sage text-white' : 'text-ink3 hover:text-ink2'
+                  key={v.id}
+                  onClick={() => setDuelsView(v.id)}
+                  className={`rounded-md px-2.5 py-1 font-semibold transition ${
+                    duelsView === v.id ? 'bg-sage text-white' : 'text-ink3 hover:text-ink2'
                   }`}
                 >
-                  {s.label}
+                  {v.label}
                 </button>
               ))}
             </div>
-          </div>
-          <div className="panel flex flex-col divide-y divide-line overflow-hidden">
-            {ledger.map((d) => {
-              const winner = duelWinnerSide(d)
-              const cName = d.challenger_handle || 'Player'
-              const oName = d.opponent_handle || 'Player'
-              const cs = d.challenger_score ?? 0
-              const os = d.opponent_score ?? 0
-              return (
-                <div key={d.id} className="flex items-center gap-2 px-3 py-2 text-sm">
-                  <span className={`min-w-0 flex-1 truncate text-right ${winner === 'challenger' ? 'font-bold text-sage-dark' : 'text-ink2'}`}>
-                    {cName}
-                  </span>
-                  <span className="shrink-0 tabular-nums text-ink3">
-                    {cs}–{os}
-                  </span>
-                  <span className={`min-w-0 flex-1 truncate ${winner === 'opponent' ? 'font-bold text-sage-dark' : 'text-ink2'}`}>
-                    {oName}
-                  </span>
-                  <span
-                    className={`ml-1 flex w-14 shrink-0 items-center justify-end gap-0.5 text-xs font-semibold tabular-nums ${
-                      d.wager > 0 ? 'text-clay' : 'text-ink3'
+            {duelsView === 'all' && (
+              <div className="ml-auto flex gap-1 rounded-lg border border-line bg-ink/[0.05] p-0.5 text-xs">
+                {([
+                  { id: 'recent', label: 'Recent' },
+                  { id: 'wager', label: 'Wager' },
+                ] as const).map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setLedgerSort(s.id)}
+                    className={`rounded-md px-2 py-0.5 font-semibold transition ${
+                      ledgerSort === s.id ? 'bg-sage text-white' : 'text-ink3 hover:text-ink2'
                     }`}
                   >
-                    <Coins size={11} /> {d.wager}
-                  </span>
-                </div>
-              )
-            })}
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
+          {duelsView === 'mine' ? (
+            history.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {history.map((d) => {
+                  const iAmChallenger = d.challenger === userId
+                  const them = iAmChallenger
+                    ? { handle: d.opponent_handle, avatar: d.opponent_avatar }
+                    : { handle: d.challenger_handle, avatar: d.challenger_avatar }
+                  const mineScore = iAmChallenger ? d.challenger_score : d.opponent_score
+                  const theirScore = iAmChallenger ? d.opponent_score : d.challenger_score
+                  const out = d.status === 'done' ? duelOutcome(d, userId) : null
+                  const subtitle =
+                    d.status === 'declined'
+                      ? 'declined'
+                      : d.status === 'open'
+                        ? 'open, waiting for a taker'
+                        : d.status === 'pending'
+                          ? d.opponent === userId ? 'awaiting you' : 'waiting for them'
+                          : `${mineScore ?? 0}–${theirScore ?? 0}`
+                  return (
+                    <div key={d.id} className="flex items-center gap-3 rounded-xl border border-line bg-paper2 px-3 py-2.5">
+                      <Avatar id={them.avatar || undefined} size={30} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-ink">
+                          {them.handle || (d.status === 'open' ? 'Open duel' : 'Opponent')}
+                        </p>
+                        <p className="text-xs text-ink3">{subtitle}</p>
+                      </div>
+                      {out && (
+                        <span
+                          className={`shrink-0 text-sm font-bold tabular-nums ${
+                            out === 'win' ? 'text-sage-dark' : out === 'loss' ? 'text-clay' : 'text-ink3'
+                          }`}
+                        >
+                          {out === 'win' ? `Won +${d.wager}` : out === 'loss' ? `Lost −${d.wager}` : 'Push'}
+                        </span>
+                      )}
+                      {d.status !== 'done' && d.challenger === userId && d.opponent !== userId && (
+                        <Check size={16} className="shrink-0 text-ink3" />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="px-1 py-6 text-center text-sm text-ink3">No duels yet. Challenge a friend above.</p>
+            )
+          ) : ledger.length > 0 ? (
+            <div className="panel flex flex-col divide-y divide-line overflow-hidden">
+              {ledger.map((d) => {
+                const winner = duelWinnerSide(d)
+                const cName = d.challenger_handle || 'Player'
+                const oName = d.opponent_handle || 'Player'
+                const cs = d.challenger_score ?? 0
+                const os = d.opponent_score ?? 0
+                return (
+                  <div key={d.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                    <span className={`min-w-0 flex-1 truncate text-right ${winner === 'challenger' ? 'font-bold text-sage-dark' : 'text-ink2'}`}>
+                      {cName}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-ink3">
+                      {cs}–{os}
+                    </span>
+                    <span className={`min-w-0 flex-1 truncate ${winner === 'opponent' ? 'font-bold text-sage-dark' : 'text-ink2'}`}>
+                      {oName}
+                    </span>
+                    <span
+                      className={`ml-1 flex w-14 shrink-0 items-center justify-end gap-0.5 text-xs font-semibold tabular-nums ${
+                        d.wager > 0 ? 'text-clay' : 'text-ink3'
+                      }`}
+                    >
+                      <Coins size={11} /> {d.wager}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="px-1 py-6 text-center text-sm text-ink3">No completed duels yet.</p>
+          )}
         </section>
       )}
     </div>
