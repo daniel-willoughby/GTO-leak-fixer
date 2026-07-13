@@ -15,6 +15,8 @@ import {
   FLOP_NODES,
   FACING_NODES,
   TURN_NODES,
+  BUNDLED_FLOP_NODES,
+  BUNDLED_TURN_NODES,
   hasRiver,
   nodeLabels,
   riverNodesForBoard,
@@ -162,6 +164,10 @@ export interface GenOptions {
   /** Deal a postflop spot on a specific street (the daily ladder uses this to
    *  surface a standalone turn continuation). Defaults to the flop. */
   street?: 'flop' | 'turn'
+  /** Draw postflop boards from the bundled-only corpus, never the shard-enriched
+   *  pool. The daily ladder sets this so its questions are identical on every
+   *  client (the PWA has no shards), keeping the shared leaderboard fair. */
+  bundledOnly?: boolean
 }
 
 /**
@@ -241,7 +247,8 @@ export function generateSpot(mode: DrillMode, opts: GenOptions = {}): Spot {
 }
 
 function generateOne(mode: DrillMode, opts: GenOptions = {}): Spot {
-  if (mode === 'postflop') return opts.street === 'turn' ? generateTurnSpot() : generatePostflopSpot()
+  if (mode === 'postflop')
+    return opts.street === 'turn' ? generateTurnSpot(opts.bundledOnly) : generatePostflopSpot(opts.bundledOnly)
   if (mode === 'multiway') return generateMultiwaySpot()
   const label = pickLabel(opts.focus)
   const cards = dealHandForLabel(label)
@@ -351,12 +358,23 @@ export function spotFromSeed(seed: SpotSeed): Spot | null {
     const fpBoard = fp.board.match(/../g)!.map((c) => parseCards(c)[0]) as Card[]
     return freeplaySpotFromNode(fp, dealHandForLabel(label, fpBoard), label)
   }
-  // postflop
-  const node = ALL_STREET_NODES.find((n) => n.board === seed.board)
+  // postflop. Prefer the bundled node for this board so a seed rebuilds to the
+  // SAME spot on every client (the daily's postflop rungs are bundled-only);
+  // fall back to the full pool for shard-only boards (e.g. mistake review).
+  const node =
+    BUNDLED_FLOP_NODES.find((n) => n.board === seed.board) ??
+    BUNDLED_TURN_NODES.find((n) => n.board === seed.board) ??
+    ALL_STREET_NODES.find((n) => n.board === seed.board)
   if (!node) return null
   const board = boardCards(node)
   const strat = strategyFor(node, label)
   if (!strat) return null
+  // Rebuild the betting history so the hand-replay animation can play (buildReplay
+  // needs history + board). Flop nodes carry only the preflop lines, so append the
+  // flop marker exactly as generatePostflopSpot does; turn/river nodes already
+  // carry the full street history.
+  const history =
+    node.street === 'flop' ? [...node.history, `Flop: ${node.board.match(/../g)!.join(' ')}`] : node.history
   return {
     mode: 'postflop',
     heroPos: node.hero,
@@ -368,11 +386,13 @@ export function spotFromSeed(seed: SpotSeed): Spot | null {
     board,
     node,
     freqs: strat.freqs,
+    street: node.street,
+    history,
   }
 }
 
-function generatePostflopSpot(): Spot {
-  const node = randOf(FLOP_NODES)
+function generatePostflopSpot(bundledOnly = false): Spot {
+  const node = randOf(bundledOnly ? BUNDLED_FLOP_NODES : FLOP_NODES)
   const board = boardCards(node)
   const label = randOf(nodeLabels(node))
   const cards = dealHandForLabel(label, board)
@@ -465,9 +485,10 @@ export function generateFacingSpot(): Spot | null {
 /** A single-decision spot dealt straight onto the turn, from a solved turn node.
  *  Used by the daily ladder to include turn continuations. Board-driven, so
  *  `spotFromSeed` rebuilds it identically on every client from the seed board. */
-function generateTurnSpot(): Spot {
-  if (!TURN_NODES.length) return generatePostflopSpot()
-  const node = randOf(TURN_NODES)
+function generateTurnSpot(bundledOnly = false): Spot {
+  const pool = bundledOnly ? BUNDLED_TURN_NODES : TURN_NODES
+  if (!pool.length) return generatePostflopSpot(bundledOnly)
+  const node = randOf(pool)
   const board = boardCards(node)
   const label = randOf(nodeLabels(node))
   const cards = dealHandForLabel(label, board)

@@ -308,6 +308,21 @@ export default function DrillScreen({
     judgedRef.current = false
   }, [spot])
 
+  // Daily think-time (the leaderboard tiebreak) should start only once the
+  // question is actually answerable — i.e. after any build-up replay finishes or
+  // is skipped — so the ~2-3s animation isn't charged to the player's time.
+  useEffect(() => {
+    if (ladder && !replaying) qShownAt.current = Date.now()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replaying])
+
+  // Kick off the build-up replay for the FIRST ladder question (subsequent ones
+  // start theirs in next()). Preflop rungs are a no-op inside beginReplay.
+  useEffect(() => {
+    if (ladder) beginReplay(spot)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // load weak categories + mistake count once (skipped in the focused ladder run)
   useEffect(() => {
     if (ladder) return
@@ -398,9 +413,10 @@ export default function DrillScreen({
   }
 
   // Start the animated build-up for a fresh postflop spot; a no-op (and clears
-  // any running replay) when replay is off, mid-ladder/review, or preflop.
+  // any running replay) when replay is off, mid-review, or preflop. It plays in
+  // the daily ladder too (the postflop/OOP rungs), not just free play.
   function beginReplay(s: Spot) {
-    if (ladder || reviewMode || !replayEnabled()) return endReplay()
+    if (reviewMode || !replayEnabled()) return endReplay()
     const frames = buildReplay(s)
     if (!frames) return endReplay()
     setReplayFrames(frames)
@@ -461,11 +477,13 @@ export default function DrillScreen({
         return
       }
       setLadderIndex(nextIndex)
-      setSpot(spotFromSeed(ladder.seeds[nextIndex]) ?? generateSpot('rfi'))
+      const nextSpot = spotFromSeed(ladder.seeds[nextIndex]) ?? generateSpot('rfi')
+      setSpot(nextSpot)
       setResult(null)
       setShowHint(false)
       setHeroAnim(null)
-      qShownAt.current = Date.now()
+      qShownAt.current = Date.now() // baseline; a replay resets it when it ends
+      beginReplay(nextSpot)
       return
     }
     if (reviewMode) {

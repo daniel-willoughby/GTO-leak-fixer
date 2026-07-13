@@ -59,9 +59,14 @@ export function dailyLadderSeeds(day: string): SpotSeed[] {
     LADDER_PLAN.map((r) => {
       // OOP rung: defend a c-bet as the BB (Freeplay data, on every platform).
       // Falls back to a normal postflop spot if Freeplay hasn't loaded yet.
+      // Postflop rungs draw from the BUNDLED corpus only (bundledOnly), so the
+      // 20 daily questions are identical on every client — the native app's
+      // fetched shards never enter the shared daily, which would otherwise make
+      // the leaderboard unfair. OOP rungs use bundled Freeplay data (also shard-
+      // free), so they're already deterministic.
       const spot: Spot =
         (r.oop && generateFreeplaySpot('face_cbet')) ||
-        generateSpot(r.mode, { difficulty: r.difficulty, street: r.street })
+        generateSpot(r.mode, { difficulty: r.difficulty, street: r.street, bundledOnly: true })
       return seedOf(spot)
     }),
   )

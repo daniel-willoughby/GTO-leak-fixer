@@ -58,6 +58,14 @@ function rebuild() {
 }
 rebuild()
 
+// Bundled-only snapshots, frozen at load BEFORE any shard registers. The daily
+// ladder draws its postflop rungs from these so every client builds an
+// IDENTICAL set of daily questions: the shard-enriched native app and the
+// bundled-only PWA agree, which is what keeps the shared leaderboard fair.
+// registerNodes reassigns the FLOP/TURN pools but never touches these consts.
+export const BUNDLED_FLOP_NODES: StreetNode[] = [...FLOP_NODES]
+export const BUNDLED_TURN_NODES: StreetNode[] = [...TURN_NODES]
+
 /** Append fetched shard nodes and rebuild the derived pools. */
 export function registerNodes(nodes: StreetNode[]) {
   if (!nodes?.length) return
