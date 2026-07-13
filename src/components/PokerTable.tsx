@@ -110,20 +110,10 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
     return { pos, coord, status }
   })
 
-  // Heads-up: seat the villain (decision) or the acting non-hero seat (replay)
-  // directly across from the hero so their cards/chips never crowd a side rail.
-  // Keep the villain across throughout the replay too, so the orientation is
-  // stable into the decision instead of jumping seats mid-hand.
-  const TOP_SEAT = 3 // SEATS[3] is the top-centre coordinate
-  const topPos = replay ? (villain?.pos ?? null) : villain?.pos
-  if ((postflop || replay) && topPos) {
-    const vi = seats.findIndex((s) => s.pos === topPos)
-    if (vi !== -1 && vi !== TOP_SEAT) {
-      const villainCoord = seats[vi].coord
-      seats[vi] = { ...seats[vi], coord: seats[TOP_SEAT].coord }
-      seats[TOP_SEAT] = { ...seats[TOP_SEAT], coord: villainCoord }
-    }
-  }
+  // Seats always keep true clockwise position order around the table (hero at
+  // the bottom, UTG clockwise after BB): the villain sits at their real spot
+  // relative to the hero rather than being forced across the top, so the table
+  // never reads "the wrong way round".
 
   // Dealer button puck on the felt next to the BTN seat. When the hero is on
   // the button, the bottom seat shows large hole cards, so park the puck to
@@ -148,14 +138,14 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
   const villainHasBet = !!villain && bets.some((b) => b.pos === villain.pos)
   // Park each chip a uniform distance inboard of its own seat (toward center)
   // so stacks hug their player instead of drifting into the pot or each other.
-  const chipPos = (coord: { left: number; top: number }) => {
+  const chipPos = (coord: { left: number; top: number }, insetOverride?: number) => {
     const dx = 50 - coord.left
     const dy = 50 - coord.top
     const len = Math.hypot(dx, dy) || 1
     // Seats above centre have their pill pushed down by the cards above it, and
     // the chip's inboard direction is straight down, so give top seats extra
     // clearance proportional to how downward the chip travels (none at bottom).
-    const inset = 15 + 7 * Math.max(0, dy / len)
+    const inset = insetOverride ?? 15 + 7 * Math.max(0, dy / len)
     return { left: coord.left + (dx / len) * inset, top: coord.top + (dy / len) * inset }
   }
 
@@ -237,18 +227,14 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
       {/* chips: posted blinds + the raiser's bet, in front of each player */}
       {bets.map((b) => {
         const seat = seats.find((s) => s.pos === b.pos)!
-        // hero (bottom) shows big cards, so park their chip to the left of those
-        // cards; the postflop villain sits up top, so park their bet just above
-        // the central pot (a straight chipPos would land it on the pot). Other
-        // chips hug their own seat.
-        // hero's own blind posts on the felt just above their cards (the only
-        // clear lane: left/right collide with the neighbouring blind's chip)
+        // hero (bottom) shows big cards, so park their chip just above them on
+        // the felt (left/right collide with a neighbouring blind's chip). Every
+        // other seat hugs its own player, with a tighter inset during the replay
+        // so a bet chip never drifts onto the central pot.
         const p =
           b.pos === heroPos
             ? { left: 50, top: 61 }
-            : postflop && villain && b.pos === villain.pos
-              ? { left: 24, top: 28 }
-              : chipPos(seat.coord)
+            : chipPos(seat.coord, replay ? 10 : undefined)
         return (
           <div
             key={`chip-${b.pos}`}
@@ -261,8 +247,9 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
       })}
 
       {/* central pot: compact single-line row (discs + amount) so it fits the
-          narrow band between the villain's tucked cards and the board */}
-      {pot != null && (
+          narrow band between the villain's tucked cards and the board. Hidden at
+          0 (preflop replay, before any street's bets have been swept in). */}
+      {pot != null && pot > 0 && (
         <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-[6] flex items-center gap-1.5" style={{ top: '34%' }}>
           <div className="relative w-5 h-[26px]">
             {[0, 1, 2].map((i) => (

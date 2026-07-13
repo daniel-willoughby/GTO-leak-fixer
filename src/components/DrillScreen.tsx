@@ -65,7 +65,7 @@ import {
   weakCategories,
   type MistakeRecord,
 } from '../lib/db'
-import { playCorrect, playWrong, playDeal, playStreak } from '../lib/sound'
+import { playCorrect, playWrong, playDeal, playStreak, playClick } from '../lib/sound'
 import { equipped } from '../lib/points'
 import { shopItem } from '../lib/shop'
 import PokerTable, { type Chip } from './PokerTable'
@@ -141,7 +141,6 @@ const ACTION_STYLE: Record<Action, string> = {
   'cold-4bet': 'btn btn-primary',
 }
 
-const KEY_HINT: Record<string, string> = { fold: 'F', call: 'C', raise: 'R', '3bet': 'T', check: 'K', bet: 'B', bet33: 'B', bet75: 'V', squeeze: 'S', 'cold-4bet': '4' }
 
 // Two drill sections: Preflop (open / defend situations) and Continuation (play
 // a whole hand street by street). Postflop decisions live inside Continuation.
@@ -407,14 +406,21 @@ export default function DrillScreen({
     setReplaying(false)
   }
 
-  // advance the replay one frame at a time, then reveal the decision
+  // advance the replay one frame at a time, then reveal the decision. Betting
+  // actions linger and play a chip sound to lock the moment in; folds stay quick.
   useEffect(() => {
     if (!replaying || !replayFrames) return
+    const frame = replayFrames[replayIdx]
+    const anim = frame?.action?.anim
+    if (anim === 'chips') playClick() // a bet/raise/call — chips going in
+    else if (!frame?.action && frame?.board?.length) playDeal() // a street was dealt
+    // pacing: dwell on bets (the key decisions), breeze through folds
+    const hold = anim === 'chips' ? 850 : anim === 'muck' ? 360 : anim === 'check' ? 540 : 620
     if (replayIdx >= replayFrames.length - 1) {
-      const t = setTimeout(() => setReplaying(false), 560)
+      const t = setTimeout(() => setReplaying(false), 600)
       return () => clearTimeout(t)
     }
-    const t = setTimeout(() => setReplayIdx((i) => i + 1), 520)
+    const t = setTimeout(() => setReplayIdx((i) => i + 1), hold)
     return () => clearTimeout(t)
   }, [replaying, replayIdx, replayFrames])
 
@@ -1009,10 +1015,7 @@ export default function DrillScreen({
           <div className={`grid w-full gap-3 ${spot.actions.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
             {spot.actions.map((a) => (
               <button key={a} onClick={() => answer(a)} className={`serif py-4 text-lg ${ACTION_STYLE[a]}`}>
-                {ACTION_LABEL[a]}{' '}
-                {/* keyboard shortcut hint: desktop only. Hidden on touch devices
-                    (mobile / the iOS app) where there's no physical keyboard. */}
-                <span className="text-xs opacity-70 [@media(pointer:coarse)]:hidden">({KEY_HINT[a] ?? ''})</span>
+                {ACTION_LABEL[a]}
               </button>
             ))}
           </div>

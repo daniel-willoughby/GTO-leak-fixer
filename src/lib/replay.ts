@@ -65,10 +65,17 @@ export function buildReplay(spot: Spot): ReplayFrame[] | null {
   const inHand = new Set<Position>([hero, villain])
   const folded = new Set<Position>()
   const frames: ReplayFrame[] = []
-  let pot = 1.5 // SB 0.5 + BB 1
+  const chips = new Map<Position, Chip>()
+  // Like real poker: bets sit in front of players during a street; the central
+  // pot only reflects money from COMPLETED streets. It sweeps in at each street
+  // change, so the pot doesn't tick up live with every bet.
+  let potCommitted = 0
+  const sweep = () => {
+    potCommitted += [...chips.values()].reduce((s, c) => s + c.amount, 0)
+    chips.clear()
+  }
   let streetBet = 0
   let seq = 0
-  const chips = new Map<Position, Chip>()
 
   const statusMap = (actor?: Position, actorStatus: SeatStatus = 'active'): Record<Position, SeatStatus> => {
     const out = {} as Record<Position, SeatStatus>
@@ -86,7 +93,7 @@ export function buildReplay(spot: Spot): ReplayFrame[] | null {
     frames.push({
       seatStatus: statusMap(actor, action?.anim === 'muck' ? 'folded' : 'active'),
       chips: [...chips.values()],
-      pot: Math.round(pot * 10) / 10,
+      pot: Math.round(potCommitted * 10) / 10,
       board: [...boardShown],
       action,
       seq: seq++,
@@ -111,7 +118,6 @@ export function buildReplay(spot: Spot): ReplayFrame[] | null {
   }
   // opener opens
   chips.set(opener, { pos: opener, amount: openAmt, tone: 'bet' })
-  pot += openAmt - (opener === 'SB' ? 0.5 : opener === 'BB' ? 1 : 0)
   push({ pos: opener, label: `opens ${openAmt}bb`, anim: 'chips' }, opener)
   // fold everyone between opener and caller
   for (const p of order.slice(actionIndex(opener) + 1)) {
@@ -121,17 +127,16 @@ export function buildReplay(spot: Spot): ReplayFrame[] | null {
     push({ pos: p, label: 'folds', anim: 'muck' }, p)
   }
   // caller calls
-  const already = caller === 'BB' ? 1 : caller === 'SB' ? 0.5 : 0
   chips.set(caller, { pos: caller, amount: openAmt, tone: 'bet' })
-  pot += openAmt - already
   push({ pos: caller, label: 'calls', anim: 'chips' }, caller)
 
   // ---- streets -------------------------------------------------------------
   const streetLines = firstStreet === -1 ? [] : history.slice(firstStreet)
   for (const line of streetLines) {
     if (isStreetMarker(line)) {
-      // collect bets into the pot, deal the next street
-      chips.clear()
+      // street change: sweep the completed round's bets into the central pot,
+      // then deal the next board card(s)
+      sweep()
       streetBet = 0
       const count = /^Flop/i.test(line) ? 3 : /^Turn/i.test(line) ? 4 : 5
       boardShown = board.slice(0, count)
@@ -147,12 +152,10 @@ export function buildReplay(spot: Spot): ReplayFrame[] | null {
       push({ pos: actor, label: labelOf(line, actor) || 'checks', anim: 'check' }, actor)
     } else if (isCall) {
       chips.set(actor, { pos: actor, amount: streetBet, tone: 'bet' })
-      pot += streetBet
       push({ pos: actor, label: 'calls', anim: 'chips' }, actor)
     } else if (amt != null) {
       streetBet = amt
       chips.set(actor, { pos: actor, amount: amt, tone: 'bet' })
-      pot += amt
       push({ pos: actor, label: labelOf(line, actor), anim: 'chips' }, actor)
     }
   }
