@@ -3,6 +3,19 @@
 // leaderboards. Avatar artwork comes later; for now each avatar renders an emoji
 // placeholder (the `art` field), so the economy and UI work end-to-end today.
 
+// Tarot card-back artwork (bottom-row plain designs on the cheap backs, top-row
+// elaborate ones on the dear + legendary backs).
+import deckClassic from '../assets/cardbacks/deck-classic.png'
+import deckMidnight from '../assets/cardbacks/deck-midnight.png'
+import deckEmerald from '../assets/cardbacks/deck-emerald.png'
+import deckSlate from '../assets/cardbacks/deck-slate.png'
+import deckPlum from '../assets/cardbacks/deck-plum.png'
+import deckCandy from '../assets/cardbacks/deck-candy.png'
+import deckRoyal from '../assets/cardbacks/deck-royal.png'
+import deckGold from '../assets/cardbacks/deck-gold.png'
+import deckMirage from '../assets/cardbacks/deck-mirage.png'
+import deckImperial from '../assets/cardbacks/deck-imperial.png'
+
 export type CosmeticType = 'background' | 'flair' | 'avatar' | 'cardback' | 'felt'
 
 export interface ShopItem {
@@ -73,56 +86,56 @@ export const SHOP: ShopItem[] = [
     type: 'cardback',
     name: 'Claret',
     cost: 0,
-    art: 'radial-gradient(circle at 50% 50%, rgba(255,236,210,0.10), transparent 42%), repeating-linear-gradient(45deg, rgba(0,0,0,0.10) 0 5px, transparent 5px 10px), linear-gradient(150deg,#9c4234,#863a2d 48%,#6f2f25)',
+    art: `url(\"${deckClassic}\") center / cover no-repeat`,
   },
   {
     id: 'deck-midnight',
     type: 'cardback',
     name: 'Midnight weave',
     cost: 300,
-    art: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08), transparent 45%), repeating-linear-gradient(-45deg, rgba(255,255,255,0.05) 0 6px, transparent 6px 12px), linear-gradient(150deg,#2b3a63,#1d2747 48%,#141b33)',
+    art: `url(\"${deckMidnight}\") center / cover no-repeat`,
   },
   {
     id: 'deck-emerald',
     type: 'cardback',
     name: 'Emerald weave',
     cost: 300,
-    art: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08), transparent 45%), repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 0 6px, transparent 6px 12px), linear-gradient(150deg,#2f6d54,#245742 48%,#173a2c)',
+    art: `url(\"${deckEmerald}\") center / cover no-repeat`,
   },
   {
     id: 'deck-slate',
     type: 'cardback',
     name: 'Slate pinstripe',
     cost: 400,
-    art: 'repeating-linear-gradient(60deg, rgba(255,255,255,0.08) 0 1px, transparent 1px 7px), linear-gradient(150deg,#3a4048,#2a2f36 48%,#1c2026)',
+    art: `url(\"${deckSlate}\") center / cover no-repeat`,
   },
   {
     id: 'deck-plum',
     type: 'cardback',
     name: 'Plum argyle',
     cost: 450,
-    art: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.07) 0 7px, transparent 7px 14px), repeating-linear-gradient(-45deg, rgba(255,255,255,0.07) 0 7px, transparent 7px 14px), linear-gradient(150deg,#6d4a6b,#4f3450 48%,#33213a)',
+    art: `url(\"${deckPlum}\") center / cover no-repeat`,
   },
   {
     id: 'deck-candy',
     type: 'cardback',
     name: 'Bubblegum dots',
     cost: 600,
-    art: 'radial-gradient(circle, rgba(255,255,255,0.16) 1.5px, transparent 2px) 0 0 / 9px 9px, linear-gradient(150deg,#c45a7a,#a23f60 48%,#7c2c47)',
+    art: `url(\"${deckCandy}\") center / cover no-repeat`,
   },
   {
     id: 'deck-royal',
     type: 'cardback',
     name: 'Royal cross',
     cost: 700,
-    art: 'conic-gradient(from 45deg at 50% 50%, rgba(255,255,255,0.10), transparent 25%, rgba(255,255,255,0.10) 50%, transparent 75%, rgba(255,255,255,0.10)), linear-gradient(150deg,#7d2c3a,#5a1f2b 48%,#3c1620)',
+    art: `url(\"${deckRoyal}\") center / cover no-repeat`,
   },
   {
     id: 'deck-gold',
     type: 'cardback',
     name: 'Gold medallion',
     cost: 1000,
-    art: 'radial-gradient(circle at 50% 50%, rgba(255,245,200,0.50) 0 8%, rgba(255,245,200,0) 11%), radial-gradient(circle at 50% 50%, rgba(0,0,0,0.20) 36%, transparent 38%), linear-gradient(150deg,#caa24c,#a8812f 48%,#7c5d1f)',
+    art: `url(\"${deckGold}\") center / cover no-repeat`,
   },
   // store-exclusive legendary card backs (buyable only, never dropped from loot)
   {
@@ -131,7 +144,7 @@ export const SHOP: ShopItem[] = [
     name: 'Mirage',
     cost: 6000,
     legendary: true,
-    art: 'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.18), transparent 55%), conic-gradient(from 0deg at 50% 50%, #b16a52, #c79a4a 25%, #5b7461 50%, #3a5a8c 75%, #b16a52)',
+    art: `url(\"${deckMirage}\") center / cover no-repeat`,
   },
   {
     id: 'deck-imperial',
@@ -139,7 +152,7 @@ export const SHOP: ShopItem[] = [
     name: 'Imperial',
     cost: 9000,
     legendary: true,
-    art: 'radial-gradient(circle at 50% 50%, rgba(255,228,150,0.65) 0 7%, transparent 9%), repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,215,120,0.18) 0 6deg, transparent 6deg 30deg), linear-gradient(150deg,#3a2f17,#1c160a)',
+    art: `url(\"${deckImperial}\") center / cover no-repeat`,
   },
 
   // ---- ultra-rare specials (loot-box only, ~2% pull; never buyable) ----
