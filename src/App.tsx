@@ -15,6 +15,7 @@ import AccountModal from './components/AccountModal'
 import PwaUpdater from './components/PwaUpdater'
 import { isMuted, setMuted } from './lib/sound'
 import { hapticsEnabled, setHaptics, haptic } from './lib/haptics'
+import { replayEnabled, setReplayEnabled } from './lib/replay'
 import { getLevel, setLevel, type Level } from './lib/level'
 import { supabaseConfigured } from './lib/supabase'
 import { useAuth } from './lib/useAuth'
@@ -111,6 +112,7 @@ export default function App() {
   const [progress, setProgress] = useState(0)
   const [muted, setMutedState] = useState(isMuted())
   const [haptics, setHapticsState] = useState(hapticsEnabled())
+  const [replay, setReplayState] = useState(replayEnabled())
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null)
   const [openLessonId, setOpenLessonId] = useState<string | null>(null)
   const [difficulty, setDifficulty] = useState<Difficulty>(
@@ -450,6 +452,12 @@ export default function App() {
     if (v) haptic('success') // confirm the device actually buzzes
   }
 
+  function toggleReplay() {
+    const v = !replay
+    setReplayEnabled(v)
+    setReplayState(v)
+  }
+
   function pickDifficulty(d: Difficulty) {
     setDifficulty(d)
     localStorage.setItem('lt-difficulty', d)
@@ -570,6 +578,7 @@ export default function App() {
               <div className="flex flex-col gap-1">
                 <ToggleRow label="Sound" on={!muted} onClick={toggleMute} />
                 <ToggleRow label="Haptics" sub="On supported phones" on={haptics} onClick={toggleHaptics} />
+                <ToggleRow label="Hand replay" sub="Animate how postflop spots arose" on={replay} onClick={toggleReplay} />
               </div>
             </div>
           </>

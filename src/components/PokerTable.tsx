@@ -9,6 +9,16 @@ export interface Chip {
   tone: ChipTone
 }
 
+/** One frame of a hand replay: explicit seat statuses + the acting seat. */
+export interface ReplayFrame {
+  seatStatus: Record<Position, 'hero' | 'active' | 'folded' | 'waiting'>
+  chips: Chip[]
+  pot: number
+  board: Card[]
+  action?: { pos: Position; label: string; anim: 'muck' | 'chips' | 'check' }
+  seq: number
+}
+
 interface Props {
   heroPos: Position
   heroCards: [Card, Card]
@@ -28,6 +38,9 @@ interface Props {
   cardBack?: string
   /** CSS gradient for the felt surface (equipped "felt"). */
   felt?: string
+  /** When set, the table renders this replay frame instead of the decision
+      snapshot: explicit seat statuses, evolving chips/pot/board, per-seat action. */
+  replay?: ReplayFrame | null
 }
 
 const DEFAULT_CARD_BACK = 'linear-gradient(150deg, #9c4234 0%, #863a2d 48%, #6f2f25 100%)'
@@ -70,8 +83,14 @@ const SEAT_CLASS: Record<Status, string> = {
   waiting: 'bg-[#33423a] text-white border-[#283228] shadow-[0_2px_6px_rgba(34,31,25,0.25)]',
 }
 
-export default function PokerTable({ heroPos, heroCards, raiserPos, activePots = [], chips = [], pot, board, villain, heroAnim, cardBack = DEFAULT_CARD_BACK, felt = DEFAULT_FELT }: Props) {
+export default function PokerTable({ heroPos, heroCards, raiserPos, activePots = [], chips = [], pot, board, villain, heroAnim, cardBack = DEFAULT_CARD_BACK, felt = DEFAULT_FELT, replay = null }: Props) {
   const heroIdx = actionIndex(heroPos)
+  // In replay mode the caller drives chips/pot/board/statuses directly.
+  if (replay) {
+    chips = replay.chips
+    pot = replay.pot
+    board = replay.board.length ? replay.board : undefined
+  }
   const postflop = !!board
   // When a player still in the pot sits AFTER the hero in betting order, the
   // hand has been (re-)raised and folded back around to the hero, so the hero
@@ -82,7 +101,8 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
   const seats = SEATS.map((coord, i) => {
     const pos = POSITION_ORDER[(heroIdx + i) % POSITION_ORDER.length]
     let status: Status = 'waiting'
-    if (pos === heroPos) status = 'hero'
+    if (replay) status = replay.seatStatus[pos]
+    else if (pos === heroPos) status = 'hero'
     else if (postflop) status = pos === villain?.pos ? 'active' : 'folded'
     else if (pos === raiserPos) status = 'raiser'
     else if (activePots.includes(pos)) status = 'active'
@@ -90,13 +110,14 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
     return { pos, coord, status }
   })
 
-  // Heads-up postflop: seat the single active villain directly across from the
-  // hero (the top coordinate) so their cards, pill and bet never crowd a side
-  // rail, whatever their real position. Swap coords with whoever sits up top;
-  // the displaced seat is folded (a bare greyed pill), so it travels fine.
+  // Heads-up: seat the villain (decision) or the acting non-hero seat (replay)
+  // directly across from the hero so their cards/chips never crowd a side rail.
+  // Keep the villain across throughout the replay too, so the orientation is
+  // stable into the decision instead of jumping seats mid-hand.
   const TOP_SEAT = 3 // SEATS[3] is the top-centre coordinate
-  if (postflop && villain) {
-    const vi = seats.findIndex((s) => s.pos === villain.pos)
+  const topPos = replay ? (villain?.pos ?? null) : villain?.pos
+  if ((postflop || replay) && topPos) {
+    const vi = seats.findIndex((s) => s.pos === topPos)
     if (vi !== -1 && vi !== TOP_SEAT) {
       const villainCoord = seats[vi].coord
       seats[vi] = { ...seats[vi], coord: seats[TOP_SEAT].coord }
@@ -207,7 +228,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
           {/* villain action note (e.g. "checks"); skipped when a bet chip
               already conveys it, and on the top seat where the tucked cards
               need the room (the prompt text states the action anyway) */}
-          {status === 'active' && villain && !villainHasBet && coord.top >= 15 && (
+          {!replay && status === 'active' && villain && !villainHasBet && coord.top >= 15 && (
             <span className="font-table text-[10px] text-white/80 font-semibold">{villain.note}</span>
           )}
         </div>
@@ -294,6 +315,36 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
           )}
         </div>
       )}
+
+      {/* replay: acting-seat action label + a card-muck when a seat folds */}
+      {replay?.action && (() => {
+        const seat = seats.find((s) => s.pos === replay.action!.pos)
+        if (!seat) return null
+        const { left, top } = seat.coord
+        const labelTop = top < 50 ? top + 13 : top - 14
+        return (
+          <>
+            {replay.action!.anim === 'muck' && (
+              <div
+                key={`muck-${replay.seq}`}
+                className="absolute -translate-x-1/2 -translate-y-1/2 z-[8] pointer-events-none animate-muck-out flex gap-1"
+                style={{ left: `${left}%`, top: `${top - 8}%` }}
+              >
+                <CardBack bg={cardBack} /><CardBack bg={cardBack} />
+              </div>
+            )}
+            <div
+              key={`lbl-${replay.seq}`}
+              className="absolute -translate-x-1/2 -translate-y-1/2 z-[9] pointer-events-none animate-pop"
+              style={{ left: `${left}%`, top: `${labelTop}%` }}
+            >
+              <span className="font-table text-[9px] font-semibold text-white bg-[#3a352b]/85 px-1.5 py-0.5 rounded whitespace-nowrap">
+                {replay.action!.label}
+              </span>
+            </div>
+          </>
+        )
+      })()}
 
       {/* dealer button puck on the felt */}
       <div

@@ -51,6 +51,8 @@ import { respondMultiway } from '../data/multiway'
 import { strategyFor } from '../data/postflop'
 import { FREEPLAY_READY } from '../data/freeplay'
 import { isPro, postflopLeft, consumePostflop } from '../lib/pro'
+import { buildReplay, replayEnabled } from '../lib/replay'
+import type { ReplayFrame } from './PokerTable'
 import Paywall from './Paywall'
 import {
   dueMistakes,
@@ -285,6 +287,10 @@ export default function DrillScreen({
   const [reviewMode, setReviewMode] = useState(false)
   // native-only Pro gate (isPro() is always true on the web/PWA)
   const [paywall, setPaywall] = useState(false)
+  // hand replay: the animated build-up shown before a fresh postflop decision
+  const [replayFrames, setReplayFrames] = useState<ReplayFrame[] | null>(null)
+  const [replayIdx, setReplayIdx] = useState(0)
+  const [replaying, setReplaying] = useState(false)
   const [mistakeBadge, setMistakeBadge] = useState(0)
   const [confirmClear, setConfirmClear] = useState(false) // two-tap guard for "clear all"
   // daily ladder run state
@@ -308,12 +314,13 @@ export default function DrillScreen({
 
   // re-deal when difficulty changes (unless mid-feedback, reviewing, lesson, or ladder)
   useEffect(() => {
-    if (!reviewMode && !result && !lesson && !ladder)
-      setSpot(
-        fullHand
-          ? generateSpot('rfi', { lockPos: 'BTN', focus: focusOn ? focusCats : undefined, difficulty })
-          : generateSpot(mode, { focus: focusOn ? focusCats : undefined, lockPos: focusPos ?? undefined, difficulty }),
-      )
+    if (!reviewMode && !result && !lesson && !ladder) {
+      const fresh = fullHand
+        ? generateSpot('rfi', { lockPos: 'BTN', focus: focusOn ? focusCats : undefined, difficulty })
+        : generateSpot(mode, { focus: focusOn ? focusCats : undefined, lockPos: focusPos ?? undefined, difficulty })
+      setSpot(fresh)
+      beginReplay(fresh)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [difficulty])
 
@@ -331,19 +338,19 @@ export default function DrillScreen({
     setMode(nextMode)
     setFullHand(fh)
     setStreak(0)
-    setSpot(
-      fh
-        ? generateSpot('rfi', { lockPos: 'BTN', focus: cats.size > 0 ? cats : undefined, difficulty }) // Continuation starts preflop on the button
-        : generateSpot(nextMode, {
-            focus: cats.size > 0 ? cats : undefined,
-            lockPos: lockPos ?? undefined,
-            difficulty,
-          }),
-    )
+    const fresh = fh
+      ? generateSpot('rfi', { lockPos: 'BTN', focus: cats.size > 0 ? cats : undefined, difficulty }) // Continuation starts preflop on the button
+      : generateSpot(nextMode, {
+          focus: cats.size > 0 ? cats : undefined,
+          lockPos: lockPos ?? undefined,
+          difficulty,
+        })
+    setSpot(fresh)
     setResult(null)
     setCanContinue(false)
     setShowHint(false)
     onFocusConsumed?.()
+    beginReplay(fresh)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestFocus])
 
@@ -378,7 +385,38 @@ export default function DrillScreen({
     setCanContinue(false)
     setShowHint(false)
     playDeal()
+    beginReplay(fresh)
   }
+
+  // Start the animated build-up for a fresh postflop spot; a no-op (and clears
+  // any running replay) when replay is off, mid-ladder/review, or preflop.
+  function beginReplay(s: Spot) {
+    if (ladder || reviewMode || !replayEnabled()) return endReplay()
+    const frames = buildReplay(s)
+    if (!frames) return endReplay()
+    setReplayFrames(frames)
+    setReplayIdx(0)
+    setReplaying(true)
+  }
+  function endReplay() {
+    setReplaying(false)
+    setReplayFrames(null)
+  }
+  function skipReplay() {
+    if (replaying && replayFrames) setReplayIdx(replayFrames.length - 1)
+    setReplaying(false)
+  }
+
+  // advance the replay one frame at a time, then reveal the decision
+  useEffect(() => {
+    if (!replaying || !replayFrames) return
+    if (replayIdx >= replayFrames.length - 1) {
+      const t = setTimeout(() => setReplaying(false), 560)
+      return () => clearTimeout(t)
+    }
+    const t = setTimeout(() => setReplayIdx((i) => i + 1), 520)
+    return () => clearTimeout(t)
+  }, [replaying, replayIdx, replayFrames])
 
   function dealReview(queue: MistakeRecord[]) {
     // find the first seed that still produces a valid spot
@@ -503,6 +541,9 @@ export default function DrillScreen({
             : null
     freeplayCont.current = null
     if (!continuation) return next()
+    // a continuation stays in the same hand, so no build-up replay (the player
+    // just watched it play out); jump straight to the new street's decision.
+    endReplay()
     setSpot(continuation)
     setResult(null)
     setCanContinue(false)
@@ -622,6 +663,7 @@ export default function DrillScreen({
   const history = spot.handState?.history ?? spot.history ?? []
   const street = spot.handState?.street ?? spot.street
   const prompt = promptFor(spot, level)
+  const replayFrame = replaying && replayFrames ? replayFrames[replayIdx] : null
   // matchup label for the table header (Freeplay can be any opener vs BB)
   const postflopLabel =
     spot.freeplay && spot.villainPos
@@ -880,12 +922,13 @@ export default function DrillScreen({
       <div className="w-full flex flex-col items-center gap-3 lg:grid lg:grid-cols-2 lg:gap-8 lg:items-start">
         {/* table column */}
         <div className="w-full flex flex-col items-center gap-3">
-      {/* one line: matchup label · betting history (scrolls) · streak */}
+      {/* one line: matchup label · betting history (scrolls) · streak. The
+          scrolling history is hidden during the replay (the animation shows it). */}
       <div className="flex items-center justify-between w-full gap-2 text-sm">
         <span className="text-ink2 whitespace-nowrap shrink-0 text-xs">
           {spot.mode === 'postflop' ? postflopLabel : '100bb · 6-max cash'}
         </span>
-        {history.length > 0 && (
+        {history.length > 0 && !replayFrame && (
           <div className="min-w-0 flex-1">
             <HandHistory history={history} />
           </div>
@@ -928,10 +971,21 @@ export default function DrillScreen({
             : undefined
         }
         heroAnim={result ? heroAnim : null}
+        replay={replayFrame}
       />
+      {/* replay: tap anywhere below the table to skip to the decision */}
+      {replayFrame && (
+        <button
+          onClick={skipReplay}
+          className="mt-1 text-xs font-semibold text-ink3 hover:text-ink2 transition"
+        >
+          Tap to skip ›
+        </button>
+      )}
         </div>
 
-        {/* decision column */}
+        {/* decision column (hidden while the hand replay plays) */}
+        {!replayFrame && (
         <div className="w-full flex flex-col items-center gap-3">
       <p className="serif text-ink text-[17px] lg:text-xl text-center leading-snug px-2">{prompt}</p>
 
@@ -1017,6 +1071,7 @@ export default function DrillScreen({
       )}
 
         </div>
+        )}
       </div>
     </div>
   )
