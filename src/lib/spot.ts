@@ -13,6 +13,7 @@ import { MULTIWAY_MATCHUPS, respondMultiway } from '../data/multiway'
 import {
   ALL_NODES as ALL_STREET_NODES,
   FLOP_NODES,
+  FACING_NODES,
   TURN_NODES,
   hasRiver,
   nodeLabels,
@@ -34,7 +35,10 @@ import {
 } from '../data/freeplay'
 import type { Level } from './level'
 
-export type Action = 'fold' | 'raise' | 'call' | '3bet' | 'check' | 'bet' | 'bet33' | 'bet75' | 'squeeze' | 'cold-4bet'
+export type Action =
+  | 'fold' | 'raise' | 'call' | '3bet' | 'check' | 'bet' | 'bet33' | 'bet75' | 'squeeze' | 'cold-4bet'
+  // richer postflop sizes from the sharded corpus (barrels + overbets)
+  | 'bet66' | 'bet125' | 'bet150' | 'bet175'
 export type DrillMode = 'rfi' | 'vsRfi' | 'multiway' | 'postflop'
 
 export const ACTION_LABEL: Record<Action, string> = {
@@ -46,6 +50,10 @@ export const ACTION_LABEL: Record<Action, string> = {
   bet: 'Bet',
   bet33: 'Bet ⅓',
   bet75: 'Bet ¾',
+  bet66: 'Bet ⅔',
+  bet125: 'Overbet 1.25×',
+  bet150: 'Overbet 1.5×',
+  bet175: 'Overbet 1.75×',
   squeeze: 'Squeeze',
   'cold-4bet': '4-Bet',
 }
@@ -81,6 +89,10 @@ export interface Spot {
   history?: string[]
   /** The originating Freeplay node, so a flop spot can advance to its turn. */
   fpNode?: FreeplayNode
+  /** Facing-line drill: the villain's non-standard action (donk lead, overbet,
+   *  check-raise) or 'first' when the hero is OOP first to act. Drives the
+   *  prompt/explanation for the "respond to a non-GTO move" spots. */
+  facingTag?: string
 }
 
 /** Who the continuation opponent is: solver-perfect, or a loose live-game fish. */
@@ -371,6 +383,67 @@ function generatePostflopSpot(): Spot {
     node,
     freqs: strat.freqs,
     handState,
+  }
+}
+
+/** The villain's bet size (bb) from a facing node's last history line. The
+ *  check-raise line carries no amount, so estimate it as ~3x the bet it raised. */
+function facingAmount(node: StreetNode): number {
+  const h = node.history ?? []
+  const last = h[h.length - 1] ?? ''
+  const m = last.match(/([\d.]+)\s*bb/)
+  if (m) return parseFloat(m[1])
+  if (/raise/i.test(last)) {
+    const prev = h[h.length - 2] ?? ''
+    const pm = prev.match(/([\d.]+)\s*bb/)
+    if (pm) return Math.round(parseFloat(pm[1]) * 3)
+  }
+  return 0
+}
+
+/**
+ * A "respond to a non-GTO move" drill from the rich sharded corpus: facing a
+ * donk lead, an overbet, or a check-raise (fold/call/raise), or the hero OOP
+ * first to act (check/lead). Returns null until the shards have loaded
+ * (FACING_NODES is empty on the bundled corpus / the web PWA).
+ */
+export function generateFacingSpot(): Spot | null {
+  if (!FACING_NODES.length) return null
+  // some nodes degenerate to a single option (e.g. a board where BB never
+  // leads → only 'check'); those make a pointless one-button drill, so retry.
+  let node: StreetNode | null = null
+  for (let tries = 0; tries < 10; tries++) {
+    const n = randOf(FACING_NODES)
+    if (n.actions.length >= 2) {
+      node = n
+      break
+    }
+  }
+  if (!node) return null
+  const labels = nodeLabels(node)
+  if (!labels.length) return null
+  const label = randOf(labels)
+  const strat = strategyFor(node, label)
+  if (!strat) return null
+  const board = boardCards(node)
+  const cards = dealHandForLabel(label, board)
+  const isDefense = node.actions[0] === 'fold' // ['fold','call','raise']
+  return {
+    mode: 'postflop',
+    heroPos: node.hero,
+    villainPos: node.villain,
+    cards,
+    label,
+    correct: strat.primary as Action,
+    actions: node.actions as Action[],
+    category: classifyHand(label),
+    board,
+    node,
+    freqs: strat.freqs,
+    street: node.street,
+    history: node.history,
+    facingTag: node.facing,
+    facingBet: isDefense ? { amountBb: facingAmount(node) } : undefined,
   }
 }
 
@@ -733,6 +806,10 @@ const FP_VERB: Partial<Record<Action, string>> = {
   check: 'check',
   bet33: 'bet small (⅓)',
   bet75: 'bet big (¾)',
+  bet66: 'bet (⅔)',
+  bet125: 'overbet (1.25×)',
+  bet150: 'overbet (1.5×)',
+  bet175: 'overbet (1.75×)',
 }
 
 /** GTO explanation for an all-seats Freeplay spot, reports the solver's mix. */
@@ -772,6 +849,9 @@ function tensInLabel(text: string, label?: string): string {
 }
 
 function explainRaw(spot: Spot, chosen: Action, level: Level): string {
+  // facing-line drills (donk/overbet/check-raise/first): report the solver's
+  // actual mix, same as Freeplay — this is exactly "here's how to respond".
+  if (spot.facingTag) return explainFreeplay(spot, chosen)
   if (spot.freeplay) return explainFreeplay(spot, chosen)
   if (spot.facingBet) return explainFacingBet(spot, chosen, level)
   if (level === 'beginner') {
@@ -816,9 +896,33 @@ function explainFacingBet(spot: Spot, chosen: Action, level: Level): string {
 // ---------- beginner copy (plain language, [term] glossary markers) ----------
 
 /** Prompt shown above the action buttons, phrased for the chosen level. */
+/** Prompt for a facing-line drill (respond to a donk / overbet / check-raise,
+ *  or act first OOP). */
+function facingPrompt(spot: Spot): string {
+  const st = spot.street ?? 'flop'
+  const where = st === 'river' ? 'the river' : st === 'turn' ? 'the turn' : 'the flop'
+  const tag = spot.facingTag ?? ''
+  const amt = spot.facingBet?.amountBb
+  if (tag === 'first') return `You're first to act on ${where}, out of position. Bet or check?`
+  const villain = spot.villainPos ?? 'They'
+  const action = tag.startsWith('overbet')
+    ? `slams an overbet of ${amt}bb into you`
+    : tag.startsWith('donk')
+      ? `leads ${amt}bb into you`
+      : tag === 'checkraise'
+        ? `check-raises you to ${amt}bb`
+        : tag.startsWith('cbet')
+          ? `c-bets ${amt}bb`
+          : tag.startsWith('barrel')
+            ? `barrels ${amt}bb`
+            : `bets ${amt}bb`
+  return `${villain} ${action} on ${where}. Fold, call, or raise?`
+}
+
 export function promptFor(spot: Spot, level: Level): string {
   const street = spot.handState?.street
   const mwDesc = multiwayOf(spot)?.description ?? 'What do you do?'
+  if (spot.facingTag) return facingPrompt(spot)
   if (spot.facingBet) {
     const st = spot.street ?? street
     const where = st === 'river' ? ' on the river' : st === 'turn' ? ' on the turn' : ''

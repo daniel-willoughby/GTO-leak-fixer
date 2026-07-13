@@ -22,6 +22,7 @@ import {
   canStartFlop,
   continueFreeplaySpot,
   generateFreeplaySpot,
+  generateFacingSpot,
   generateSpot,
   judge,
   multiwayOf,
@@ -137,6 +138,10 @@ const ACTION_STYLE: Record<Action, string> = {
   bet: 'btn btn-primary',
   bet33: 'btn btn-primary',
   bet75: 'btn btn-primary',
+  bet66: 'btn btn-primary',
+  bet125: 'btn btn-primary',
+  bet150: 'btn btn-primary',
+  bet175: 'btn btn-primary',
   squeeze: 'btn btn-primary',
   'cold-4bet': 'btn btn-primary',
 }
@@ -367,7 +372,12 @@ export default function DrillScreen({
     // random seat / node type. vs Fish (or no data) keeps the play-a-hand flow.
     // `vs` is passed explicitly on a mode switch, since setVillainStyle hasn't
     // applied yet when this runs synchronously after it.
-    const fp = fh && vs === 'gto' && FREEPLAY_READY ? generateFreeplaySpot() : null
+    // ~40% of the time (when the rich shards have loaded) deal a "respond to a
+    // non-GTO move" spot instead: facing a donk lead, an overbet, a check-raise,
+    // or acting first out of position. generateFacingSpot returns null on the
+    // bundled corpus, so this is a no-op until shards arrive.
+    const facing = fh && vs === 'gto' && Math.random() < 0.4 ? generateFacingSpot() : null
+    const fp = facing ?? (fh && vs === 'gto' && FREEPLAY_READY ? generateFreeplaySpot() : null)
     const fresh = lesson
       ? lessonSpot(lesson, scopeOpts)
       : fp
@@ -1053,7 +1063,7 @@ export default function DrillScreen({
             )}
           </div>
           {/* range grid, needs a StreetNode; hidden for facing-bet + all-seats Freeplay spots */}
-          {!spot.facingBet && !spot.freeplay && (
+          {!spot.facingBet && !spot.freeplay && !spot.facingTag && (
             <div className="w-full">
               <p className="text-xs text-ink2 mb-2 text-center">
                 {gridLabel}:&nbsp;
