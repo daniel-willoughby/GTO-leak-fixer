@@ -30,3 +30,9 @@ dist-zen/
 solver-spike/.street-nodes.staging.json
 solver-spike/.accum-flopturn.json
 solver-spike/.accum-*.json
+
+# Large sharded postflop corpus: generated locally by solver-spike/promote-shards.mjs
+# before a native build. The app loader no-ops without it (bundled slim corpus
+# stays the base), so a clone works without these.
+public/postflop-shards/
+ios/App/App/public/postflop-shards/

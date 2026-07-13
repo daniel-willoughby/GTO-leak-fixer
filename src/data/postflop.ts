@@ -25,10 +25,48 @@ export interface StreetNode {
   meta: { solver: string; generatedAt: string; approximate?: boolean }
 }
 
-export const ALL_NODES: StreetNode[] = rawNodes as unknown as StreetNode[]
-export const FLOP_NODES = ALL_NODES.filter((n) => n.street === 'flop')
-export const TURN_NODES = ALL_NODES.filter((n) => n.street === 'turn')
-export const RIVER_NODES = ALL_NODES.filter((n) => n.street === 'river')
+// The bundled slim corpus is the always-available base; the native app grows
+// this at runtime from fetched shards (see postflopLoader.ts). Everything is
+// derived from `_raw` via rebuild(); the exported arrays are `let` so ES live
+// bindings carry updates to importers without any re-import.
+let _raw: StreetNode[] = rawNodes as unknown as StreetNode[]
+
+const nodeKey = (n: StreetNode) => `${n.board}|${n.street}|${n.hero}|${n.facing}|${(n.history ?? []).join('/')}`
+// The legacy spot generator only understands hero-BTN c-bet/barrel/bet nodes
+// (facing 'check'). The rich shards also carry BB-defender and facing-donk/
+// overbet nodes; those are quarantined in FACING_NODES until the facing drills
+// consume them, so they never get dealt as an ordinary c-bet decision.
+const isLegacyPlayable = (n: StreetNode) => n.hero === 'BTN' && (n.facing === 'check' || n.facing === 'none')
+
+export let ALL_NODES: StreetNode[] = []
+export let FLOP_NODES: StreetNode[] = []
+export let TURN_NODES: StreetNode[] = []
+export let RIVER_NODES: StreetNode[] = []
+/** Rich BB / facing-donk / facing-overbet nodes, for the facing-line drills. */
+export let FACING_NODES: StreetNode[] = []
+
+function rebuild() {
+  // dedup by full key; a shard node overrides the bundled one for the same spot
+  const map = new Map<string, StreetNode>()
+  for (const n of _raw) map.set(nodeKey(n), n)
+  const nodes = [...map.values()]
+  ALL_NODES = nodes.filter(isLegacyPlayable)
+  FLOP_NODES = ALL_NODES.filter((n) => n.street === 'flop')
+  TURN_NODES = ALL_NODES.filter((n) => n.street === 'turn')
+  RIVER_NODES = ALL_NODES.filter((n) => n.street === 'river')
+  FACING_NODES = nodes.filter((n) => !isLegacyPlayable(n))
+}
+rebuild()
+
+/** Append fetched shard nodes and rebuild the derived pools. */
+export function registerNodes(nodes: StreetNode[]) {
+  if (!nodes?.length) return
+  _raw = _raw.concat(nodes)
+  rebuild()
+}
+
+/** Distinct flop boards currently available to deal (grows as shards load). */
+export const postflopBoardCount = () => new Set(FLOP_NODES.map((n) => n.board)).size
 
 /** All turn nodes whose first 6 board chars match a given flop. */
 export function turnNodesForFlop(flop: string): StreetNode[] {

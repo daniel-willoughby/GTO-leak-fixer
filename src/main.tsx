@@ -12,10 +12,16 @@ import './index.css'
 import App from './App.tsx'
 import { loadFreeplayNodes } from './data/freeplay'
 import { initNative } from './lib/native'
+import { initPostflopShards } from './data/postflopLoader'
 
 // Fetch the all-seats Freeplay dataset in the background; until it lands,
 // vs-GTO Freeplay falls back to the other generators.
 void loadFreeplayNodes()
+
+// Native app: progressively fold in the big sharded postflop corpus so the
+// drill pool grows well beyond the bundled slim set. No-op on the web PWA
+// (unless localStorage lt-shards='1' for testing).
+void initPostflopShards()
 
 // Native shell (Capacitor): style the status bar + dismiss the splash. No-op on web.
 void initNative()
