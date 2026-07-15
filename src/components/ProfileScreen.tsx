@@ -38,14 +38,19 @@ interface Props {
   onSignIn: () => void
   /** Bump app progress so PP/cosmetics refresh elsewhere. */
   onChanged: () => void
+  /** Pin the screen to one section and hide the profile header + section
+   *  switch. The bottom-nav Shop tab renders <ProfileScreen only="shop" />,
+   *  reusing all the buy/sell/loot state without a second component. */
+  only?: 'shop'
 }
 
 type Section = 'achievements' | 'leaderboards' | 'friends' | 'shop'
+// The Shop lives on its own bottom-nav tab now, so the profile's own switch
+// offers just the three profile-ish sections.
 const SECTIONS: { id: Section; label: string }[] = [
   { id: 'achievements', label: 'Achievements' },
   { id: 'leaderboards', label: 'Leaderboards' },
   { id: 'friends', label: 'Friends' },
-  { id: 'shop', label: 'Shop' },
 ]
 
 // the Leaderboards tab switches between these boards with a sub-toggle
@@ -58,8 +63,11 @@ const BOARD_MODES: { id: BoardMode; label: string }[] = [
 
 const GROUPS: Achievement['group'][] = ['Volume', 'Accuracy', 'Streaks', 'Duels', 'Learning', 'Collection']
 
-export default function ProfileScreen({ version, configured, userId, onSignIn, onChanged }: Props) {
-  const [section, setSection] = useStickyState<Section>('lt-ui-profile-section', 'achievements')
+export default function ProfileScreen({ version, configured, userId, onSignIn, onChanged, only }: Props) {
+  const [storedSection, setSection] = useStickyState<Section>('lt-ui-profile-section', 'achievements')
+  // `only` pins the section (the standalone Shop tab). A stored 'shop' from
+  // before the Shop moved to its own tab falls back to Achievements.
+  const section: Section = only ?? (storedSection === 'shop' ? 'achievements' : storedSection)
   const [boardMode, setBoardMode] = useStickyState<BoardMode>('lt-ui-profile-board', 'daily')
   const [items, setItems] = useState<Achievement[] | null>(null)
   const [balance, setBalance] = useState(0)
@@ -238,7 +246,8 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
 
   return (
     <div className="px-4 pb-28 pt-6 max-w-xl lg:max-w-2xl mx-auto flex flex-col gap-5">
-      {/* profile header */}
+      {/* profile header (hidden on the standalone Shop tab) */}
+      {!only && (
       <div
         className="relative overflow-hidden rounded-3xl border border-line p-5"
         style={{ background: undefined }}
@@ -271,8 +280,10 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
           </div>
         </div>
       </div>
+      )}
 
-      {/* section switch, four tabs share the bar evenly (flex-1 each) */}
+      {/* section switch, three tabs share the bar evenly (hidden when pinned) */}
+      {!only && (
       <div className="flex gap-1 rounded-2xl border border-line bg-ink/[0.06] p-1 text-sm">
         {SECTIONS.map((s) => (
           <button
@@ -286,6 +297,7 @@ export default function ProfileScreen({ version, configured, userId, onSignIn, o
           </button>
         ))}
       </div>
+      )}
 
       {section === 'achievements' && (
         <>

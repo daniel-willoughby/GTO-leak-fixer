@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Spade, Target, GraduationCap, User, CalendarCheck, Swords, Volume2, VolumeX, SlidersHorizontal, Cloud, X, Coins, type LucideIcon } from 'lucide-react'
+import { Spade, Target, GraduationCap, User, CalendarCheck, Swords, ShoppingBag, Volume2, VolumeX, SlidersHorizontal, Cloud, X, Coins, type LucideIcon } from 'lucide-react'
 import DrillScreen, { type LadderRun } from './components/DrillScreen'
 import { Wordmark } from './components/Wordmark'
 import DailyChallengeCard from './components/DailyChallengeCard'
@@ -47,7 +47,7 @@ import { DEFAULT_AVATAR } from './lib/shop'
 import { useStickyState, saveScroll, loadScroll } from './lib/uiState'
 import type { Difficulty, FocusRequest } from './lib/spot'
 
-type Tab = 'drill' | 'daily' | 'duels' | 'lessons' | 'leaks' | 'profile'
+type Tab = 'drill' | 'daily' | 'duels' | 'lessons' | 'leaks' | 'shop' | 'profile'
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'drill', label: 'Drill', icon: Spade },
@@ -55,6 +55,7 @@ const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'duels', label: 'Duels', icon: Swords },
   { id: 'lessons', label: 'Lessons', icon: GraduationCap },
   { id: 'leaks', label: 'Leaks', icon: Target },
+  { id: 'shop', label: 'Shop', icon: ShoppingBag },
   { id: 'profile', label: 'Profile', icon: User },
 ]
 
@@ -499,7 +500,7 @@ export default function App() {
           <Wordmark className="h-9 translate-y-[2px]" />
         </h1>
         <button
-          onClick={() => setTab('profile')}
+          onClick={() => setTab('shop')}
           aria-label="Poker Points"
           className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 rounded-full border border-clay/30 bg-clay/10 px-2.5 py-1 text-sm font-bold tabular-nums text-clay transition hover:bg-clay/15"
         >
@@ -706,6 +707,18 @@ export default function App() {
             />
           )}
           {tab === 'leaks' && <LeaksScreen version={progress} onDrillLeaks={drillLeaks} onOpenLesson={openLesson} />}
+          {/* the Shop is ProfileScreen pinned to its shop section: same buy/
+              sell/loot state, no profile header or section switch */}
+          {tab === 'shop' && (
+            <ProfileScreen
+              version={progress}
+              configured={supabaseConfigured}
+              userId={user?.id ?? null}
+              onSignIn={() => setAccountOpen(true)}
+              onChanged={() => setProgress((p) => p + 1)}
+              only="shop"
+            />
+          )}
           {tab === 'profile' && (
             <ProfileScreen
               version={progress}
