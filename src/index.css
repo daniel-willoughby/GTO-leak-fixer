@@ -423,3 +423,27 @@ body::before {
     opacity: 0 !important;
   }
 }
+/* replay: a bet/call chip lands on the felt with a little settle. Lives on an
+   inner wrapper (the positioned parent's centering transform stays intact). */
+@keyframes chip-set {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-chip-set {
+  animation: chip-set 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-chip-set {
+    animation: none !important;
+  }
+}

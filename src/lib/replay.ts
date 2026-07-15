@@ -14,6 +14,7 @@ import type { Chip, ReplayFrame } from '../components/PokerTable'
 type SeatStatus = ReplayFrame['seatStatus'][Position]
 
 const REPLAY_KEY = 'lt-replay'
+const SPEED_KEY = 'lt-replay-speed'
 
 export function replayEnabled(): boolean {
   try {
@@ -29,6 +30,26 @@ export function setReplayEnabled(on: boolean): void {
     /* storage disabled — non-fatal */
   }
 }
+
+/** Replay pacing: 'low' is the relaxed default, 'high' runs at 2x. */
+export type ReplaySpeed = 'low' | 'high'
+
+export function replaySpeed(): ReplaySpeed {
+  try {
+    return localStorage.getItem(SPEED_KEY) === 'high' ? 'high' : 'low'
+  } catch {
+    return 'low'
+  }
+}
+export function setReplaySpeed(s: ReplaySpeed): void {
+  try {
+    localStorage.setItem(SPEED_KEY, s)
+  } catch {
+    /* storage disabled — non-fatal */
+  }
+}
+/** Divide frame holds by this to apply the speed setting. */
+export const replaySpeedFactor = (): number => (replaySpeed() === 'high' ? 2 : 1)
 
 const amountOf = (line: string): number | null => {
   const m = line.match(/([\d.]+)\s*bb/)

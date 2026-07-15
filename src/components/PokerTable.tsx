@@ -58,18 +58,22 @@ const SEATS = [
   { left: 90, top: 68 }, // lower-right
 ]
 
-// Where a replay action label ("folds", "opens 2.5bb", "calls") sits for each
-// physical seat: pulled inboard toward the felt centre, into the open space,
-// so it never lands on the seat's own pill or tucked hole cards (which hug the
-// rail). Kept clear of the central pot band (~34% top) too. Same index order
-// as SEATS.
-const LABEL_POS = [
-  { left: 50, top: 72 }, // hero (bottom) — above the big hole cards
-  { left: 30, top: 57 }, // lower-left
-  { left: 30, top: 43 }, // upper-left
-  { left: 50, top: 26 }, // top — above the pot band
-  { left: 70, top: 43 }, // upper-right
-  { left: 70, top: 57 }, // lower-right
+// Where a seat's bet chip sits during the hand replay. Explicit per physical
+// seat (same index order as SEATS) instead of the generic inboard vector: the
+// vector math kept landing chips (and their bb labels) on the seat's own
+// tucked cards or under the pill on the side seats. Each slot is hand-placed
+// in open felt, clear of the seat furniture, the 5-card board band
+// (~x 26-74, y 42-58), and the central pot row (~y 31-37).
+// Slots measured against the real mobile layout (343x257 container): a chip
+// element (stack + bb label) spans ~11.5% x 16%, the 5-card board x 20-80 /
+// y 40-60, the pot row x 36-64 / y 29-39, and each seat column ~16% x 26%.
+const REPLAY_CHIP_POS = [
+  { left: 50, top: 64 }, // hero (bottom) — label clear of the hole cards; the disc may tuck behind the board's bottom edge, which reads naturally
+  { left: 27, top: 67 }, // lower-left — below the board, right of its seat
+  { left: 26, top: 22 }, // upper-left — above the board, right of its seat
+  { left: 30, top: 24 }, // top — below-left of its seat, left of the pot
+  { left: 74, top: 22 }, // upper-right
+  { left: 73, top: 67 }, // lower-right
 ]
 
 type Status = 'hero' | 'raiser' | 'active' | 'folded' | 'waiting'
@@ -152,14 +156,14 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
   const villainHasBet = !!villain && bets.some((b) => b.pos === villain.pos)
   // Park each chip a uniform distance inboard of its own seat (toward center)
   // so stacks hug their player instead of drifting into the pot or each other.
-  const chipPos = (coord: { left: number; top: number }, insetOverride?: number) => {
+  const chipPos = (coord: { left: number; top: number }) => {
     const dx = 50 - coord.left
     const dy = 50 - coord.top
     const len = Math.hypot(dx, dy) || 1
     // Seats above centre have their pill pushed down by the cards above it, and
     // the chip's inboard direction is straight down, so give top seats extra
     // clearance proportional to how downward the chip travels (none at bottom).
-    const inset = insetOverride ?? 15 + 7 * Math.max(0, dy / len)
+    const inset = 15 + 7 * Math.max(0, dy / len)
     return { left: coord.left + (dx / len) * inset, top: coord.top + (dy / len) * inset }
   }
 
@@ -225,10 +229,27 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
             </div>
           )}
           <div
-            className={`font-table px-2.5 py-1 rounded-lg text-xs font-bold tracking-wide border min-w-[42px] text-center ${SEAT_CLASS[status]}`}
+            className={`font-table px-2.5 py-1 rounded-lg text-xs font-bold tracking-wide border min-w-[42px] text-center transition-colors duration-300 ${SEAT_CLASS[status]}`}
           >
             {pos}
           </div>
+          {/* replay action label ("folds", "opens 2.5bb"): anchored to this
+              seat's own column, so it can never drift onto another seat's
+              cards, the board, or the pot, and it moves with the seat on any
+              screen size. Absolutely positioned so the column doesn't reflow.
+              Villains: just below their pill. Hero: beside the hole cards (the
+              hero pill overflows the container bottom, where the label would
+              collide with the tap-to-skip button under the table). */}
+          {replay?.action?.pos === pos && (
+            <span
+              key={`lbl-${replay.seq}`}
+              className={`animate-pop absolute z-20 font-table text-[9px] font-semibold text-white bg-[#3a352b]/85 px-1.5 py-0.5 rounded whitespace-nowrap ${
+                status === 'hero' ? 'right-full top-[30%] mr-1' : 'left-1/2 top-full mt-1 -translate-x-1/2'
+              }`}
+            >
+              {replay.action.label}
+            </span>
+          )}
           {/* villain action note (e.g. "checks"); skipped when a bet chip
               already conveys it, and on the top seat where the tucked cards
               need the room (the prompt text states the action anyway) */}
@@ -240,22 +261,28 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
 
       {/* chips: posted blinds + the raiser's bet, in front of each player */}
       {bets.map((b) => {
-        const seat = seats.find((s) => s.pos === b.pos)!
-        // hero (bottom) shows big cards, so park their chip just above them on
-        // the felt (left/right collide with a neighbouring blind's chip). Every
-        // other seat hugs its own player, with a tighter inset during the replay
-        // so a bet chip never drifts onto the central pot.
+        const idx = seats.findIndex((s) => s.pos === b.pos)
+        // Whenever a board is on the table (replay frames AND the postflop
+        // decision view) chips use the hand-placed slots, since the generic
+        // inboard inset lands them on the board cards or their own seat.
+        // Preflop drills keep the classic inset look. Keyed by amount so a
+        // raise re-pops; the inner wrapper carries the landing animation (the
+        // outer div's centering transform would fight the keyframe's).
         const p =
-          b.pos === heroPos
-            ? { left: 50, top: 61 }
-            : chipPos(seat.coord, replay ? 10 : undefined)
+          replay || postflop
+            ? REPLAY_CHIP_POS[idx]
+            : b.pos === heroPos
+              ? { left: 50, top: 61 }
+              : chipPos(seats[idx].coord)
         return (
           <div
-            key={`chip-${b.pos}`}
+            key={`chip-${b.pos}-${b.amount}`}
             className="absolute -translate-x-1/2 -translate-y-1/2 z-[6]"
             style={{ left: `${p.left}%`, top: `${p.top}%` }}
           >
-            <ChipStack amount={b.amount} tone={b.tone} />
+            <div className="animate-chip-set">
+              <ChipStack amount={b.amount} tone={b.tone} />
+            </div>
           </div>
         )
       })}
@@ -264,7 +291,9 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
           narrow band between the villain's tucked cards and the board. Hidden at
           0 (preflop replay, before any street's bets have been swept in). */}
       {pot != null && pot > 0 && (
-        <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-[6] flex items-center gap-1.5" style={{ top: '34%' }}>
+        <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-[6]" style={{ top: '34%' }}>
+        {/* keyed by amount so each street's sweep pops the pot afresh */}
+        <div key={pot} className="animate-pop flex items-center gap-1.5">
           <div className="relative w-5 h-[26px]">
             {[0, 1, 2].map((i) => (
               <div
@@ -282,6 +311,7 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
           <span className="font-mono text-[9px] leading-none font-semibold text-white px-1.5 py-px rounded bg-[#3a352b]/70 whitespace-nowrap tabular-nums">
             {pot} bb · POT
           </span>
+        </div>
         </div>
       )}
 
@@ -317,38 +347,19 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
         </div>
       )}
 
-      {/* replay: acting-seat action label + a card-muck when a seat folds */}
-      {replay?.action && (() => {
-        const idx = seats.findIndex((s) => s.pos === replay.action!.pos)
-        if (idx < 0) return null
-        const { left, top } = seats[idx].coord
-        // Park the label in the open felt just inboard of each physical seat,
-        // rather than on top of it: a purely-vertical nudge left the corner
-        // seats' labels sitting right over their own pill + hole cards. Keyed by
-        // physical seat index (0 = hero bottom, clockwise); cards/pill hug the
-        // rail so the inboard slot is always clear, and clear of the central pot.
-        const lbl = LABEL_POS[idx] ?? { left, top }
+      {/* replay: a folding seat's cards fade + shrink toward the muck (the
+          action label itself renders inside the seat, under its pill) */}
+      {replay?.action?.anim === 'muck' && (() => {
+        const seat = seats.find((s) => s.pos === replay.action!.pos)
+        if (!seat) return null
         return (
-          <>
-            {replay.action!.anim === 'muck' && (
-              <div
-                key={`muck-${replay.seq}`}
-                className="absolute -translate-x-1/2 -translate-y-1/2 z-[8] pointer-events-none animate-muck-out flex gap-1"
-                style={{ left: `${left}%`, top: `${top - 8}%` }}
-              >
-                <CardBack bg={cardBack} /><CardBack bg={cardBack} />
-              </div>
-            )}
-            <div
-              key={`lbl-${replay.seq}`}
-              className="absolute -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none animate-pop"
-              style={{ left: `${lbl.left}%`, top: `${lbl.top}%` }}
-            >
-              <span className="font-table text-[9px] font-semibold text-white bg-[#3a352b]/85 px-1.5 py-0.5 rounded whitespace-nowrap">
-                {replay.action!.label}
-              </span>
-            </div>
-          </>
+          <div
+            key={`muck-${replay.seq}`}
+            className="absolute -translate-x-1/2 -translate-y-1/2 z-[8] pointer-events-none animate-muck-out flex gap-1"
+            style={{ left: `${seat.coord.left}%`, top: `${seat.coord.top - 8}%` }}
+          >
+            <CardBack bg={cardBack} /><CardBack bg={cardBack} />
+          </div>
         )
       })()}
 

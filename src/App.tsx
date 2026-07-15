@@ -15,7 +15,7 @@ import AccountModal from './components/AccountModal'
 import PwaUpdater from './components/PwaUpdater'
 import { isMuted, setMuted } from './lib/sound'
 import { hapticsEnabled, setHaptics, haptic } from './lib/haptics'
-import { replayEnabled, setReplayEnabled } from './lib/replay'
+import { replayEnabled, setReplayEnabled, replaySpeed, setReplaySpeed, type ReplaySpeed } from './lib/replay'
 import { getLevel, setLevel, type Level } from './lib/level'
 import { supabaseConfigured } from './lib/supabase'
 import { useAuth } from './lib/useAuth'
@@ -113,6 +113,7 @@ export default function App() {
   const [muted, setMutedState] = useState(isMuted())
   const [haptics, setHapticsState] = useState(hapticsEnabled())
   const [replay, setReplayState] = useState(replayEnabled())
+  const [replaySpd, setReplaySpdState] = useState<ReplaySpeed>(replaySpeed())
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null)
   const [openLessonId, setOpenLessonId] = useState<string | null>(null)
   const [difficulty, setDifficulty] = useState<Difficulty>(
@@ -458,6 +459,11 @@ export default function App() {
     setReplayState(v)
   }
 
+  function pickReplaySpeed(s: ReplaySpeed) {
+    setReplaySpeed(s)
+    setReplaySpdState(s)
+  }
+
   function pickDifficulty(d: Difficulty) {
     setDifficulty(d)
     localStorage.setItem('lt-difficulty', d)
@@ -579,6 +585,34 @@ export default function App() {
                 <ToggleRow label="Sound" on={!muted} onClick={toggleMute} />
                 <ToggleRow label="Haptics" sub="On supported phones" on={haptics} onClick={toggleHaptics} />
                 <ToggleRow label="Hand replay" sub="Animate how postflop spots arose" on={replay} onClick={toggleReplay} />
+                {replay && (
+                  <div className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-ink">
+                    <span className="flex flex-col items-start">
+                      <span className="font-semibold">Replay speed</span>
+                      <span className="text-[11px] text-ink3">High plays at 2x</span>
+                    </span>
+                    <div className="flex gap-1">
+                      {(
+                        [
+                          { id: 'low', label: 'Low' },
+                          { id: 'high', label: 'High' },
+                        ] as { id: ReplaySpeed; label: string }[]
+                      ).map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => pickReplaySpeed(s.id)}
+                          className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${
+                            replaySpd === s.id
+                              ? 'bg-sage/15 border-sage/40 text-sage-dark'
+                              : 'bg-paper2 border-line text-ink2 hover:text-ink'
+                          }`}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </>

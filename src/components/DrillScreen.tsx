@@ -52,7 +52,7 @@ import { respondMultiway } from '../data/multiway'
 import { strategyFor } from '../data/postflop'
 import { FREEPLAY_READY } from '../data/freeplay'
 import { isPro, postflopLeft, consumePostflop } from '../lib/pro'
-import { buildReplay, replayEnabled } from '../lib/replay'
+import { buildReplay, replayEnabled, replaySpeedFactor } from '../lib/replay'
 import type { ReplayFrame } from './PokerTable'
 import Paywall from './Paywall'
 import {
@@ -440,10 +440,12 @@ export default function DrillScreen({
     const anim = frame?.action?.anim
     if (anim === 'chips') playClick() // a bet/raise/call — chips going in
     else if (!frame?.action && frame?.board?.length) playDeal() // a street was dealt
-    // pacing: dwell on bets (the key decisions), breeze through folds
-    const hold = anim === 'chips' ? 850 : anim === 'muck' ? 360 : anim === 'check' ? 540 : 620
+    // pacing: dwell on bets (the key decisions), breeze through folds. The
+    // speed setting (Settings > Hand replay) divides every hold: high = 2x.
+    const speed = replaySpeedFactor()
+    const hold = (anim === 'chips' ? 850 : anim === 'muck' ? 360 : anim === 'check' ? 540 : 620) / speed
     if (replayIdx >= replayFrames.length - 1) {
-      const t = setTimeout(() => setReplaying(false), 600)
+      const t = setTimeout(() => setReplaying(false), 600 / speed)
       return () => clearTimeout(t)
     }
     const t = setTimeout(() => setReplayIdx((i) => i + 1), hold)
