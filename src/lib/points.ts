@@ -142,12 +142,16 @@ export const isOwned = (id: string): boolean => owned().includes(id)
 
 export function equipped(): Equipped {
   const e = readJSON<Partial<Equipped>>(EQUIP_KEY, {})
+  // An equipped id that no longer exists in the catalog (a delisted cosmetic,
+  // e.g. the removed Ember background) falls back to the slot's default, so
+  // nothing renders a ghost item. Its cost is auto-refunded by spentPoints().
+  const live = (id: string | undefined, fallback: string) => (id && shopItem(id) ? id : fallback)
   return {
-    avatar: e.avatar ?? DEFAULT_AVATAR,
-    flair: e.flair ?? DEFAULT_FLAIR,
-    background: e.background ?? DEFAULT_BACKGROUND,
-    cardback: e.cardback ?? DEFAULT_CARDBACK,
-    felt: e.felt ?? DEFAULT_FELT,
+    avatar: live(e.avatar, DEFAULT_AVATAR),
+    flair: live(e.flair, DEFAULT_FLAIR),
+    background: live(e.background, DEFAULT_BACKGROUND),
+    cardback: live(e.cardback, DEFAULT_CARDBACK),
+    felt: live(e.felt, DEFAULT_FELT),
   }
 }
 

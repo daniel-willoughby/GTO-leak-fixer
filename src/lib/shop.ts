@@ -51,13 +51,11 @@ export const SHOP: ShopItem[] = [
   { id: 'bg-aurora', type: 'background', name: 'Aurora', cost: 450, art: 'linear-gradient(135deg,#2f6d5e,#3a5a8c 55%,#6d4a6b)' },
   { id: 'bg-midnight', type: 'background', name: 'Midnight run', cost: 500, art: 'linear-gradient(135deg,#1f2a44,#0f1626)' },
   { id: 'bg-gold', type: 'background', name: 'High roller', cost: 600, art: 'linear-gradient(135deg,#c79a4a,#8a6d2f)' },
-  { id: 'bg-ember', type: 'background', name: 'Ember', cost: 800, art: 'linear-gradient(135deg,#b1442c,#6d2118)' },
   { id: 'bg-prism', type: 'background', name: 'Prism', cost: 1200, art: 'linear-gradient(120deg,#b16a52,#c79a4a 35%,#5b7461 70%,#3a5a8c)' },
 
   // ---- flairs (a little badge beside your name) ----
   { id: 'flair-fire', type: 'flair', name: 'On fire', cost: 200, art: '🔥' },
   { id: 'flair-star', type: 'flair', name: 'Rising star', cost: 200, art: '⭐' },
-  { id: 'flair-clover', type: 'flair', name: 'Lucky clover', cost: 250, art: '🍀' },
   { id: 'flair-spade', type: 'flair', name: 'Spade', cost: 250, art: '♠️' },
   { id: 'flair-target', type: 'flair', name: 'Sharpshooter', cost: 350, art: '🎯' },
   { id: 'flair-crown', type: 'flair', name: 'Crown', cost: 500, art: '👑' },
@@ -164,13 +162,16 @@ export const SHOP: ShopItem[] = [
   { id: 'avatar-shark', type: 'avatar', name: 'Shark', cost: 20000, art: '🦈', legendary: true },
 
   // ---- table felts (the colour of the felt you play on) ----
+  // A muted, neutral palette: every felt is desaturated toward grey so the
+  // cards and chips stay the loudest thing on the table. Ids are stable (the
+  // old saturated colours just re-render in the new tones for owners).
   { id: 'felt-classic', type: 'felt', name: 'Casino green', cost: 0, art: 'radial-gradient(circle at 50% 34%,#7e9a85 0%,#67836f 46%,#51695a 100%)' },
-  { id: 'felt-sapphire', type: 'felt', name: 'Sapphire', cost: 350, art: 'radial-gradient(circle at 50% 34%,#6f88a8 0%,#56708f 46%,#41566f 100%)' },
-  { id: 'felt-crimson', type: 'felt', name: 'Crimson', cost: 400, art: 'radial-gradient(circle at 50% 34%,#a86b6b 0%,#8c5050 46%,#6f3a3a 100%)' },
-  { id: 'felt-violet', type: 'felt', name: 'Violet', cost: 450, art: 'radial-gradient(circle at 50% 34%,#8a7298 0%,#6d5780 46%,#523f63 100%)' },
+  { id: 'felt-sapphire', type: 'felt', name: 'Slate blue', cost: 350, art: 'radial-gradient(circle at 50% 34%,#77828e 0%,#5f6b77 46%,#4a545f 100%)' },
+  { id: 'felt-crimson', type: 'felt', name: 'Rosewood', cost: 400, art: 'radial-gradient(circle at 50% 34%,#99716b 0%,#7c5952 46%,#5f433e 100%)' },
+  { id: 'felt-violet', type: 'felt', name: 'Mauve', cost: 450, art: 'radial-gradient(circle at 50% 34%,#82758a 0%,#685c6f 46%,#4f4555 100%)' },
   { id: 'felt-onyx', type: 'felt', name: 'Onyx', cost: 500, art: 'radial-gradient(circle at 50% 34%,#545b63 0%,#3f454c 46%,#2c3036 100%)' },
-  { id: 'felt-teal', type: 'felt', name: 'Teal', cost: 600, art: 'radial-gradient(circle at 50% 34%,#5e9a93 0%,#467a74 46%,#2f5a55 100%)' },
-  { id: 'felt-sahara', type: 'felt', name: 'Sahara', cost: 900, art: 'radial-gradient(circle at 50% 34%,#c2b08a 0%,#a89570 46%,#8a7a56 100%)' },
+  { id: 'felt-teal', type: 'felt', name: 'Sea glass', cost: 600, art: 'radial-gradient(circle at 50% 34%,#6e938c 0%,#557670 46%,#3f5a55 100%)' },
+  { id: 'felt-sahara', type: 'felt', name: 'Sand', cost: 900, art: 'radial-gradient(circle at 50% 34%,#b0a189 0%,#94856b 46%,#786c56 100%)' },
 ]
 
 const BY_ID = new Map(SHOP.map((i) => [i.id, i]))

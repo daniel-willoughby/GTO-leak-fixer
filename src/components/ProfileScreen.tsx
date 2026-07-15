@@ -494,7 +494,10 @@ function ReelCard({ item, win }: { item: ShopItem; win: boolean }) {
       style={{ width: 72, height: 92, marginRight: REEL_STEP - 72, background: tierBg(item) }}
     >
       {grad ? (
-        <span className="h-9 w-7 rounded-md border border-white/25" style={{ background: item.art }} />
+        <span
+          className={`rounded-md border border-white/25 ${item.type === 'cardback' ? 'h-11 w-7' : 'h-9 w-7'}`}
+          style={{ background: item.art }}
+        />
       ) : (
         <span className="text-3xl drop-shadow">{item.art}</span>
       )}
@@ -618,9 +621,9 @@ function LootReveal({
               <Sparkles size={13} /> {special ? 'Ultra-rare pull!' : 'You won'}
             </span>
             <span
-              className={`flex h-24 w-24 items-center justify-center border text-5xl ${item.type === 'cardback' ? 'rounded-2xl' : 'rounded-full'} ${
-                special ? 'animate-lootglow border-amber-400/70' : 'animate-glow border-line'
-              }`}
+              className={`flex items-center justify-center border text-5xl ${
+                item.type === 'cardback' ? 'h-24 w-[60px] rounded-xl' : 'h-24 w-24 rounded-full'
+              } ${special ? 'animate-lootglow border-amber-400/70' : 'animate-glow border-line'}`}
               style={{ background: gradient ? item.art : 'rgb(var(--c-paper))' }}
             >
               {!gradient && item.art}
@@ -1107,8 +1110,10 @@ function Shop({
                   }`}
                 >
                   <span
-                    className={`flex h-12 w-12 items-center justify-center border text-2xl ${
-                      g.type === 'cardback' ? 'rounded-lg' : 'rounded-full'
+                    className={`flex items-center justify-center border text-2xl ${
+                      // card backs are portrait art: a card-shaped swatch shows
+                      // the whole design instead of a square centre-crop
+                      g.type === 'cardback' ? 'h-14 w-9 rounded-md' : 'h-12 w-12 rounded-full'
                     } ${prestige ? 'border-amber-400/60 shadow-[0_0_14px_-2px_rgba(251,191,36,0.6)]' : 'border-line'} ${
                       prestige && !isGradient(g.type) ? 'animate-prestige' : ''
                     }`}
