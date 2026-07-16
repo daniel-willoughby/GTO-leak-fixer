@@ -28,7 +28,7 @@ const SHARDS = join(here, 'shards')
 mkdirSync(SHARDS, { recursive: true })
 
 const SMOKE = process.env.SMOKE === '1'
-const THREADS = 2 // ~20% of an M-series — Dan's chosen power level
+const THREADS = 1 // ~10% — gentle so it doesn't lag the Mac in use (was 2)
 const FLOP_ITERS = SMOKE ? 20 : 100 // slight bump over 90: facing-line nodes are thinner
 const TURN_ITERS = SMOKE ? 20 : 90
 const TURNS_PER_BOARD = SMOKE ? 2 : 6
