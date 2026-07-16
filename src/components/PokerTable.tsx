@@ -274,13 +274,25 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
             : b.pos === heroPos
               ? { left: 50, top: 61 }
               : chipPos(seats[idx].coord)
+        // Toss direction: the chip slides in FROM its seat toward the slot, so
+        // it reads as the player putting chips in (a pop-in-place read as the
+        // chip just appearing). CSS vars feed the chip-set keyframe.
+        const tdx = seats[idx].coord.left - p.left
+        const tdy = seats[idx].coord.top - p.top
+        const tlen = Math.hypot(tdx, tdy) || 1
         return (
           <div
             key={`chip-${b.pos}-${b.amount}`}
             className="absolute -translate-x-1/2 -translate-y-1/2 z-[6]"
             style={{ left: `${p.left}%`, top: `${p.top}%` }}
           >
-            <div className="animate-chip-set">
+            <div
+              className="animate-chip-set"
+              style={{
+                ['--toss-x' as string]: `${((tdx / tlen) * 34).toFixed(1)}px`,
+                ['--toss-y' as string]: `${((tdy / tlen) * 34).toFixed(1)}px`,
+              }}
+            >
               <ChipStack amount={b.amount} tone={b.tone} />
             </div>
           </div>
