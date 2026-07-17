@@ -36,3 +36,4 @@ solver-spike/.accum-*.json
 # stays the base), so a clone works without these.
 public/postflop-shards/
 ios/App/App/public/postflop-shards/
+ios/App/App/public/postflop-shards-web/

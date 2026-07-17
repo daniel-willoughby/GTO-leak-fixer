@@ -71,8 +71,8 @@ const REPLAY_CHIP_POS = [
   { left: 50, top: 64 }, // hero (bottom) — label clear of the hole cards; the disc may tuck behind the board's bottom edge, which reads naturally
   { left: 27, top: 67 }, // lower-left — below the board, right of its seat
   { left: 26, top: 22 }, // upper-left — above the board, right of its seat
-  { left: 30, top: 24 }, // top — below-left of its seat, left of the pot
-  { left: 74, top: 22 }, // upper-right
+  { left: 65, top: 19 }, // top — right of its pill AND clear of its under-pill action label (which hangs below the cards+pill column); a left-side slot collides with the upper-left chip when both blinds are up (hero CO)
+  { left: 78, top: 22 }, // upper-right — far enough right that it clears the top slot when SB+BB sit adjacent up top (hero HJ)
   { left: 73, top: 67 }, // lower-right
 ]
 
@@ -168,10 +168,13 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
   }
 
   return (
-    <div className="font-table relative w-full max-w-lg mx-auto aspect-[4/3] sm:aspect-[5/4]">
+    // 5:4 on every size (was 4:3 on mobile): the extra height is where the
+    // replay furniture is cramped — pot band, top seat, board — so chips and
+    // labels get more breathing room on phones.
+    <div className="font-table relative w-full max-w-lg mx-auto aspect-[5/4]">
       {/* rail */}
       <div
-        className="absolute inset-[10%] rounded-full p-[7px]"
+        className="absolute inset-[9%] rounded-full p-[7px]"
         style={{
           background: 'linear-gradient(160deg, #6f5a45 0%, #5a4736 45%, #463727 100%)',
           boxShadow: '0 22px 45px -16px rgba(34,31,25,0.5), 0 1px 0 rgba(255,255,255,0.1) inset',
@@ -243,11 +246,16 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
           {replay?.action?.pos === pos && (
             <span
               key={`lbl-${replay.seq}`}
-              className={`animate-pop absolute z-20 font-table text-[9px] font-semibold text-white bg-[#3a352b]/85 px-1.5 py-0.5 rounded whitespace-nowrap ${
+              className={`absolute z-20 ${
                 status === 'hero' ? 'right-full top-[30%] mr-1' : 'left-1/2 top-full mt-1 -translate-x-1/2'
               }`}
             >
-              {replay.action.label}
+              {/* the pop animation lives on an inner span: on the outer one its
+                  keyframe transform would override the centering translate and
+                  the label would visibly appear off-centre, then snap left */}
+              <span className="animate-pop block font-table text-[9px] font-semibold text-white bg-[#3a352b]/85 px-1.5 py-0.5 rounded whitespace-nowrap">
+                {replay.action.label}
+              </span>
             </span>
           )}
           {/* villain action note (e.g. "checks"); skipped when a bet chip

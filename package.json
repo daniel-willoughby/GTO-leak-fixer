@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:native": "tsc -b && CAP=1 vite build",
-    "cap:sync": "npm run build:native && cap sync",
+    "cap:sync": "npm run build:native && cap sync && rm -rf ios/App/App/public/postflop-shards-web",
     "cap:ios": "npm run cap:sync && cap open ios",
     "test": "vitest run",
     "test:watch": "vitest",

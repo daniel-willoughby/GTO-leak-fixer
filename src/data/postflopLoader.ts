@@ -1,10 +1,12 @@
 // Rich postflop corpus loader. The bundled slim corpus (street-nodes.json) is
-// always present; on the native app this progressively fetches the big sharded
-// corpus (public/postflop-shards/) and folds it in, so the drill pool grows
-// without shipping an 80 MB import or parsing it all up front.
+// always present; this progressively fetches the sharded corpus and folds it
+// in, so the drill pool grows without a giant import or up-front parse.
 //
-// iOS-only by design (the rich data is a native-app feature). To exercise it in
-// the browser during development, set localStorage `lt-shards` = '1'.
+// Native gets the FULL corpus (postflop-shards/, ~130MB, bundled in the app).
+// The PWA fetches a curated ~30-board subset (postflop-shards-web/, committed
+// and deployed) — big enough for real facing-line variety, small enough to
+// download in the background. localStorage `lt-shards`: '0' disables on web,
+// 'full' points the web at the full corpus (dev server only).
 import { Capacitor } from '@capacitor/core'
 import { registerNodes, type StreetNode } from './postflop'
 
@@ -13,16 +15,20 @@ interface ShardIndex {
   boards?: { board: string; nodes?: number }[]
 }
 
-const BASE = `${import.meta.env.BASE_URL}postflop-shards/`
+const flag = (): string | null => {
+  try {
+    return localStorage.getItem('lt-shards')
+  } catch {
+    return null
+  }
+}
+const DIR = Capacitor.isNativePlatform() || flag() === 'full' ? 'postflop-shards/' : 'postflop-shards-web/'
+const BASE = `${import.meta.env.BASE_URL}${DIR}`
 let started = false
 
 function enabled(): boolean {
   if (Capacitor.isNativePlatform()) return true
-  try {
-    return localStorage.getItem('lt-shards') === '1'
-  } catch {
-    return false
-  }
+  return flag() !== '0'
 }
 
 /** Kick off shard loading (fire-and-forget from main.tsx). Safe no-op when the

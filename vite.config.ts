@@ -31,13 +31,25 @@ export default defineConfig(({ command }) => {
       VitePWA({
         registerType: 'prompt',
         includeAssets: ['favicon-32.png', 'apple-touch-icon.png'],
-        // The all-seats Freeplay dataset is large and fetched on demand, so keep
-        // it out of the precache manifest. The postflop corpus (street-nodes) is
-        // bundled into the main chunk and IS a core offline feature, so bump the
-        // precache size limit to fit it (~4.7 MB chunk after the 357-board solve).
+        // The all-seats Freeplay dataset and the rich postflop shards are large
+        // and fetched on demand, so keep them out of the precache manifest (a
+        // fresh install must not force a ~30MB download). The postflop corpus
+        // (street-nodes) is bundled into the main chunk and IS a core offline
+        // feature, so bump the precache size limit to fit it (~4.7 MB chunk).
+        // Shards cache at runtime instead: fetched once, then served locally.
         workbox: {
-          globIgnores: ['**/freeplay-nodes.json'],
+          globIgnores: ['**/freeplay-nodes.json', '**/postflop-shards/**', '**/postflop-shards-web/**'],
           maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+          runtimeCaching: [
+            {
+              urlPattern: /postflop-shards(-web)?\/.*\.json$/,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'postflop-shards',
+                expiration: { maxEntries: 40, maxAgeSeconds: 60 * 24 * 60 * 60 },
+              },
+            },
+          ],
         },
         manifest: {
           name: 'PotKing, GTO Poker',
