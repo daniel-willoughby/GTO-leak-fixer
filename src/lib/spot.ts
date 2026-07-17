@@ -482,6 +482,22 @@ export function generateFacingSpot(): Spot | null {
   }
 }
 
+/**
+ * A deliberately MARGINAL facing spot for the Tricky-spots mode: the solver
+ * genuinely mixes here (no action above ~70%), and the hand can defend (call
+ * is on the table), so the answer is a close judgement call rather than a
+ * snap decision. Falls back to any facing spot if nothing marginal turns up,
+ * and to null on the bundled corpus (no shards yet).
+ */
+export function generateTrickySpot(): Spot | null {
+  for (let tries = 0; tries < 40; tries++) {
+    const s = generateFacingSpot()
+    if (!s?.freqs?.length) continue
+    if (Math.max(...s.freqs) <= 0.7 && s.actions.includes('call')) return s
+  }
+  return generateFacingSpot()
+}
+
 /** A single-decision spot dealt straight onto the turn, from a solved turn node.
  *  Used by the daily ladder to include turn continuations. Board-driven, so
  *  `spotFromSeed` rebuilds it identically on every client from the seed board. */

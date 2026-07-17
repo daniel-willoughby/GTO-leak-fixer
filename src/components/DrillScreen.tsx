@@ -23,6 +23,7 @@ import {
   continueFreeplaySpot,
   generateFreeplaySpot,
   generateFacingSpot,
+  generateTrickySpot,
   generateSpot,
   judge,
   multiwayOf,
@@ -40,7 +41,6 @@ import {
   type Judgement,
   type Spot,
   type SpotSeed,
-  type VillainStyle,
 } from '../lib/spot'
 import type { Level } from '../lib/level'
 import { lessonProgress, recordLessonCorrect } from '../lib/level'
@@ -147,13 +147,22 @@ const ACTION_STYLE: Record<Action, string> = {
 }
 
 
-// Two drill sections: Preflop (open / defend situations) and Continuation (play
-// a whole hand street by street). Postflop decisions live inside Continuation.
+// Two drill sections: Preflop (open / defend situations) and Freeplay (postflop
+// play). Postflop decisions live inside Freeplay.
 type Category = 'preflop' | 'continuation'
 const PREFLOP_MODES: { id: DrillMode; label: string }[] = [
   { id: 'rfi', label: 'Open' },
   { id: 'vsRfi', label: 'vs Raise' },
   { id: 'multiway', label: 'Multiway' },
+]
+
+// Freeplay flavours (replaces the old vs GTO / vs Fish opponent toggle):
+// whole hands, single postflop decisions, or deliberately marginal spots.
+type FreeplayMode = 'continuation' | 'postflop' | 'tricky'
+const FREEPLAY_MODES: { id: FreeplayMode; label: string; note: string }[] = [
+  { id: 'continuation', label: 'Full hand', note: 'play a hand street by street' },
+  { id: 'postflop', label: 'Postflop', note: 'one-off solver decisions' },
+  { id: 'tricky', label: 'Tricky spots', note: 'marginal, close calls' },
 ]
 
 function cellFor(spot: Spot): (label: string) => CellKind {
@@ -246,8 +255,9 @@ export default function DrillScreen({
   const [heroAnim, setHeroAnim] = useState<{ kind: 'chips' | 'muck'; seq: number } | null>(null)
   // the preflop sub-menu only shows while open; it collapses after a pick
   const [preflopMenuOpen, setPreflopMenuOpen] = useState(false)
-  // continuation opponent: solver-perfect or a loose fish (sub-menu like preflop's)
-  const [villainStyle, setVillainStyle] = useState<VillainStyle>('gto')
+  // Freeplay flavour: play whole hands street by street, one-off postflop
+  // decisions, or deliberately marginal "tricky" spots (sub-menu like preflop's)
+  const [fpMode, setFpMode] = useState<FreeplayMode>('continuation')
   const [contMenuOpen, setContMenuOpen] = useState(false)
   const [spot, setSpot] = useState<Spot>(() =>
     ladder
@@ -373,7 +383,7 @@ export default function DrillScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestFocus])
 
-  function dealNormal(m: DrillMode = mode, fh: boolean = fullHand, vs: VillainStyle = villainStyle) {
+  function dealNormal(m: DrillMode = mode, fh: boolean = fullHand, fpm: FreeplayMode = fpMode) {
     // Pro gate (native only): each FRESH postflop/Freeplay hand consumes the
     // free daily quota. Lessons and street continuations are exempt.
     if (!lesson && (fh || m === 'postflop')) {
@@ -383,16 +393,23 @@ export default function DrillScreen({
       }
       consumePostflop()
     }
-    // Freeplay vs GTO with real all-seats data: a varied solver-true spot from a
-    // random seat / node type. vs Fish (or no data) keeps the play-a-hand flow.
-    // `vs` is passed explicitly on a mode switch, since setVillainStyle hasn't
-    // applied yet when this runs synchronously after it.
-    // ~40% of the time (when the rich shards have loaded) deal a "respond to a
-    // non-GTO move" spot instead: facing a donk lead, an overbet, a check-raise,
-    // or acting first out of position. generateFacingSpot returns null on the
-    // bundled corpus, so this is a no-op until shards arrive.
-    const facing = fh && vs === 'gto' && Math.random() < 0.4 ? generateFacingSpot() : null
-    const fp = facing ?? (fh && vs === 'gto' && FREEPLAY_READY ? generateFreeplaySpot() : null)
+    // Freeplay deal by flavour (`fpm` is passed explicitly on a mode switch,
+    // since setFpMode hasn't applied yet when this runs synchronously after it):
+    // - continuation: play a whole hand — an all-seats Freeplay spot that can
+    //   run flop -> turn, or a preflop BTN open that deals into the flop.
+    // - postflop: one-off solver decisions — a mix of facing-line spots (donk
+    //   leads, overbets, check-raises; shards required, so a no-op fallback on
+    //   the bundled corpus) and single Freeplay spots.
+    // - tricky: deliberately marginal facing spots where the solver mixes.
+    const fp = !fh
+      ? null
+      : fpm === 'tricky'
+        ? (generateTrickySpot() ?? (FREEPLAY_READY ? generateFreeplaySpot() : null))
+        : fpm === 'postflop'
+          ? ((Math.random() < 0.55 ? generateFacingSpot() : null) ?? (FREEPLAY_READY ? generateFreeplaySpot() : null))
+          : FREEPLAY_READY
+            ? generateFreeplaySpot()
+            : null
     const fresh = lesson
       ? lessonSpot(lesson, scopeOpts)
       : fp
@@ -571,7 +588,7 @@ export default function DrillScreen({
       spot.freeplay
         ? freeplayCont.current
         : spot.mode === 'rfi'
-          ? advanceToFlop(spot.label, spot.cards, villainStyle)
+          ? advanceToFlop(spot.label, spot.cards, 'gto')
           : spot.handState
             ? buildContinuationSpot(spot.handState, result.chosen)
             : null
@@ -631,7 +648,9 @@ export default function DrillScreen({
       recordLessonCorrect(lesson.id, lessonGoal) // persist for resume + the done flag
       if (n >= lessonGoal) setLessonDone(true)
     }
-    if (!lesson && fullHand && !reviewMode) {
+    if (!lesson && fullHand && !reviewMode && fpMode === 'continuation') {
+      // street continuations only exist in Full-hand mode; Postflop and Tricky
+      // deal one decision per hand
       if (spot.mode === 'rfi' && action === 'raise') {
         // continuation: opened the button → deal the flop next
         setCanContinue(canStartFlop(spot.label, spot.cards))
@@ -845,7 +864,7 @@ export default function DrillScreen({
               {category === 'preflop' ? preflopLabel : 'Preflop'}
               <ChevronDown size={12} className={`transition-transform ${preflopMenuOpen ? 'rotate-180' : ''}`} />
             </button>
-            {/* Continuation, play a whole hand; dropdown picks the opponent */}
+            {/* Freeplay; dropdown picks the flavour (full hand / postflop / tricky) */}
             <button
               onClick={() => {
                 setPreflopMenuOpen(false)
@@ -859,7 +878,9 @@ export default function DrillScreen({
                 category === 'continuation' ? 'bg-sage text-white shadow-[0_4px_12px_-4px_rgba(67,84,72,0.6)]' : 'text-ink2 hover:text-ink'
               }`}
             >
-              {category === 'continuation' ? `Freeplay · ${villainStyle === 'fish' ? 'vs Fish' : 'vs GTO'}` : 'Freeplay'}
+              {category === 'continuation'
+                ? `Freeplay · ${FREEPLAY_MODES.find((f) => f.id === fpMode)?.label ?? 'Full hand'}`
+                : 'Freeplay'}
               <ChevronDown size={12} className={`transition-transform ${contMenuOpen ? 'rotate-180' : ''}`} />
             </button>
             {onOpenDaily && (
@@ -896,27 +917,22 @@ export default function DrillScreen({
               ))}
             </div>
           )}
-          {/* continuation opponent, collapses on select */}
+          {/* Freeplay flavour, collapses on select */}
           {category === 'continuation' && contMenuOpen && (
             <div className="flex w-full gap-1 px-0.5">
-              {(
-                [
-                  { id: 'gto', label: 'vs GTO', note: 'solver-perfect opponent' },
-                  { id: 'fish', label: 'vs Fish', note: 'loose player, exploit them' },
-                ] as { id: VillainStyle; label: string; note: string }[]
-              ).map((v) => (
+              {FREEPLAY_MODES.map((v) => (
                 <button
                   key={v.id}
                   onClick={() => {
                     setContMenuOpen(false)
-                    if (v.id !== villainStyle) {
-                      setVillainStyle(v.id)
+                    if (v.id !== fpMode) {
+                      setFpMode(v.id)
                       setStreak(0)
                       dealNormal('postflop', true, v.id)
                     }
                   }}
                   className={`flex-1 rounded-lg border px-1.5 py-1.5 text-xs font-semibold transition ${
-                    villainStyle === v.id ? 'bg-sage/15 border-sage/40 text-sage-dark' : 'bg-paper2 border-line text-ink2 hover:text-ink'
+                    fpMode === v.id ? 'bg-sage/15 border-sage/40 text-sage-dark' : 'bg-paper2 border-line text-ink2 hover:text-ink'
                   }`}
                 >
                   {v.label}

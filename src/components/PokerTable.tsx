@@ -76,6 +76,7 @@ const REPLAY_CHIP_POS = [
   { left: 73, top: 67 }, // lower-right
 ]
 
+
 type Status = 'hero' | 'raiser' | 'active' | 'folded' | 'waiting'
 
 // Face-down cards for the other players. A warm claret back with a cream
@@ -132,21 +133,6 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
   // the bottom, UTG clockwise after BB): the villain sits at their real spot
   // relative to the hero rather than being forced across the top, so the table
   // never reads "the wrong way round".
-
-  // Dealer button puck on the felt next to the BTN seat. When the hero is on
-  // the button, the bottom seat shows large hole cards, so park the puck to
-  // their lower-right instead of the generic offset (which would cover them).
-  const btn = seats.find((s) => s.pos === 'BTN')!
-  const dx = 50 - btn.coord.left
-  const dy = 50 - btn.coord.top
-  const len = Math.hypot(dx, dy) || 1
-  const dealer =
-    heroPos === 'BTN'
-      ? { left: 68, top: 80 }
-      : {
-          left: btn.coord.left + dx * 0.24 + (-dy / len) * 11,
-          top: btn.coord.top + dy * 0.24 + (dx / len) * 11,
-        }
 
   // Chips on the felt come from the caller (blinds, opens, calls, 3-bets per
   // mode); only render those whose seat is actually on the table.
@@ -232,9 +218,25 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
             </div>
           )}
           <div
-            className={`font-table px-2.5 py-1 rounded-lg text-xs font-bold tracking-wide border min-w-[42px] text-center transition-colors duration-300 ${SEAT_CLASS[status]}`}
+            className={`font-table relative px-2.5 py-1 rounded-lg text-xs font-bold tracking-wide border min-w-[42px] text-center transition-colors duration-300 ${SEAT_CLASS[status]}`}
           >
             {pos}
+            {/* dealer button as a badge on the BTN pill's corner: it occupies
+                no felt space, so it can never collide with chips, labels, or
+                the board (the old floating puck kept doing exactly that) */}
+            {pos === 'BTN' && (
+              <span
+                className="absolute -right-2 -top-2 flex h-[18px] w-[18px] items-center justify-center rounded-full text-[9px] font-bold"
+                style={{
+                  background: 'radial-gradient(circle at 35% 28%, #fcfaf4 0%, #efe9da 55%, #ddd2bb 100%)',
+                  color: '#435448',
+                  boxShadow: '0 1px 4px rgba(34,31,25,0.4), 0 0 0 1px rgba(255,255,255,0.6) inset',
+                }}
+                title="Dealer button"
+              >
+                D
+              </span>
+            )}
           </div>
           {/* replay action label ("folds", "opens 2.5bb"): anchored to this
               seat's own column, so it can never drift onto another seat's
@@ -383,20 +385,6 @@ export default function PokerTable({ heroPos, heroCards, raiserPos, activePots =
         )
       })()}
 
-      {/* dealer button puck on the felt */}
-      <div
-        className="absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold z-10"
-        style={{
-          left: `${dealer.left}%`,
-          top: `${dealer.top}%`,
-          background: 'radial-gradient(circle at 35% 28%, #fcfaf4 0%, #efe9da 55%, #ddd2bb 100%)',
-          color: '#435448',
-          boxShadow: '0 2px 6px rgba(34,31,25,0.4), 0 0 0 1px rgba(255,255,255,0.6) inset',
-        }}
-        title="Dealer button"
-      >
-        D
-      </div>
     </div>
   )
 }
