@@ -25,7 +25,7 @@ import { newlyEarned, markAchievementsSeen, type Achievement } from './lib/achie
 import { pointsState, recordDailyResult, dailyResult, claimNamedBonus, verifyEconomyState, equipped } from './lib/points'
 import { dayKey, recordLadderComplete } from './lib/daily'
 import { dailyLadderSeeds, ladderProgress, saveLadderProgress, clearLadderProgress } from './lib/dailyLadder'
-import { submitDailyScore, fetchIncomingRequests, getHandle } from './lib/leaderboard'
+import { syncDailyScores, fetchIncomingRequests, getHandle } from './lib/leaderboard'
 import {
   createDuel,
   createOpenDuel,
@@ -185,7 +185,15 @@ export default function App() {
         recordDailyResult(day, score, timeMs)
         recordLadderComplete()
         clearLadderProgress()
-        if (user) submitDailyScore(user.id, day, score, timeMs)
+        // Publish via syncDailyScores, not a bare submitDailyScore: it only marks
+        // a day as submitted once the write succeeds, so a failed or offline post
+        // is retried on the next sync instead of being silently lost. Refresh the
+        // board afterwards so the new row shows without waiting out the cache.
+        if (user) {
+          syncDailyScores(user.id)
+            .then(() => setDailyVersion((v) => v + 1))
+            .catch(() => {})
+        }
         setLadderRun(null)
         setLadderResult({ score, total: seeds.length })
         haptic('celebrate')
@@ -268,6 +276,26 @@ export default function App() {
   // pull + merge on sign-in
   useEffect(() => {
     if (user) handleSyncNow()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
+
+  // Flush completed-but-unpublished ladder results on app open and whenever the
+  // tab regains focus. Covers a daily finished while signed out (it posts once
+  // they sign in) and a post that failed while offline, so a finished run can't
+  // sit in localStorage indefinitely without reaching the leaderboard.
+  useEffect(() => {
+    if (!user) return
+    const uid = user.id
+    const flush = () =>
+      syncDailyScores(uid)
+        .then(() => setDailyVersion((v) => v + 1))
+        .catch(() => {})
+    flush()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') flush()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
 

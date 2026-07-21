@@ -157,6 +157,17 @@ const SUBMITTED_KEY = 'lt-daily-submitted'
 const submittedMap = (): Record<string, string> => {
   try { return JSON.parse(localStorage.getItem(SUBMITTED_KEY) ?? '{}') } catch { return {} }
 }
+/**
+ * True when a finished ladder result for `day` has not reached the leaderboard
+ * yet (never signed in, offline, or a failed write). Drives the "not posted"
+ * hint so a missing row is visible instead of silently absent.
+ */
+export function dailyPublishPending(day: string = dayKey()): boolean {
+  const r = dailyResults()[day]
+  if (!r?.completed) return false
+  return !submittedMap()[day]
+}
+
 export async function syncDailyScores(userId: string): Promise<void> {
   if (!supabase) return
   // Only upsert results whose published form has changed, turning a per-push

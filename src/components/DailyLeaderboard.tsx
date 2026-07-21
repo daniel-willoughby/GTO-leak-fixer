@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Trophy } from 'lucide-react'
-import { fetchDailyLeaderboard, type DailyRow } from '../lib/leaderboard'
+import { Trophy, CloudOff } from 'lucide-react'
+import { fetchDailyLeaderboard, dailyPublishPending, type DailyRow } from '../lib/leaderboard'
 import { dayKey } from '../lib/daily'
 import { LADDER_LEN } from '../lib/dailyLadder'
 import { Avatar, Flair } from './Avatar'
@@ -23,11 +23,26 @@ export default function DailyLeaderboard({ configured, userId, version }: Props)
 
   if (!configured) return null
 
+  // Today's run finished but never reached the server (signed out, or a failed
+  // post). Say so, otherwise the row is just silently missing and the board
+  // looks broken.
+  const pending = dailyPublishPending(dayKey())
+
   return (
     <section className="mt-4 flex flex-col gap-2">
       <h2 className="flex items-center gap-1.5 px-1 text-xs uppercase tracking-wide text-ink3">
         <Trophy size={13} className="text-clay" /> Today's leaderboard
       </h2>
+      {pending && (
+        <div className="flex items-start gap-2 rounded-lg border border-clay/30 bg-clay/[0.07] px-3 py-2 text-xs text-ink2">
+          <CloudOff size={13} className="mt-0.5 shrink-0 text-clay" />
+          <span>
+            {userId
+              ? "Your score today hasn't posted yet. It will publish automatically when you reconnect."
+              : 'Your score today is saved on this device only. Sign in to post it to the leaderboard.'}
+          </span>
+        </div>
+      )}
       <div className="panel flex flex-col divide-y divide-line overflow-hidden">
         {rows === null ? (
           <p className="p-4 text-center text-sm text-ink3">Loading…</p>
