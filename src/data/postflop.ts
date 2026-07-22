@@ -1,7 +1,7 @@
 // Postflop nodes, real TexasSolver output, flop + turn streets.
 // See solver-spike/transform-multistreet.mjs for how these are produced.
 
-import { parseCards, type Card } from '../lib/cards'
+import { parseCards, suitAwareLabel, baseLabel, type Card } from '../lib/cards'
 import type { Position } from './ranges'
 import rawNodes from './street-nodes.json'
 
@@ -94,8 +94,19 @@ export interface NodeStrategy {
   primary: string
 }
 
-export function strategyFor(node: StreetNode, label: string): NodeStrategy | null {
-  const freqs = node.strategy[label]
+/**
+ * Strategy for a hand at this node.
+ *
+ * Pass the actual dealt cards where they're known: on a flushy board the corpus
+ * stores separate buckets for combos that make/draw the flush, and looking up
+ * the bare 169 label there would hand back the rank-class average (the bug that
+ * told a player to fold a made flush 75% of the time). Falls back to the plain
+ * label for rainbow boards, and for nodes built before suit-aware aggregation,
+ * so old and new corpora both work.
+ */
+export function strategyFor(node: StreetNode, label: string, hole?: [Card, Card]): NodeStrategy | null {
+  const suitKey = hole ? suitAwareLabel(hole, parseCards(node.board)) : null
+  const freqs = (suitKey ? node.strategy[suitKey] : undefined) ?? node.strategy[label]
   if (!freqs) return null
   let bi = 0
   freqs.forEach((f, i) => (f > freqs[bi] ? (bi = i) : null))
@@ -104,7 +115,12 @@ export function strategyFor(node: StreetNode, label: string): NodeStrategy | nul
 
 export const boardCards = (node: StreetNode): Card[] => parseCards(node.board)
 
-export const nodeLabels = (node: StreetNode): string[] => Object.keys(node.strategy)
+/**
+ * The 169-hand labels this node has strategy for. Suit-aware keys are collapsed
+ * back to their base label and de-duplicated, so callers that pick a hand to
+ * deal keep seeing plain labels ("87s"), never "87s|32".
+ */
+export const nodeLabels = (node: StreetNode): string[] => [...new Set(Object.keys(node.strategy).map(baseLabel))]
 
 // Convenience: parse a 2-char card string like "Ah" → Card
 export const parseCard = (s: string): Card => parseCards(s)[0]

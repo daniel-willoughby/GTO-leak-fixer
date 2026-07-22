@@ -25,6 +25,7 @@ import {
   type StreetNode,
 } from '../data/postflop'
 import { describeHand, type Tier } from './flopEval'
+import { seededRng } from './rng'
 import {
   randomFreeplayFlopNode,
   turnContinuation,
@@ -367,7 +368,11 @@ export function spotFromSeed(seed: SpotSeed): Spot | null {
     ALL_STREET_NODES.find((n) => n.board === seed.board)
   if (!node) return null
   const board = boardCards(node)
-  const strat = strategyFor(node, label)
+  // Deal deterministically. Suit-aware strategy means the exact suits can decide
+  // the answer on a flushy board, so every client must be dealt the same combo
+  // or the daily would grade differently from device to device.
+  const cards = dealHandForLabel(label, board, seededRng(`${seed.board}|${label}|${node.street}`))
+  const strat = strategyFor(node, label, cards)
   if (!strat) return null
   // Rebuild the betting history so the hand-replay animation can play (buildReplay
   // needs history + board). Flop nodes carry only the preflop lines, so append the
@@ -378,7 +383,7 @@ export function spotFromSeed(seed: SpotSeed): Spot | null {
   return {
     mode: 'postflop',
     heroPos: node.hero,
-    cards: dealHandForLabel(label, board),
+    cards,
     label,
     correct: strat.primary as Action,
     actions: node.actions as Action[],
@@ -396,7 +401,7 @@ function generatePostflopSpot(bundledOnly = false): Spot {
   const board = boardCards(node)
   const label = randOf(nodeLabels(node))
   const cards = dealHandForLabel(label, board)
-  const strat = strategyFor(node, label)!
+  const strat = strategyFor(node, label, cards)!
   const correct = strat.primary as Action
   const handState: HandState = {
     heroCards: cards,
@@ -458,10 +463,10 @@ export function generateFacingSpot(): Spot | null {
   const labels = nodeLabels(node)
   if (!labels.length) return null
   const label = randOf(labels)
-  const strat = strategyFor(node, label)
-  if (!strat) return null
   const board = boardCards(node)
   const cards = dealHandForLabel(label, board)
+  const strat = strategyFor(node, label, cards)
+  if (!strat) return null
   const isDefense = node.actions[0] === 'fold' // ['fold','call','raise']
   return {
     mode: 'postflop',
@@ -508,7 +513,7 @@ function generateTurnSpot(bundledOnly = false): Spot {
   const board = boardCards(node)
   const label = randOf(nodeLabels(node))
   const cards = dealHandForLabel(label, board)
-  const strat = strategyFor(node, label)!
+  const strat = strategyFor(node, label, cards)!
   return {
     mode: 'postflop',
     heroPos: node.hero,
@@ -576,12 +581,12 @@ const fishDonks = (state: HandState): boolean => state.villain === 'fish' && Mat
 export function advanceToFlop(heroLabel: string, heroCards: [Card, Card], villain: VillainStyle = 'gto'): Spot | null {
   const used = new Set(heroCards.map((c) => c.rank + c.suit))
   const candidates = FLOP_NODES.filter(
-    (n) => !!strategyFor(n, heroLabel) && boardCards(n).every((c) => !used.has(c.rank + c.suit)),
+    (n) => !!strategyFor(n, heroLabel, heroCards) && boardCards(n).every((c) => !used.has(c.rank + c.suit)),
   )
   if (!candidates.length) return null
   const node = randOf(candidates)
   const board = boardCards(node)
-  const strat = strategyFor(node, heroLabel)!
+  const strat = strategyFor(node, heroLabel, heroCards)!
   const handState: HandState = {
     heroCards,
     heroLabel,
@@ -610,7 +615,7 @@ export function advanceToFlop(heroLabel: string, heroCards: [Card, Card], villai
 /** Whether a continuation hand can proceed from preflop to the flop. */
 export function canStartFlop(heroLabel: string, heroCards: [Card, Card]): boolean {
   const used = new Set(heroCards.map((c) => c.rank + c.suit))
-  return FLOP_NODES.some((n) => !!strategyFor(n, heroLabel) && boardCards(n).every((c) => !used.has(c.rank + c.suit)))
+  return FLOP_NODES.some((n) => !!strategyFor(n, heroLabel, heroCards) && boardCards(n).every((c) => !used.has(c.rank + c.suit)))
 }
 
 const boardStr = (cards: Card[]): string => cards.map((c) => c.rank + c.suit).join('')
@@ -694,14 +699,14 @@ function streetResolution(state: HandState, heroAction: Action): string[] {
 
 function advanceToTurn(state: HandState, heroAction: Action): Spot | null {
   const flop = state.flopNode.board // 6 chars
-  const turnNodes = turnNodesForFlop(flop).filter((n) => strategyFor(n, state.heroLabel))
+  const turnNodes = turnNodesForFlop(flop).filter((n) => strategyFor(n, state.heroLabel, state.heroCards))
   if (!turnNodes.length) return null
   // prefer a turn that also has river data, so the hand can run to the river
   const riverCapable = turnNodes.filter((n) => hasRiver(n.board))
   const node = randOf(riverCapable.length ? riverCapable : turnNodes)
   const turnCard = parseCards(node.board.slice(6))[0]
   const board = [...state.board, turnCard]
-  const strat = strategyFor(node, state.heroLabel)!
+  const strat = strategyFor(node, state.heroLabel, state.heroCards)!
   const newState: HandState = {
     ...state,
     history: [...state.history, ...streetResolution(state, heroAction), `Turn: ${node.board.slice(6)}`],
@@ -728,12 +733,12 @@ function advanceToTurn(state: HandState, heroAction: Action): Spot | null {
 
 function advanceToRiver(state: HandState, heroAction: Action): Spot | null {
   const turnBoard = boardStr(state.board) // 8 chars
-  const rivers = riverNodesForBoard(turnBoard).filter((n) => strategyFor(n, state.heroLabel))
+  const rivers = riverNodesForBoard(turnBoard).filter((n) => strategyFor(n, state.heroLabel, state.heroCards))
   if (!rivers.length) return null
   const node = randOf(rivers)
   const riverCard = parseCards(node.board.slice(8))[0]
   const board = [...state.board, riverCard]
-  const strat = strategyFor(node, state.heroLabel)!
+  const strat = strategyFor(node, state.heroLabel, state.heroCards)!
   const newState: HandState = {
     ...state,
     history: [...state.history, ...streetResolution(state, heroAction), `River: ${node.board.slice(8)}`],
@@ -765,7 +770,7 @@ function continueHand(state: HandState): Spot {
   const node = randOf(turnNodes)
   const turnCard = parseCards(node.board.slice(6))[0]
   const board = [...state.board, turnCard]
-  const strat = strategyFor(node, state.heroLabel) ?? strategyFor(node, randOf(nodeLabels(node)))!
+  const strat = strategyFor(node, state.heroLabel, state.heroCards) ?? strategyFor(node, randOf(nodeLabels(node)))!
   const correct = strat.primary as Action
   const newState: HandState = { ...state, street: 'turn', board }
   return {

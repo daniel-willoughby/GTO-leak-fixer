@@ -29,6 +29,41 @@ export function handLabel(a: Card, b: Card): string {
   return `${hi.rank}${lo.rank}${suited}`
 }
 
+/**
+ * Suit-aware strategy key for a specific two-card combo on a specific board.
+ *
+ * The solver aggregates strategy per 169-class, which is right on a rainbow
+ * board but wrong on a flushy one: it would average a made flush in with the
+ * non-flush combos of the same rank class (8h7h on a monotone heart board is
+ * not 87s). The corpus therefore sub-buckets those by the board's flush suit,
+ * keyed "<169>|<boardSuitCount><holeSuitCount>", and this recomputes that key
+ * from the dealt cards.
+ *
+ * MUST match `suitAwareLabel` in solver-spike/solve-rich.mjs and
+ * transform-allseats.mjs exactly, including the 's','h','d','c' scan order that
+ * breaks ties. Boards with no suit appearing twice get no suffix, i.e. the
+ * plain 169 label.
+ */
+export function suitAwareLabel(hole: [Card, Card], board: Card[]): string {
+  const base = handLabel(hole[0], hole[1])
+  if (!board.length) return base
+  const counts: Partial<Record<Suit, number>> = {}
+  for (const c of board) counts[c.suit] = (counts[c.suit] ?? 0) + 1
+  const holeSuits = [hole[0].suit, hole[1].suit]
+  let best: { b: number; h: number; tot: number } | null = null
+  for (const s of SUITS) {
+    const b = counts[s] ?? 0
+    if (b < 2) continue // this suit cannot make a flush
+    const h = holeSuits.filter((x) => x === s).length
+    const tot = b + h
+    if (!best || tot > best.tot) best = { b, h, tot }
+  }
+  return best ? `${base}|${best.b}${best.h}` : base
+}
+
+/** Strip any suit-aware suffix back to the plain 169 label ("87s|32" → "87s"). */
+export const baseLabel = (key: string): string => (key.includes('|') ? key.slice(0, key.indexOf('|')) : key)
+
 /** Number of combos a 169-hand label represents (pair=6, suited=4, offsuit=12). */
 export function comboCount(label: string): number {
   if (label.length === 2) return 6
@@ -66,12 +101,20 @@ export function combosForLabel(label: string): [Card, Card][] {
 
 const sameCard = (a: Card, b: Card) => a.rank === b.rank && a.suit === b.suit
 
-/** Deal a random concrete hand for `label`, avoiding any cards in `exclude`. */
-export function dealHandForLabel(label: string, exclude: Card[] = []): [Card, Card] {
+/**
+ * Deal a concrete hand for `label`, avoiding any cards in `exclude`.
+ *
+ * `rand` defaults to Math.random. Pass a seeded generator where every client
+ * must deal the SAME combo: with suit-aware strategy the exact suits can change
+ * the solver's answer on a flushy board (a made flush plays nothing like the
+ * other suited combos of its class), so the daily ladder can no longer leave
+ * this to chance.
+ */
+export function dealHandForLabel(label: string, exclude: Card[] = [], rand: () => number = Math.random): [Card, Card] {
   const combos = combosForLabel(label)
   const valid = combos.filter(([a, b]) => !exclude.some((e) => sameCard(e, a) || sameCard(e, b)))
   const pool = valid.length ? valid : combos
-  return pool[Math.floor(Math.random() * pool.length)]
+  return pool[Math.floor(rand() * pool.length)]
 }
 
 /** Parse a board string like "Qs7h2c" into cards. */
