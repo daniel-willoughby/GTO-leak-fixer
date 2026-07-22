@@ -158,6 +158,25 @@ const submittedMap = (): Record<string, string> => {
   try { return JSON.parse(localStorage.getItem(SUBMITTED_KEY) ?? '{}') } catch { return {} }
 }
 /**
+ * Today's board, falling back to the most recent day that actually has scores.
+ *
+ * The ladder day is a shared UTC date, so the board empties at 00:00 UTC (1am
+ * British summer time). With a small player base that means it reads as broken
+ * for most of the day: everyone's scores from last night are on yesterday's
+ * date and today's is empty until someone plays. Showing the latest populated
+ * day instead keeps it alive, and the caller labels which day it is.
+ */
+export async function fetchLatestDailyBoard(limit = 50): Promise<{ day: string; rows: DailyRow[] }> {
+  const today = dayKey()
+  const rows = await fetchDailyLeaderboard(today, limit)
+  if (rows.length || !supabaseConfigured || !supabase) return { day: today, rows }
+  const { data } = await supabase.from('daily_scores').select('day').order('day', { ascending: false }).limit(1)
+  const latest = (data?.[0] as { day?: string } | undefined)?.day
+  if (!latest || latest === today) return { day: today, rows: [] }
+  return { day: latest, rows: await fetchDailyLeaderboard(latest, limit) }
+}
+
+/**
  * True when a finished ladder result for `day` has not reached the leaderboard
  * yet (never signed in, offline, or a failed write). Drives the "not posted"
  * hint so a missing row is visible instead of silently absent.

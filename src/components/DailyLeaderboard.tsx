@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Trophy, CloudOff } from 'lucide-react'
-import { fetchDailyLeaderboard, dailyPublishPending, type DailyRow } from '../lib/leaderboard'
-import { dayKey } from '../lib/daily'
+import { fetchLatestDailyBoard, dailyPublishPending, type DailyRow } from '../lib/leaderboard'
+import { dayKey, prevDay } from '../lib/daily'
 import { LADDER_LEN } from '../lib/dailyLadder'
 import { Avatar, Flair } from './Avatar'
 
@@ -15,13 +15,23 @@ interface Props {
 /** Compact today's-leaderboard shown beneath the daily challenge card. */
 export default function DailyLeaderboard({ configured, userId, version }: Props) {
   const [rows, setRows] = useState<DailyRow[] | null>(null)
+  const [shownDay, setShownDay] = useState<string>(dayKey())
 
   useEffect(() => {
     if (!configured) return
-    fetchDailyLeaderboard(dayKey()).then(setRows)
+    fetchLatestDailyBoard().then(({ day, rows }) => {
+      setShownDay(day)
+      setRows(rows)
+    })
   }, [configured, version])
 
   if (!configured) return null
+
+  // The ladder day is UTC, so today's board is empty until someone plays after
+  // 00:00 UTC. Say which day is on screen when it isn't today's.
+  const today = dayKey()
+  const heading =
+    shownDay === today ? "Today's leaderboard" : shownDay === prevDay(today) ? "Yesterday's leaderboard" : `Leaderboard · ${shownDay}`
 
   // Today's run finished but never reached the server (signed out, or a failed
   // post). Say so, otherwise the row is just silently missing and the board
@@ -31,7 +41,7 @@ export default function DailyLeaderboard({ configured, userId, version }: Props)
   return (
     <section className="mt-4 flex flex-col gap-2">
       <h2 className="flex items-center gap-1.5 px-1 text-xs uppercase tracking-wide text-ink3">
-        <Trophy size={13} className="text-clay" /> Today's leaderboard
+        <Trophy size={13} className="text-clay" /> {heading}
       </h2>
       {pending && (
         <div className="flex items-start gap-2 rounded-lg border border-clay/30 bg-clay/[0.07] px-3 py-2 text-xs text-ink2">
