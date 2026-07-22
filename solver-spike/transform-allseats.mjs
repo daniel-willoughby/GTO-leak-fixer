@@ -27,6 +27,28 @@ const label169 = (combo) => {
   return hi[0] + lo[0] + (a[1] === b[1] ? 's' : 'o')
 }
 
+// Suit-aware label so a made flush / flush draw isn't averaged in with the
+// non-flush combos of its rank class on a flushy board (must match the identical
+// helper in solve-rich.mjs and the app). Key "<169>|<boardSuit><holeSuit>", no
+// suffix on rainbow/dry boards. curBoard is set per street in the extractor.
+let curBoard = ''
+function suitAwareLabel(combo, boardStr = curBoard) {
+  const base = label169(combo)
+  if (!boardStr) return base
+  const bc = {}
+  for (let i = 1; i < boardStr.length; i += 2) bc[boardStr[i]] = (bc[boardStr[i]] || 0) + 1
+  const hs = [combo[1], combo[3]]
+  let best = null
+  for (const s of ['s', 'h', 'd', 'c']) {
+    const b = bc[s] || 0
+    if (b < 2) continue
+    const h = hs.filter((x) => x === s).length
+    const tot = b + h
+    if (!best || tot > best.tot) best = { b, h, tot }
+  }
+  return best ? `${base}|${best.b}${best.h}` : base
+}
+
 const SIZE_TAGS = ['bet33', 'bet75']
 const SIZE_FRAC = [0.33, 0.75]
 const ALLIN_MIN = 25
@@ -51,7 +73,7 @@ function aggregateBet(node) {
   const last = outActions.length - 1
   const acc = new Map()
   for (const [combo, freqs] of Object.entries(strategy)) {
-    const lab = label169(combo)
+    const lab = suitAwareLabel(combo)
     const row = acc.get(lab) ?? { sums: new Array(outActions.length).fill(0), n: 0 }
     row.sums[0] += freqs[checkIdx] ?? 0
     sizing.forEach((b, k) => (row.sums[k + 1] += freqs[b.i] ?? 0))
@@ -74,7 +96,7 @@ function aggregateFacing(node) {
   const out = {}
   const acc = new Map()
   for (const [combo, freqs] of Object.entries(strategy)) {
-    const lab = label169(combo)
+    const lab = suitAwareLabel(combo)
     const row = acc.get(lab) ?? { f: 0, c: 0, r: 0, n: 0 }
     row.f += freqs[foldIdx] ?? 0
     row.c += freqs[callIdx] ?? 0
@@ -106,6 +128,7 @@ export function extractNodes(opener, board, tree) {
   const out = []
   const toks = boardTokens(board)
   const pre = [`${opener} opens 2.5bb`, 'BB calls', `Flop: ${toks.join(' ')}`]
+  curBoard = board // flop nodes below aggregate against the 3-card board
 
   // 1) OOP donk — BB acts first on the flop
   if (tree?.strategy) {
@@ -139,6 +162,7 @@ function addTurns(out, opener, board, src, history, checkLine = false) {
   if (!src?.dealcards) return
   for (const raw of Object.keys(src.dealcards).slice(0, 8)) {
     const tc = normaliseCard(raw)
+    curBoard = board + tc // turn nodes aggregate against the 4-card board
     const turnIp = src.dealcards[raw]?.childrens?.CHECK // BB checks turn → opener acts
     if (!turnIp?.strategy) continue
     const a = aggregateBet(turnIp)

@@ -33,6 +33,11 @@ const STACK = arg('stack', '97.5') // shallower stack → much smaller tree
 const SIZES = arg('sizes', 'lite')
 const TWO = { lite: ['flop'], mid: ['flop', 'turn'], rich: ['flop', 'turn', 'river'] }[SIZES] ?? ['flop']
 const TEST = process.argv.includes('--test')
+// Board stride: the full 400-board set across 4 matchups is 1600 solves, far more
+// than this dataset has ever held. `--every=N` takes an even 1-in-N slice so a
+// re-run reproduces the existing coverage in hours rather than days.
+const EVERY = Number(arg('every', '1'))
+const BOARD_SET = EVERY > 1 ? BOARDS.filter((_, i) => i % EVERY === 0) : BOARDS
 
 function buildInput(m, board, outName) {
   const cb = boardTokens(board).join(',')
@@ -132,7 +137,7 @@ if (TEST) {
     const accFile = join(here, `.accum-${m.id}.json`)
     let accum = existsSync(accFile) ? JSON.parse(readFileSync(accFile, 'utf8')) : []
     const have = new Set(accum.filter((n) => n.street === 'flop' && n.kind === 'cbet').map((n) => n.board))
-    for (const board of BOARDS) {
+    for (const board of BOARD_SET) {
       if (have.has(board)) {
         console.log(`skip ${m.id} ${board} (done)`)
         continue
