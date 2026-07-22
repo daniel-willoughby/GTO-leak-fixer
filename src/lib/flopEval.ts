@@ -15,6 +15,9 @@ export interface HandDesc {
 // value with Ace high = 14 .. 2 = 2 (rankIndex is A=0..2=12)
 const val = (c: Card) => 14 - rankIndex(c.rank)
 
+// spoken rank names by rankIndex, for phrasing kickers ("a king kicker")
+const RANK_NAME = ['ace', 'king', 'queen', 'jack', 'ten', 'nine', 'eight', 'seven', 'six', 'five', 'four', 'three', 'deuce']
+
 /** Highest top-card of a 5-in-a-row in `vals` (Ace plays high or low), else 0. */
 function bestStraight(vals: Iterable<number>): number {
   const s = new Set(vals)
@@ -152,6 +155,24 @@ export function describeHand(hole: [Card, Card], board: Card[]): HandDesc {
     if (m === topBoard) return withDraws('top pair', 'top', draws)
     if (m === botBoard) return withDraws('bottom pair', 'weak', draws)
     return withDraws('middle pair', 'weak', draws)
+  }
+
+  // ---- the BOARD already makes the hand (trips on AAA, a straight on the
+  // board, ...). Hero hasn't improved on it, but calling this "air" is wrong:
+  // the kickers still play, and on a trips board the kicker IS the decision
+  // (AAA + K beats AAA + 7). Say what hero actually holds so the explanation
+  // matches the hand.
+  if (cBoard >= 3) {
+    const best = Math.min(rankIndex(h1.rank), rankIndex(h2.rank)) // lowest index = highest card
+    // A straight or better on the board plays itself; kickers are irrelevant.
+    if (cBoard >= 4) return { text: 'the board, your cards add nothing', tier: 'weak' }
+    const name = RANK_NAME[best] ?? 'low'
+    // Only the top couple of kickers are worth much; below that it is a bluff-catcher.
+    const strongKicker = best <= rankIndex('Q')
+    return {
+      text: `trips on the board with ${/^[aeiou]/.test(name) ? 'an' : 'a'} ${name} kicker`,
+      tier: strongKicker ? 'top' : 'weak',
+    }
   }
 
   if (draws.length) return { text: draws.join(' and '), tier: 'draw' }
