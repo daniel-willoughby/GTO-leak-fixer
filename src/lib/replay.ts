@@ -140,16 +140,33 @@ export function buildReplay(spot: Spot): ReplayFrame[] | null {
   // opener opens
   chips.set(opener, { pos: opener, amount: openAmt, tone: 'bet' })
   push({ pos: opener, label: `opens ${openAmt}bb`, anim: 'chips' }, opener)
-  // fold everyone between opener and caller
+
+  // fold everyone between the opener and whoever acts next (the caller, or the
+  // 3-bettor in a 3-bet pot)
+  const threeBetLine = preflopLines.find((l) => /3-?bets?/i.test(l))
+  const threeBettor = threeBetLine ? (threeBetLine.split(/\s+/)[0] as Position) : null
+  const nextActor = threeBettor && POSITION_ORDER.includes(threeBettor) ? threeBettor : caller
   for (const p of order.slice(actionIndex(opener) + 1)) {
-    if (p === caller) break
+    if (p === nextActor) break
     if (p === hero || p === villain) continue
     folded.add(p)
     push({ pos: p, label: 'folds', anim: 'muck' }, p)
   }
-  // caller calls
-  chips.set(caller, { pos: caller, amount: openAmt, tone: 'bet' })
-  push({ pos: caller, label: 'calls', anim: 'chips' }, caller)
+
+  if (threeBettor && POSITION_ORDER.includes(threeBettor)) {
+    // 3-bet pot: the raise and the call back are both real money. Replaying it
+    // as a flat call would show a 5.5bb pot for a hand that is actually ~22bb,
+    // so the board would arrive with the wrong stack behind it.
+    const tbAmt = amountOf(threeBetLine!) || openAmt * 4
+    chips.set(threeBettor, { pos: threeBettor, amount: tbAmt, tone: 'bet' })
+    push({ pos: threeBettor, label: `3-bets ${tbAmt}bb`, anim: 'chips' }, threeBettor)
+    const flatCaller = threeBettor === opener ? caller : opener
+    chips.set(flatCaller, { pos: flatCaller, amount: tbAmt, tone: 'bet' })
+    push({ pos: flatCaller, label: 'calls', anim: 'chips' }, flatCaller)
+  } else {
+    chips.set(caller, { pos: caller, amount: openAmt, tone: 'bet' })
+    push({ pos: caller, label: 'calls', anim: 'chips' }, caller)
+  }
 
   // ---- streets -------------------------------------------------------------
   const streetLines = firstStreet === -1 ? [] : history.slice(firstStreet)

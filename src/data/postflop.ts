@@ -22,6 +22,10 @@ export interface StreetNode {
   betSizes: number[]
   actions: string[]
   strategy: Record<string, number[]>
+  /** How mixed this node is (1 - mean top-action frequency across the range).
+   *  0 = everyone plays one action, higher = a genuinely close decision. Only
+   *  present on suit-aware corpora; used to rank Tricky-mode spots. */
+  marginal?: number
   meta: { solver: string; generatedAt: string; approximate?: boolean }
 }
 

@@ -383,6 +383,7 @@ export function spotFromSeed(seed: SpotSeed): Spot | null {
   return {
     mode: 'postflop',
     heroPos: node.hero,
+    villainPos: node.villain,
     cards,
     label,
     correct: strat.primary as Action,
@@ -414,6 +415,7 @@ function generatePostflopSpot(bundledOnly = false): Spot {
   return {
     mode: 'postflop',
     heroPos: node.hero,
+    villainPos: node.villain,
     cards,
     label,
     correct,
@@ -517,6 +519,7 @@ function generateTurnSpot(bundledOnly = false): Spot {
   return {
     mode: 'postflop',
     heroPos: node.hero,
+    villainPos: node.villain,
     cards,
     label,
     correct: strat.primary as Action,
@@ -558,6 +561,7 @@ function makeFacingBetSpot(node: StreetNode, board: Card[], state: HandState): S
   return {
     mode: 'postflop',
     heroPos: node.hero,
+    villainPos: node.villain,
     cards: state.heroCards,
     label: state.heroLabel,
     correct,
@@ -600,6 +604,7 @@ export function advanceToFlop(heroLabel: string, heroCards: [Card, Card], villai
   return {
     mode: 'postflop',
     heroPos: node.hero,
+    villainPos: node.villain,
     cards: heroCards,
     label: heroLabel,
     correct: strat.primary as Action,
@@ -719,6 +724,7 @@ function advanceToTurn(state: HandState, heroAction: Action): Spot | null {
   return {
     mode: 'postflop',
     heroPos: node.hero,
+    villainPos: node.villain,
     cards: state.heroCards,
     label: state.heroLabel,
     correct: strat.primary as Action,
@@ -750,6 +756,7 @@ function advanceToRiver(state: HandState, heroAction: Action): Spot | null {
   return {
     mode: 'postflop',
     heroPos: node.hero,
+    villainPos: node.villain,
     cards: state.heroCards,
     label: state.heroLabel,
     correct: strat.primary as Action,
@@ -776,6 +783,7 @@ function continueHand(state: HandState): Spot {
   return {
     mode: 'postflop',
     heroPos: node.hero,
+    villainPos: node.villain,
     cards: state.heroCards,
     label: state.heroLabel,
     correct,

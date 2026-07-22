@@ -26,17 +26,41 @@ for (const f of files) {
   const size = statSync(join(DST, f)).size
   bytes += size
   const streets = nodes.reduce((m, n) => ((m[n.street] = (m[n.street] || 0) + 1), m), {})
-  boards.push({ board: f.replace('.json', ''), nodes: nodes.length, streets })
+  const marg = nodes.reduce((s, n) => s + (n.marginal ?? 0), 0) / (nodes.length || 1)
+  boards.push({
+    board: f.replace('.json', ''),
+    spot: nodes[0]?.spot ?? 'BTN_vs_BB_SRP',
+    potType: nodes[0]?.potType ?? 'srp',
+    nodes: nodes.length,
+    marginal: Math.round(marg * 1000) / 1000,
+    streets,
+  })
 }
 boards.sort((a, b) => a.board.localeCompare(b.board))
 writeFileSync(join(DST, 'index.json'), JSON.stringify({ generatedAt: new Date().toISOString().slice(0, 10), totalBytes: bytes, boards }))
 console.log(`promoted ${boards.length} shards (${(bytes / 1e6).toFixed(1)} MB) -> public/postflop-shards/`)
 
-// ---- web subset: every Nth board of the sorted list, for texture variety ----
+// ---- web subset ------------------------------------------------------------
+// Stratify by matchup, then take the most marginal boards within each. A plain
+// alphabetical stride would skew the PWA towards whichever matchup happens to
+// sort densely, and now that the corpus spans six matchups the browser build
+// should see all of them. Preferring high marginality means the boards that do
+// ship are the ones with real decisions on them rather than pure spots.
 rmSync(WEB, { recursive: true, force: true })
 mkdirSync(WEB, { recursive: true })
-const step = Math.max(1, Math.floor(boards.length / WEB_BOARDS))
-const webBoards = boards.filter((_, i) => i % step === 0).slice(0, WEB_BOARDS)
+const byMatchup = new Map()
+for (const b of boards) {
+  const arr = byMatchup.get(b.spot) ?? []
+  arr.push(b)
+  byMatchup.set(b.spot, arr)
+}
+const perMatchup = Math.max(1, Math.round(WEB_BOARDS / byMatchup.size))
+const webBoards = []
+for (const [, arr] of byMatchup) {
+  arr.sort((a, b) => b.marginal - a.marginal)
+  webBoards.push(...arr.slice(0, perMatchup))
+}
+webBoards.sort((a, b) => a.board.localeCompare(b.board))
 let webBytes = 0
 for (const b of webBoards) {
   copyFileSync(join(SRC, `${b.board}.json`), join(WEB, `${b.board}.json`))
