@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Spade, Target, GraduationCap, User, CalendarCheck, Swords, ShoppingBag, Volume2, VolumeX, SlidersHorizontal, Cloud, X, Coins, type LucideIcon } from 'lucide-react'
+import { Spade, Target, GraduationCap, User, CalendarCheck, Swords, ShoppingBag, Volume2, VolumeX, SlidersHorizontal, Cloud, X, Coins, ClipboardList, type LucideIcon } from 'lucide-react'
 import DrillScreen, { type LadderRun } from './components/DrillScreen'
 import { Wordmark } from './components/Wordmark'
 import DailyChallengeCard from './components/DailyChallengeCard'
@@ -26,6 +26,7 @@ import { pointsState, recordDailyResult, dailyResult, claimNamedBonus, verifyEco
 import { dayKey, recordLadderComplete } from './lib/daily'
 import { dailyLadderSeeds, ladderProgress, saveLadderProgress, clearLadderProgress } from './lib/dailyLadder'
 import { syncDailyScores, fetchIncomingRequests, getHandle } from './lib/leaderboard'
+import { logEvent, formatEventLog } from './lib/eventLog'
 import {
   createDuel,
   createOpenDuel,
@@ -122,6 +123,25 @@ export default function App() {
   )
   const [level, setLevelState] = useState<Level | null>(() => getLevel())
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [logCopied, setLogCopied] = useState(false)
+
+  // Hand the activity log to the clipboard for a bug report. Falls back to a
+  // download when the clipboard is unavailable (iOS standalone, insecure origin).
+  async function copyEventLog() {
+    const text = formatEventLog()
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'potking-activity-log.txt'
+      a.click()
+      URL.revokeObjectURL(url)
+    }
+    setLogCopied(true)
+    setTimeout(() => setLogCopied(false), 2000)
+  }
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('lt-theme') as Theme) || 'auto')
   // celebratory pop-up queue for freshly unlocked achievements
   const [toasts, setToasts] = useState<Achievement[]>([])
@@ -185,6 +205,7 @@ export default function App() {
         recordDailyResult(day, score, timeMs)
         recordLadderComplete()
         clearLadderProgress()
+        logEvent('daily.complete', { day, score, timeMs, signedIn: !!user })
         // Publish via syncDailyScores, not a bare submitDailyScore: it only marks
         // a day as submitted once the write succeeds, so a failed or offline post
         // is retried on the next sync instead of being silently lost. Refresh the
@@ -272,6 +293,18 @@ export default function App() {
       setSyncing(false)
     }
   }
+
+  // one line per app open, so a log always starts with where and when it ran
+  useEffect(() => {
+    logEvent('app.open', { day: dayKey(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone, offsetMin: -new Date().getTimezoneOffset() })
+  }, [])
+
+  // auth transitions: the difference between "finished signed out" and
+  // "finished signed in" decides whether a score publishes at all
+  useEffect(() => {
+    if (authLoading) return
+    logEvent(user ? 'auth.signedin' : 'auth.signedout')
+  }, [user?.id, authLoading])
 
   // pull + merge on sign-in
   useEffect(() => {
@@ -642,6 +675,19 @@ export default function App() {
                     </div>
                   </div>
                 )}
+              </div>
+              <p className="text-xs uppercase tracking-wide text-ink3 mb-2 mt-3">Diagnostics</p>
+              <div className="flex flex-col gap-1">
+                <button
+                  onClick={copyEventLog}
+                  className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-ink transition hover:bg-ink/5"
+                >
+                  <span className="flex flex-col items-start">
+                    <span className="font-semibold">{logCopied ? 'Copied' : 'Copy activity log'}</span>
+                    <span className="text-[11px] text-ink3">Recent app actions, for bug reports</span>
+                  </span>
+                  <ClipboardList size={15} className="text-ink3" />
+                </button>
               </div>
             </div>
           </>

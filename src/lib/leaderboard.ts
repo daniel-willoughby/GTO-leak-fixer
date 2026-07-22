@@ -4,6 +4,7 @@
 import { supabase, supabaseConfigured } from './supabase'
 import { equipped, earnedPoints, grantDailyWin, hasClaimedDailyWin, dailyWinsClaimed, dailyResults, type DailyResult } from './points'
 import { dayKey, prevDay } from './daily'
+import { logEvent } from './eventLog'
 import type { SyncSnapshot } from './sync'
 
 export interface LeaderRow {
@@ -169,11 +170,19 @@ const submittedMap = (): Record<string, string> => {
 export async function fetchLatestDailyBoard(limit = 50): Promise<{ day: string; rows: DailyRow[] }> {
   const today = dayKey()
   const rows = await fetchDailyLeaderboard(today, limit)
-  if (rows.length || !supabaseConfigured || !supabase) return { day: today, rows }
+  if (rows.length || !supabaseConfigured || !supabase) {
+    logEvent('board.fetch', { asked: today, shown: today, rows: rows.length })
+    return { day: today, rows }
+  }
   const { data } = await supabase.from('daily_scores').select('day').order('day', { ascending: false }).limit(1)
   const latest = (data?.[0] as { day?: string } | undefined)?.day
-  if (!latest || latest === today) return { day: today, rows: [] }
-  return { day: latest, rows: await fetchDailyLeaderboard(latest, limit) }
+  if (!latest || latest === today) {
+    logEvent('board.fetch', { asked: today, shown: today, rows: 0, latest: latest ?? null })
+    return { day: today, rows: [] }
+  }
+  const back = await fetchDailyLeaderboard(latest, limit)
+  logEvent('board.fetch', { asked: today, shown: latest, rows: back.length, fellBack: true })
+  return { day: latest, rows: back }
 }
 
 /**
@@ -210,6 +219,8 @@ export async function syncDailyScores(userId: string): Promise<void> {
     if (ok) { submitted[day] = sig(r); changed = true }
   }
   if (changed) localStorage.setItem(SUBMITTED_KEY, JSON.stringify(submitted))
+  const failed = results.filter(([, , ok]) => !ok).map(([day]) => day)
+  logEvent('daily.sync', { pending: pending.length, published: results.length - failed.length, ...(failed.length ? { failed } : {}) })
 }
 
 /** All-time leaderboard: top players by total Poker Points earned. */
@@ -264,14 +275,17 @@ export async function submitDailyScore(userId: string, day: string, score: numbe
   }
   // Server-validated path (clamps the score) first; direct write as a fallback.
   if (await publishViaFunction({ daily })) {
+    logEvent('daily.publish', { day, score, ok: true, via: 'function' })
     bustLeaderboardCache()
     return true
   }
   const { error } = await supabase.from('daily_scores').upsert(daily, { onConflict: 'user_id,day' })
   if (error) {
     console.error('[leaderboard] submitDailyScore failed:', error.message)
+    logEvent('daily.publish', { day, score, ok: false, error: error.message })
     return false
   }
+  logEvent('daily.publish', { day, score, ok: true, via: 'direct' })
   bustLeaderboardCache() // a fresh score should show up without waiting out the TTL
   return true
 }
